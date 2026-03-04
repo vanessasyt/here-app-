@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HERE — Meet in the moment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F5F0E8;
+    --ink: #1A1410;
+    --ink-soft: #3D3530;
+    --warm-mid: #8B7355;
+    --accent: #C4783A;
+    --accent-glow: rgba(196,120,58,0.15);
+    --match-green: #4A7C59;
+    --match-green-light: rgba(74,124,89,0.12);
+    --danger: #B85042;
+    --card-bg: rgba(255,252,245,0.92);
+    --border: rgba(139,115,85,0.2);
+    --shadow: 0 4px 32px rgba(26,20,16,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Phone shell */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--cream);
+    border-radius: 52px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06), inset 0 0 0 1px rgba(255,255,255,0.1);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .statusbar {
+    height: 50px;
+    background: var(--cream);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 28px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .statusbar .notch {
+    width: 120px;
+    height: 30px;
+    background: var(--ink);
+    border-radius: 20px;
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Screen container */
+  .screens {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    background: var(--cream);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s cubic-bezier(0.4,0,0.2,1), transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    transform: translateX(30px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .screen.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+
+  .screen.exit {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+
+  /* ===== SCREEN: CHECK IN ===== */
+  #screen-checkin {
+    background: var(--ink);
+    color: var(--cream);
+  }
+
+  .checkin-header {
+    padding: 28px 28px 16px;
+  }
+
+  .app-wordmark {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--cream);
+  }
+
+  .app-wordmark span {
+    color: var(--accent);
+  }
+
+  .checkin-sub {
+    font-size: 13px;
+    color: rgba(245,240,232,0.5);
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  .venue-card {
+    margin: 8px 20px;
+    background: rgba(255,252,245,0.06);
+    border: 1px solid rgba(245,240,232,0.12);
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .venue-card:hover { background: rgba(255,252,245,0.1); }
+  .venue-card.selected { background: var(--accent-glow); border-color: var(--accent); }
+
+  .venue-img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    background: linear-gradient(135deg, #2a2018 0%, #3d2e1c 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+  }
+
+  .venue-info { padding: 14px 16px; }
+  .venue-name { font-weight: 600; font-size: 16px; color: var(--cream); }
+  .venue-detail { font-size: 12px; color: rgba(245,240,232,0.5); margin-top: 3px; }
+  .venue-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 10px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .qr-section {
+    margin: 16px 20px 8px;
+    background: rgba(255,252,245,0.04);
+    border: 1px dashed rgba(245,240,232,0.2);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .qr-icon { font-size: 36px; margin-bottom: 10px; }
+  .qr-text { font-size: 13px; color: rgba(245,240,232,0.6); line-height: 1.5; }
+  .qr-btn {
+    margin-top: 14px;
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent);
+    color: white;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .qr-btn:active { transform: scale(0.96); opacity: 0.9; }
+
+  /* ===== SCREEN: ACTIVATE ===== */
+  #screen-activate {
+    background: var(--ink);
+    color: var(--cream);
+  }
+
+  .activate-header {
+    padding: 24px 28px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .back-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(245,240,232,0.08);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--cream);
+    transition: background 0.2s;
+  }
+  .back-btn:hover { background: rgba(245,240,232,0.14); }
+
+  .activate-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--cream);
+  }
+
+  .venue-pill {
+    margin: 20px 28px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255,252,245,0.08);
+    border-radius: 30px;
+    font-size: 13px;
+    color: rgba(245,240,232,0.8);
+  }
+
+  .toggle-zone {
+    margin: 28px 20px 0;
+    background: rgba(255,252,245,0.04);
+    border: 1px solid rgba(245,240,232,0.1);
+    border-radius: 24px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+
+  .toggle-label {
+    font-size: 13px;
+    color: rgba(245,240,232,0.5);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+  }
+
+  .big-toggle {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: rgba(245,240,232,0.08);
+    border: 2px solid rgba(245,240,232,0.2);
+    margin: 0 auto;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .big-toggle.on {
+    background: var(--match-green);
+    border-color: var(--match-green);
+    box-shadow: 0 0 0 8px rgba(74,124,89,0.15), 0 0 40px rgba(74,124,89,0.3);
+    transform: scale(1.05);
+  }
+
+  .toggle-status {
+    margin-top: 16px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--cream);
+  }
+
+  .toggle-desc {
+    font-size: 12px;
+    color: rgba(245,240,232,0.4);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .timer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 6px 14px;
+    background: rgba(74,124,89,0.15);
+    border: 1px solid rgba(74,124,89,0.3);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #6BBF7A;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.4s 0.3s;
+  }
+  .timer-badge.visible { opacity: 1; }
+
+  .invisible-btn {
+    margin: 20px 20px 0;
+    padding: 14px;
+    background: rgba(184,80,66,0.1);
+    border: 1px solid rgba(184,80,66,0.25);
+    border-radius: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .invisible-btn:hover { background: rgba(184,80,66,0.16); }
+  .invisible-btn .ib-label { font-size: 13px; color: rgba(245,240,232,0.7); }
+  .invisible-btn .ib-sub { font-size: 11px; color: rgba(245,240,232,0.3); margin-top: 3px; }
+
+  .cta-btn {
+    margin: 20px 20px 0;
+    padding: 16px;
+    background: var(--accent);
+    border-radius: 16px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    border: none;
+    font-family: inherit;
+    width: calc(100% - 40px);
+    transition: transform 0.15s, opacity 0.15s;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  .cta-btn.visible { opacity: 1; transform: translateY(0); transition: opacity 0.4s 0.5s, transform 0.4s 0.5s; }
+  .cta-btn:active { transform: scale(0.98); }
+
+  /* ===== SCREEN: DISCOVERY ===== */
+  #screen-discover {
+    background: var(--cream);
+  }
+
+  .discover-header {
+    padding: 20px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-shrink: 0;
+  }
+
+  .dh-left .venue-label {
+    font-size: 11px;
+    color: var(--warm-mid);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+  }
+
+  .dh-left .venue-name-lg {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+
+  .live-dot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--match-green);
+    font-weight: 500;
+  }
+
+  .pulse-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--match-green);
+    box-shadow: 0 0 0 0 rgba(74,124,89,0.5);
+    animation: pulse-ring 2s infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(74,124,89,0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(74,124,89,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,124,89,0); }
+  }
+
+  .matches-banner {
+    margin: 16px 20px 0;
+    padding: 14px 18px;
+    background: var(--match-green-light);
+    border: 1px solid rgba(74,124,89,0.25);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .mb-icon { font-size: 22px; }
+  .mb-text { flex: 1; }
+  .mb-title { font-size: 14px; font-weight: 600; color: var(--match-green); }
+  .mb-sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 14px 20px 0;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+
+  .filter-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .filter-chip.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--cream);
+  }
+
+  .profiles-grid {
+    padding: 14px 20px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .profile-card {
+    border-radius: 20px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 16px rgba(26,20,16,0.08);
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s;
+    position: relative;
+  }
+  .profile-card:active { transform: scale(0.97); }
+
+  .profile-card.open-to-meet {
+    box-shadow: 0 2px 16px rgba(26,20,16,0.08), 0 0 0 2px var(--match-green);
+  }
+
+  .pc-photo {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    position: relative;
+  }
+
+  .pc-photo-1 { background: linear-gradient(160deg, #d4a5a5 0%, #c47a6b 100%); }
+  .pc-photo-2 { background: linear-gradient(160deg, #a5c4d4 0%, #6b8fc4 100%); }
+  .pc-photo-3 { background: linear-gradient(160deg, #a5d4b5 0%, #6ba87c 100%); }
+  .pc-photo-4 { background: linear-gradient(160deg, #d4c4a5 0%, #c4a06b 100%); }
+
+  .verified-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px; height: 22px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  .open-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 8px;
+    background: var(--match-green);
+    border-radius: 20px;
+    font-size: 10px;
+    color: white;
+    font-weight: 600;
+  }
+
+  .pc-info { padding: 10px 12px 12px; }
+  .pc-name { font-weight: 600; font-size: 14px; color: var(--ink); }
+  .pc-meta { font-size: 11px; color: var(--warm-mid); margin-top: 2px; }
+
+  .pc-interests {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .interest-tag {
+    padding: 2px 7px;
+    background: var(--cream);
+    border-radius: 10px;
+    font-size: 10px;
+    color: var(--ink-soft);
+  }
+
+  .pc-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .btn-open {
+    flex: 1;
+    padding: 7px;
+    border-radius: 10px;
+    border: none;
+    background: var(--match-green);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-open:active { opacity: 0.8; }
+
+  .btn-pass {
+    width: 32px;
+    padding: 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-pass:hover { background: rgba(184,80,66,0.1); }
+
+  /* ===== SCREEN: REQUEST ===== */
+  #screen-request {
+    background: var(--cream);
+  }
+
+  .request-header {
+    padding: 20px 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+
+  .req-profile-pic {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #a5c4d4 0%, #6b8fc4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .req-name { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--ink); }
+  .req-meta { font-size: 13px; color: var(--warm-mid); margin-top: 2px; }
+
+  .req-section {
+    padding: 20px 24px 0;
+  }
+
+  .req-label {
+    font-size: 11px;
+    color: var(--warm-mid);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .req-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .req-option {
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .req-option:hover { border-color: var(--accent); background: var(--accent-glow); }
+  .req-option.selected { border-color: var(--accent); background: var(--accent-glow); }
+
+  .req-opt-icon { font-size: 22px; width: 36px; text-align: center; }
+  .req-opt-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .req-opt-sub { font-size: 12px; color: var(--warm-mid); margin-top: 2px; }
+
+  .place-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .place-opt {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+  }
+
+  .place-opt:hover { border-color: var(--accent); background: var(--accent-glow); }
+  .place-opt.selected { border-color: var(--accent); background: var(--accent-glow); font-weight: 500; color: var(--ink); }
+
+  .rate-notice {
+    margin: 16px 24px 0;
+    padding: 12px 14px;
+    background: rgba(139,115,85,0.08);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--warm-mid);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+
+  .send-btn {
+    margin: 20px 24px 0;
+    padding: 16px;
+    background: var(--ink);
+    border-radius: 16px;
+    text-align: center;
+    color: var(--cream);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    width: calc(100% - 48px);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .send-btn:active { transform: scale(0.98); }
+
+  /* ===== SCREEN: MATCH ===== */
+  #screen-match {
+    background: var(--ink);
+    color: var(--cream);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .match-sparkle {
+    font-size: 60px;
+    animation: float 3s ease-in-out infinite;
+    margin-bottom: 20px;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .match-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--cream);
+    line-height: 1.2;
+  }
+
+  .match-title em { color: var(--accent); font-style: normal; }
+
+  .match-sub {
+    font-size: 14px;
+    color: rgba(245,240,232,0.6);
+    margin-top: 12px;
+    line-height: 1.6;
+    padding: 0 32px;
+  }
+
+  .hint-card {
+    margin: 28px 24px 0;
+    padding: 20px;
+    background: rgba(196,120,58,0.12);
+    border: 1px solid rgba(196,120,58,0.3);
+    border-radius: 20px;
+    text-align: left;
+  }
+
+  .hint-label {
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .hint-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--cream);
+    line-height: 1.4;
+  }
+
+  .hint-icon { font-size: 16px; margin-right: 6px; }
+
+  .timer-zone {
+    margin: 20px 24px 0;
+    text-align: center;
+  }
+
+  .timer-ring {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 3px solid rgba(245,240,232,0.12);
+    border-top-color: var(--accent);
+    animation: spin 30s linear infinite;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .timer-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--cream);
+    animation: none;
+  }
+
+  .timer-desc {
+    font-size: 12px;
+    color: rgba(245,240,232,0.4);
+    margin-top: 10px;
+  }
+
+  .match-actions {
+    display: flex;
+    gap: 12px;
+    padding: 20px 24px 0;
+  }
+
+  .btn-report {
+    padding: 14px;
+    border: 1px solid rgba(184,80,66,0.3);
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(245,240,232,0.6);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    flex: 1;
+    transition: all 0.2s;
+  }
+  .btn-report:hover { background: rgba(184,80,66,0.1); color: var(--danger); }
+
+  .btn-found {
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    flex: 2;
+    transition: opacity 0.2s;
+  }
+  .btn-found:active { opacity: 0.85; }
+
+  /* ===== NAV ===== */
+  .bottom-nav {
+    height: 80px;
+    background: var(--cream);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 16px 12px;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  #screen-checkin ~ .bottom-nav,
+  #screen-activate ~ .bottom-nav,
+  #screen-match ~ .bottom-nav {
+    display: none;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 12px;
+    transition: background 0.2s;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+  }
+
+  .nav-item:hover { background: rgba(139,115,85,0.1); }
+  .nav-item.active .nav-icon { filter: none; opacity: 1; }
+  .nav-item .nav-icon { font-size: 22px; opacity: 0.45; }
+  .nav-item .nav-label { font-size: 10px; color: var(--warm-mid); font-weight: 500; opacity: 0.6; }
+  .nav-item.active .nav-label { opacity: 1; color: var(--ink); }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  /* ===== DARK SCREENS NAV ===== */
+  #screen-activate .bottom-nav { background: var(--ink); }
+
+  /* Overlay for dark screens */
+  .dark-nav {
+    height: 80px;
+    background: var(--ink);
+    border-top: 1px solid rgba(245,240,232,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 16px 12px;
+    flex-shrink: 0;
+  }
+
+  .dark-nav .nav-item:hover { background: rgba(245,240,232,0.06); }
+  .dark-nav .nav-label { color: rgba(245,240,232,0.4) !important; }
+  .dark-nav .nav-item.active .nav-label { color: var(--cream) !important; }
+
+  /* Demo screen label */
+  .demo-label {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: rgba(196,120,58,0.85);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    z-index: 100;
+    letter-spacing: 0.5px;
+  }
+
+  /* Profile tag colors */
+  .tag-music { background: rgba(100,80,160,0.1); color: #6450A0; }
+  .tag-wine { background: rgba(160,60,80,0.1); color: #A03C50; }
+  .tag-art { background: rgba(60,120,160,0.1); color: #3C78A0; }
+  .tag-travel { background: rgba(60,160,120,0.1); color: #3CA078; }
+  .tag-food { background: rgba(196,120,58,0.12); color: var(--accent); }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-in { animation: slideUp 0.4s ease forwards; }
+  .delay-1 { animation-delay: 0.1s; opacity: 0; }
+  .delay-2 { animation-delay: 0.2s; opacity: 0; }
+  .delay-3 { animation-delay: 0.3s; opacity: 0; }
+  .delay-4 { animation-delay: 0.4s; opacity: 0; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="statusbar">
+    <span>9:41</span>
+    <div class="notch"></div>
+    <span>●●● WiFi ▮▮▮</span>
+  </div>
+
+  <div class="screens">
+
+    <!-- SCREEN 1: Check-in / Venue -->
+    <div class="screen active" id="screen-checkin">
+      <div class="checkin-header">
+        <div class="app-wordmark">here<span>.</span></div>
+        <div class="checkin-sub">meet in the moment</div>
+      </div>
+
+      <div style="padding: 20px 20px 0; font-size: 11px; color: rgba(245,240,232,0.4); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Tonight near you</div>
+
+      <div class="venue-card selected" onclick="goTo('screen-activate')">
+        <div class="venue-img">🎻</div>
+        <div class="venue-info">
+          <div class="venue-name">Barbican Centre</div>
+          <div class="venue-detail">London Symphony Orchestra · Tonight 7:30pm</div>
+          <div class="venue-tag">✦ 14 members here now</div>
+        </div>
+      </div>
+
+      <div class="venue-card" onclick="goTo('screen-activate')">
+        <div class="venue-img">🍷</div>
+        <div class="venue-info">
+          <div class="venue-name">Terroirs Wine Bar</div>
+          <div class="venue-detail">Natural Wine · Live Jazz · Now</div>
+          <div class="venue-tag">✦ 6 members here now</div>
+        </div>
+      </div>
+
+      <div class="venue-card" onclick="goTo('screen-activate')">
+        <div class="venue-img">🎨</div>
+        <div class="venue-info">
+          <div class="venue-name">Tate Modern — Late</div>
+          <div class="venue-detail">Private view · Tonight until 10pm</div>
+          <div class="venue-tag">✦ 9 members here now</div>
+        </div>
+      </div>
+
+      <div class="qr-section">
+        <div class="qr-icon">⬛</div>
+        <div class="qr-text">Scan the venue QR code at the entrance to check in and activate your presence</div>
+        <button class="qr-btn" onclick="goTo('screen-activate')">Scan to Check In</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: Activate Visibility -->
+    <div class="screen" id="screen-activate">
+      <div class="activate-header">
+        <button class="back-btn" onclick="goTo('screen-checkin')">←</button>
+        <div class="activate-title">Barbican Centre</div>
+      </div>
+
+      <div class="venue-pill">🎻 London Symphony · Tonight · 14 here</div>
+
+      <div class="toggle-zone">
+        <div class="toggle-label">Your visibility</div>
+        <div class="big-toggle" id="mainToggle" onclick="toggleVisibility()">
+          <span id="toggleEmoji">👁️</span>
+        </div>
+        <div class="toggle-status" id="toggleStatus">Invisible</div>
+        <div class="toggle-desc" id="toggleDesc">Tap to become visible to other members at this venue</div>
+        <div class="timer-badge" id="timerBadge">⏱ Active for 30 min · resets on close</div>
+      </div>
+
+      <button class="cta-btn" id="seeMatchesBtn" onclick="goTo('screen-discover')" style="opacity:0;pointer-events:none;">See who's here →</button>
+
+      <div class="invisible-btn" onclick="handleInvisible()">
+        <div class="ib-label">🫥 Go invisible instantly</div>
+        <div class="ib-sub">One tap · removes you from all views</div>
+      </div>
+
+      <div style="margin: 16px 20px 0; padding: 14px 16px; background: rgba(245,240,232,0.04); border-radius: 14px; border: 1px solid rgba(245,240,232,0.08);">
+        <div style="font-size: 12px; color: rgba(245,240,232,0.5); line-height: 1.6;">
+          ⚡ <strong style="color:rgba(245,240,232,0.8);">Premium</strong> · Extend to 90 min visibility + multiple activations per day
+        </div>
+      </div>
+
+      <div class="dark-nav">
+        <button class="nav-item" onclick="goTo('screen-checkin')">
+          <span class="nav-icon">📍</span>
+          <span class="nav-label">Check In</span>
+        </button>
+        <button class="nav-item active">
+          <span class="nav-icon">👁️</span>
+          <span class="nav-label">Presence</span>
+        </button>
+        <button class="nav-item" onclick="goTo('screen-discover')">
+          <span class="nav-icon">✦</span>
+          <span class="nav-label">Discover</span>
+        </button>
+        <button class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Profile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: Discovery -->
+    <div class="screen" id="screen-discover">
+      <div class="discover-header">
+        <div class="dh-left">
+          <div class="venue-label">At this venue</div>
+          <div class="venue-name-lg">Barbican Centre</div>
+        </div>
+        <div class="live-dot">
+          <div class="pulse-dot"></div>
+          Live
+        </div>
+      </div>
+
+      <div class="matches-banner animate-in">
+        <div class="mb-icon">✨</div>
+        <div class="mb-text">
+          <div class="mb-title">2 matches also open to meet</div>
+          <div class="mb-sub">Mutual interest confirmed · tap to send a meet request</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-chip active">All here</button>
+        <button class="filter-chip">Open to meet</button>
+        <button class="filter-chip">Matches first</button>
+        <button class="filter-chip">After event</button>
+      </div>
+
+      <div class="profiles-grid">
+        <!-- Card 1: open + match -->
+        <div class="profile-card open-to-meet animate-in delay-1" onclick="goTo('screen-request')">
+          <div class="pc-photo pc-photo-1">
+            <span>👩</span>
+            <div class="verified-badge">✓</div>
+            <div class="open-badge">Open</div>
+          </div>
+          <div class="pc-info">
+            <div class="pc-name">Sophie, 29</div>
+            <div class="pc-meta">Architect · Matches you</div>
+            <div class="pc-interests">
+              <span class="interest-tag tag-music">Classical</span>
+              <span class="interest-tag tag-travel">Travel</span>
+            </div>
+            <div class="pc-actions">
+              <button class="btn-open" onclick="event.stopPropagation(); goTo('screen-request')">Say hi →</button>
+              <button class="btn-pass" onclick="event.stopPropagation()">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: open + match -->
+        <div class="profile-card open-to-meet animate-in delay-2" onclick="goTo('screen-request')">
+          <div class="pc-photo pc-photo-2">
+            <span>👨</span>
+            <div class="verified-badge">✓</div>
+            <div class="open-badge">Open</div>
+          </div>
+          <div class="pc-info">
+            <div class="pc-name">James, 31</div>
+            <div class="pc-meta">Designer · Matches you</div>
+            <div class="pc-interests">
+              <span class="interest-tag tag-art">Art</span>
+              <span class="interest-tag tag-food">Food</span>
+            </div>
+            <div class="pc-actions">
+              <button class="btn-open" onclick="event.stopPropagation(); goTo('screen-request')">Say hi →</button>
+              <button class="btn-pass" onclick="event.stopPropagation()">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: not open -->
+        <div class="profile-card animate-in delay-3">
+          <div class="pc-photo pc-photo-3">
+            <span>👩</span>
+            <div class="verified-badge">✓</div>
+          </div>
+          <div class="pc-info">
+            <div class="pc-name">Priya, 27</div>
+            <div class="pc-meta">Lawyer</div>
+            <div class="pc-interests">
+              <span class="interest-tag tag-wine">Wine</span>
+              <span class="interest-tag tag-music">Music</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--warm-mid);">Not open to meet yet</div>
+          </div>
+        </div>
+
+        <!-- Card 4: not open -->
+        <div class="profile-card animate-in delay-4">
+          <div class="pc-photo pc-photo-4">
+            <span>👨</span>
+            <div class="verified-badge">✓</div>
+          </div>
+          <div class="pc-info">
+            <div class="pc-name">Tom, 34</div>
+            <div class="pc-meta">Engineer</div>
+            <div class="pc-interests">
+              <span class="interest-tag tag-travel">Travel</span>
+              <span class="interest-tag tag-art">Art</span>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--warm-mid);">Not open to meet yet</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="goTo('screen-checkin')">
+          <span class="nav-icon">📍</span>
+          <span class="nav-label">Check In</span>
+        </button>
+        <button class="nav-item" onclick="goTo('screen-activate')">
+          <span class="nav-icon">👁️</span>
+          <span class="nav-label">Presence</span>
+        </button>
+        <button class="nav-item active">
+          <span class="nav-icon">✦</span>
+          <span class="nav-label">Discover</span>
+        </button>
+        <button class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Profile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: Meet Request -->
+    <div class="screen" id="screen-request">
+      <div class="request-header">
+        <button class="back-btn" style="background: var(--border); color: var(--ink);" onclick="goTo('screen-discover')">←</button>
+        <div class="req-profile-pic">👩</div>
+        <div>
+          <div class="req-name">Sophie, 29</div>
+          <div class="req-meta">Architect · Verified · Open to meet</div>
+        </div>
+      </div>
+
+      <div class="req-section">
+        <div class="req-label">How would you like to meet?</div>
+        <div class="req-options">
+          <div class="req-option selected" onclick="selectOption(this)">
+            <div class="req-opt-icon">👋</div>
+            <div>
+              <div class="req-opt-title">Can I say hi?</div>
+              <div class="req-opt-sub">A simple, low-pressure introduction</div>
+            </div>
+          </div>
+          <div class="req-option" onclick="selectOption(this)">
+            <div class="req-opt-icon">☕</div>
+            <div>
+              <div class="req-opt-title">Meet after the event</div>
+              <div class="req-opt-sub">Suggest a spot at this venue</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="req-section" id="placeSection" style="display:none;">
+        <div class="req-label">Suggest a spot</div>
+        <div class="place-options">
+          <div class="place-opt" onclick="selectPlace(this)">☕ <span>The bar · after the concert</span></div>
+          <div class="place-opt" onclick="selectPlace(this)">🎭 <span>Foyer · at interval (45 min)</span></div>
+          <div class="place-opt" onclick="selectPlace(this)">🚪 <span>Main entrance · after the show</span></div>
+        </div>
+      </div>
+
+      <div class="rate-notice">
+        <span>⚡</span>
+        <span>Meet rate limit: you have <strong>2 of 3</strong> daily requests remaining. Max 1 request per person per day.</span>
+      </div>
+
+      <button class="send-btn" onclick="goTo('screen-match')">Send meet request →</button>
+
+      <div style="margin: 12px 24px; font-size: 12px; color: var(--warm-mid); text-align: center; line-height: 1.5;">
+        Sophie will only be notified if she also marked you as open to meet. Two-step consent.
+      </div>
+
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="goTo('screen-checkin')">
+          <span class="nav-icon">📍</span>
+          <span class="nav-label">Check In</span>
+        </button>
+        <button class="nav-item" onclick="goTo('screen-activate')">
+          <span class="nav-icon">👁️</span>
+          <span class="nav-label">Presence</span>
+        </button>
+        <button class="nav-item active">
+          <span class="nav-icon">✦</span>
+          <span class="nav-label">Discover</span>
+        </button>
+        <button class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Profile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: Match Confirmed -->
+    <div class="screen" id="screen-match">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 24px 0;">
+        <div class="match-sparkle">✨</div>
+        <div class="match-title">It's a<br><em>mutual match</em></div>
+        <div class="match-sub">Sophie also marked you as open to meet. You've both consented — here's your identifying hint.</div>
+
+        <div class="hint-card" style="width: 100%;">
+          <div class="hint-label">Your identifying hint</div>
+          <div class="hint-text">
+            <span class="hint-icon">👗</span>Sophie is wearing a <em style="color:var(--accent);">blue linen dress</em> near the main bar, right side
+          </div>
+        </div>
+
+        <div class="timer-zone">
+          <div class="timer-ring">
+            <div class="timer-text" id="matchTimer">14:52</div>
+          </div>
+          <div class="timer-desc">Hint visible for 15 min · then auto-erased</div>
+        </div>
+      </div>
+
+      <div class="match-actions">
+        <button class="btn-report" onclick="goTo('screen-discover')">Report</button>
+        <button class="btn-found" onclick="goTo('screen-checkin')">✓ I found her!</button>
+      </div>
+
+      <div style="margin: 14px 24px 0; padding: 12px 16px; background: rgba(245,240,232,0.04); border-radius: 14px; border: 1px solid rgba(245,240,232,0.08); text-align: center;">
+        <div style="font-size: 12px; color: rgba(245,240,232,0.4); line-height: 1.5;">🔒 Screenshot blocked · Hint auto-erases in 15 min · Location never shared</div>
+      </div>
+
+      <div style="height: 28px;"></div>
+    </div>
+
+  </div><!-- /screens -->
+</div><!-- /phone -->
+
+<script>
+  let currentScreen = 'screen-checkin';
+  let isVisible = false;
+  let timerInterval;
+
+  function goTo(id) {
+    const current = document.querySelector('.screen.active');
+    const next = document.getElementById(id);
+    if (!next || current === next) return;
+
+    current.classList.add('exit');
+    current.classList.remove('active');
+
+    setTimeout(() => {
+      current.classList.remove('exit');
+    }, 350);
+
+    next.classList.add('active');
+    currentScreen = id;
+
+    if (id === 'screen-match') startMatchTimer();
+  }
+
+  function toggleVisibility() {
+    isVisible = !isVisible;
+    const toggle = document.getElementById('mainToggle');
+    const status = document.getElementById('toggleStatus');
+    const desc = document.getElementById('toggleDesc');
+    const badge = document.getElementById('timerBadge');
+    const cta = document.getElementById('seeMatchesBtn');
+    const emoji = document.getElementById('toggleEmoji');
+
+    if (isVisible) {
+      toggle.classList.add('on');
+      emoji.textContent = '✓';
+      status.textContent = 'Open to meet';
+      desc.textContent = 'You\'re visible to other members at Barbican Centre right now';
+      badge.classList.add('visible');
+      cta.style.opacity = '1';
+      cta.style.pointerEvents = 'auto';
+      cta.classList.add('visible');
+    } else {
+      toggle.classList.remove('on');
+      emoji.textContent = '👁️';
+      status.textContent = 'Invisible';
+      desc.textContent = 'Tap to become visible to other members at this venue';
+      badge.classList.remove('visible');
+      cta.style.opacity = '0';
+      cta.style.pointerEvents = 'none';
+    }
+  }
+
+  function handleInvisible() {
+    if (isVisible) {
+      isVisible = false;
+      const toggle = document.getElementById('mainToggle');
+      toggle.classList.remove('on');
+      document.getElementById('toggleEmoji').textContent = '👁️';
+      document.getElementById('toggleStatus').textContent = 'Invisible';
+      document.getElementById('toggleDesc').textContent = 'You\'ve gone invisible instantly';
+      document.getElementById('timerBadge').classList.remove('visible');
+      document.getElementById('seeMatchesBtn').style.opacity = '0';
+      document.getElementById('seeMatchesBtn').style.pointerEvents = 'none';
+    }
+  }
+
+  function selectOption(el) {
+    document.querySelectorAll('.req-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    const placeSection = document.getElementById('placeSection');
+    placeSection.style.display = el.querySelector('.req-opt-title').textContent.includes('after') ? 'block' : 'none';
+  }
+
+  function selectPlace(el) {
+    document.querySelectorAll('.place-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function startMatchTimer() {
+    let seconds = 14 * 60 + 52;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      seconds--;
+      if (seconds < 0) { clearInterval(timerInterval); return; }
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      const el = document.getElementById('matchTimer');
+      if (el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+  }
+</script>
+</body>
+</html>
