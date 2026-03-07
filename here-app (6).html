@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HERE — Meet in the moment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #F5F0E8; --ink: #1A1410; --ink-soft: #3D3530; --warm-mid: #8B7355;
+  --accent: #C4783A; --ag: rgba(196,120,58,0.15); --green: #4A7C59; --gl: rgba(74,124,89,0.12);
+  --danger: #B85042; --border: rgba(139,115,85,0.2);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'DM Sans',sans-serif; background:var(--ink); display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
+
+.phone { width:390px; height:844px; background:var(--cream); border-radius:52px; overflow:hidden; position:relative;
+  box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06),inset 0 0 0 1px rgba(255,255,255,0.1);
+  display:flex; flex-direction:column; }
+.sb { height:50px; background:var(--cream); display:flex; justify-content:space-between; align-items:center;
+  padding:16px 28px 0; font-size:12px; font-weight:600; color:var(--ink); flex-shrink:0; position:relative; z-index:20; }
+.sb .notch { width:120px; height:30px; background:var(--ink); border-radius:20px; position:absolute; top:8px; left:50%; transform:translateX(-50%); }
+.sb.dark { background:var(--ink); color:var(--cream); }
+
+.screens { flex:1; overflow:hidden; position:relative; }
+.screen { position:absolute; inset:0; background:var(--cream); display:flex; flex-direction:column;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.32s cubic-bezier(0.4,0,0.2,1), transform 0.32s cubic-bezier(0.4,0,0.2,1);
+  transform:translateX(28px); overflow-y:auto; overflow-x:hidden; }
+.screen.active { opacity:1; pointer-events:all; transform:translateX(0); }
+.screen.exit { opacity:0; transform:translateX(-28px); }
+.screen.dark { background:var(--ink); color:var(--cream); }
+
+/* NAV */
+.nav { height:80px; border-top:1px solid var(--border); display:flex; align-items:center;
+  justify-content:space-around; padding:0 8px 12px; flex-shrink:0; background:var(--cream); }
+.nav.dark { background:var(--ink); border-color:rgba(245,240,232,0.08); }
+.ni { display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+  padding:5px 10px; border-radius:12px; border:none; background:transparent; font-family:inherit; }
+.ni .ic { font-size:20px; opacity:0.38; transition:opacity 0.2s; }
+.ni .lb { font-size:10px; color:var(--warm-mid); font-weight:500; opacity:0.55; transition:opacity 0.2s; }
+.ni.on .ic, .ni.on .lb { opacity:1; }
+.ni.on .lb { color:var(--ink); }
+.nav.dark .lb { color:rgba(245,240,232,0.4) !important; }
+.nav.dark .ni.on .lb { color:var(--cream) !important; }
+
+/* SHARED */
+.bbtn { width:36px; height:36px; border-radius:50%; background:rgba(139,115,85,0.14); border:none;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--ink); flex-shrink:0; }
+.bbtn.lt { background:rgba(245,240,232,0.1); color:var(--cream); }
+.slabel { font-size:11px; color:var(--warm-mid); text-transform:uppercase; letter-spacing:1.5px; font-weight:600; margin-bottom:10px; }
+.chip { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:500; white-space:nowrap;
+  cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--ink-soft); font-family:inherit; transition:all 0.2s; }
+.chip.on { background:var(--ink); border-color:var(--ink); color:var(--cream); }
+.itag { padding:2px 7px; background:rgba(139,115,85,0.1); border-radius:8px; font-size:10px; color:var(--ink-soft); }
+.itag.music{background:rgba(100,80,160,0.1);color:#6450A0} .itag.wine{background:rgba(160,60,80,0.1);color:#A03C50}
+.itag.art{background:rgba(60,120,160,0.1);color:#3C78A0} .itag.travel{background:rgba(60,160,120,0.1);color:#3CA078}
+.itag.food{background:rgba(196,120,58,0.12);color:var(--accent)}
+.sbtn { padding:15px 24px; border-radius:16px; font-size:15px; font-weight:600; cursor:pointer; border:none;
+  font-family:inherit; width:calc(100% - 48px); margin:14px 24px 0; transition:transform 0.15s; color:var(--cream); background:var(--ink); }
+.sbtn.green { background:var(--green); }
+.sbtn.accent { background:var(--accent); }
+.sbtn:active { transform:scale(0.98); }
+.roption { padding:14px 16px; border:1.5px solid var(--border); border-radius:16px; cursor:pointer;
+  transition:all 0.2s; display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+.roption.on { border-color:var(--accent); background:var(--ag); }
+.roption.gon { border-color:var(--green); background:var(--gl); }
+.roption .ri { font-size:22px; width:34px; text-align:center; }
+.roption .rt { font-size:14px; font-weight:600; color:var(--ink); }
+.roption .rs { font-size:12px; color:var(--warm-mid); margin-top:2px; }
+
+/* MAP */
+.mapwrap { position:relative; border-radius:18px; overflow:hidden; height:190px; background:#ede7d9;
+  cursor:crosshair; border:2px solid var(--border); transition:border-color 0.3s; }
+.mapwrap.pinned { border-color:var(--green); }
+.mapsvg { width:100%; height:100%; display:block; }
+.mpin { position:absolute; transform:translate(-50%,-100%); font-size:30px; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+  pointer-events:none; display:none; }
+.mpin.show { display:block; }
+.mpulse { position:absolute; width:36px; height:36px; border-radius:50%; background:rgba(74,124,89,0.22);
+  transform:translate(-50%,-50%); animation:mpulse 1.5s ease-out infinite; display:none; pointer-events:none; }
+.mpulse.show { display:block; }
+@keyframes mpulse { 0%{transform:translate(-50%,-50%) scale(0.5);opacity:1} 100%{transform:translate(-50%,-50%) scale(2.2);opacity:0} }
+.mlbl { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+  background:rgba(26,20,16,0.76); color:white; font-size:11px; padding:5px 12px; border-radius:20px;
+  white-space:nowrap; font-weight:500; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+.mlbl.show { opacity:1; }
+.mhint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:6px; font-size:13px; color:var(--warm-mid); font-weight:500;
+  pointer-events:none; transition:opacity 0.3s; }
+.mhint.gone { opacity:0; }
+.pconf { margin:8px 0 0; padding:11px 14px; background:var(--gl); border:1px solid rgba(74,124,89,0.3);
+  border-radius:12px; font-size:13px; color:var(--green); font-weight:500; display:none; align-items:center; gap:8px; }
+.pconf.show { display:flex; }
+
+/* PCARD (profile card) */
+.pcard { border-radius:20px; overflow:hidden; background:white; box-shadow:0 2px 16px rgba(26,20,16,0.07); cursor:pointer; transition:transform 0.2s; }
+.pcard:active { transform:scale(0.97); }
+.pcard.open { box-shadow:0 2px 16px rgba(26,20,16,0.07),0 0 0 2px var(--green); }
+.pphoto { width:100%; height:150px; display:flex; align-items:center; justify-content:center; font-size:50px; position:relative; }
+.pp1{background:linear-gradient(160deg,#d4a5a5,#c47a6b)} .pp2{background:linear-gradient(160deg,#a5c4d4,#6b8fc4)}
+.pp3{background:linear-gradient(160deg,#a5d4b5,#6ba87c)} .pp4{background:linear-gradient(160deg,#d4c4a5,#c4a06b)}
+.vbadge { position:absolute; top:8px; right:8px; width:20px; height:20px; background:white; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
+.obadge { position:absolute; top:8px; left:8px; padding:3px 8px; background:var(--green); border-radius:20px; font-size:10px; color:white; font-weight:600; }
+.pinfo { padding:10px 12px 12px; }
+.pname { font-weight:600; font-size:14px; color:var(--ink); }
+.pmeta { font-size:11px; color:var(--warm-mid); margin-top:2px; }
+.pacts { display:flex; gap:6px; margin-top:8px; }
+.bopen { flex:1; padding:7px; border-radius:10px; border:none; background:var(--green); color:white; font-size:11px; font-weight:600; font-family:inherit; cursor:pointer; }
+.bpass { width:32px; padding:7px; border-radius:10px; border:1px solid var(--border); background:transparent; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+/* PULSE DOT */
+.pdot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:pring 2s infinite; }
+@keyframes pring { 0%{box-shadow:0 0 0 0 rgba(74,124,89,0.5)} 70%{box-shadow:0 0 0 8px rgba(74,124,89,0)} 100%{box-shadow:0 0 0 0 rgba(74,124,89,0)} }
+
+/* ANIMATIONS */
+@keyframes sup { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.ai { animation:sup 0.38s ease forwards; }
+.d1{animation-delay:0.08s;opacity:0} .d2{animation-delay:0.16s;opacity:0} .d3{animation-delay:0.24s;opacity:0} .d4{animation-delay:0.32s;opacity:0}
+@keyframes flt { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
+
+/* ====== EVENTS SCREEN ====== */
+.ehero { margin:14px 20px 0; border-radius:22px; overflow:hidden; height:160px; position:relative; cursor:pointer; }
+.ehero-bg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:64px; opacity:0.14; }
+.ehero-grad { position:absolute; inset:0; background:linear-gradient(to top,rgba(10,8,20,0.9) 0%,transparent 55%); }
+.ehero-members { position:absolute; top:14px; right:14px; padding:4px 10px; background:rgba(74,124,89,0.88); border-radius:20px; font-size:10px; color:white; font-weight:600; }
+.ehero-body { position:absolute; bottom:0; left:0; right:0; padding:16px 18px; }
+.ehero-spon { display:inline-block; padding:3px 9px; background:var(--accent); border-radius:20px; font-size:10px; color:white; font-weight:700; margin-bottom:5px; }
+.ehero-title { font-family:'DM Serif Display',serif; font-size:17px; color:white; line-height:1.25; }
+.ehero-meta { font-size:11px; color:rgba(255,255,255,0.6); margin-top:3px; }
+
+.eshead { padding:18px 20px 0; display:flex; justify-content:space-between; align-items:center; }
+.estitle { font-size:11px; color:var(--warm-mid); text-transform:uppercase; letter-spacing:1.5px; font-weight:600; }
+.esall { font-size:12px; color:var(--accent); font-weight:500; cursor:pointer; }
+
+.erow { display:flex; align-items:center; gap:14px; padding:12px 20px; cursor:pointer; transition:background 0.15s; }
+.erow:hover { background:rgba(139,115,85,0.05); }
+.erow + .erow { border-top:1px solid var(--border); }
+.eicon { width:50px; height:50px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+.ei1{background:linear-gradient(135deg,#1e1a30,#2d1e3a)} .ei2{background:linear-gradient(135deg,#1a2535,#243045)}
+.ei3{background:linear-gradient(135deg,#182a1e,#223828)} .ei4{background:linear-gradient(135deg,#2a1e10,#3a2c18)}
+.ei5{background:linear-gradient(135deg,#2a1418,#3a2020)}
+.einfo { flex:1; min-width:0; }
+.ename { font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.emeta { font-size:12px; color:var(--warm-mid); margin-top:2px; }
+.eright { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.emembers { font-size:11px; color:var(--green); font-weight:600; }
+.etime { font-size:11px; color:var(--warm-mid); }
+.espon { font-size:10px; color:var(--accent); font-weight:600; }
+
+/* ====== EVENT DETAIL SCREEN ====== */
+.edhero { height:200px; position:relative; display:flex; align-items:center; justify-content:center; font-size:70px; flex-shrink:0; }
+.edh1{background:linear-gradient(160deg,#1e1a30,#3d2060)} .edh2{background:linear-gradient(160deg,#1a2535,#2a4060)}
+.edh3{background:linear-gradient(160deg,#182a1e,#2a5030)} .edh4{background:linear-gradient(160deg,#2a1e10,#503818)}
+.edhero-back { position:absolute; top:16px; left:16px; }
+.edhero-spon { position:absolute; top:16px; right:16px; padding:4px 10px; background:var(--accent); border-radius:20px; font-size:10px; color:white; font-weight:700; }
+.edhero-members { position:absolute; bottom:16px; right:16px; padding:5px 12px; background:rgba(74,124,89,0.88); border-radius:20px; font-size:11px; color:white; font-weight:600; }
+
+/* ====== NEARBY SCREEN ====== */
+.loc-toggle { margin:16px 20px 0; padding:20px; background:white; border-radius:20px; box-shadow:0 2px 16px rgba(26,20,16,0.07); }
+.loc-ring { width:72px; height:72px; border-radius:50%; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; font-size:28px; border:2px solid var(--border); cursor:pointer; transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1); background:rgba(139,115,85,0.08); }
+.loc-ring.on { background:var(--green); border-color:var(--green); box-shadow:0 0 0 8px rgba(74,124,89,0.12),0 0 32px rgba(74,124,89,0.25); transform:scale(1.05); }
+.loc-status { text-align:center; font-size:15px; font-weight:600; color:var(--ink); }
+.loc-sub { text-align:center; font-size:12px; color:var(--warm-mid); margin-top:5px; line-height:1.5; }
+.loc-radius { display:flex; justify-content:center; gap:8px; margin-top:14px; }
+.rad-btn { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:500; border:1px solid var(--border); background:transparent; color:var(--ink-soft); font-family:inherit; cursor:pointer; transition:all 0.2s; }
+.rad-btn.on { background:var(--ink); border-color:var(--ink); color:var(--cream); }
+
+/* MATCH SCREEN */
+.mspark { font-size:52px; animation:flt 3s ease-in-out infinite; margin-bottom:14px; }
+.mtitle { font-family:'DM Serif Display',serif; font-size:30px; color:var(--cream); line-height:1.2; text-align:center; }
+.mtitle em { color:var(--accent); font-style:normal; }
+.hcard { margin:18px 24px 0; padding:18px 20px; background:rgba(196,120,58,0.12); border:1px solid rgba(196,120,58,0.3); border-radius:20px; }
+.hlbl { font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:1.5px; font-weight:600; margin-bottom:7px; }
+.htxt { font-family:'DM Serif Display',serif; font-size:18px; color:var(--cream); line-height:1.4; }
+.tring { width:68px; height:68px; border-radius:50%; border:3px solid rgba(245,240,232,0.12); border-top-color:var(--accent); animation:spin 30s linear infinite; margin:0 auto; position:relative; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.ttext { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:var(--cream); animation:none; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- STATUS BAR — switches class based on screen -->
+  <div class="sb" id="statusbar">
+    <span>9:41</span><div class="notch"></div><span>●●● WiFi</span>
+  </div>
+
+  <div class="screens">
+
+    <!-- ═══════════════════════════════════════════
+         S1: EVENTS (home / first tab)
+    ════════════════════════════════════════════ -->
+    <div class="screen active" id="s-events">
+
+      <div style="padding:16px 20px 0;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">London · Tonight</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:1px;">Discover Events</div>
+        </div>
+        <div style="font-size:22px;cursor:pointer;opacity:0.6;">🔍</div>
+      </div>
+
+      <!-- Category chips -->
+      <div style="display:flex;gap:8px;padding:12px 20px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;">
+        <button class="chip on" onclick="catFilter(this)">🎭 All</button>
+        <button class="chip" onclick="catFilter(this)">🎻 Classical</button>
+        <button class="chip" onclick="catFilter(this)">🍷 Wine & Food</button>
+        <button class="chip" onclick="catFilter(this)">🎨 Art</button>
+        <button class="chip" onclick="catFilter(this)">🎶 Live Music</button>
+        <button class="chip" onclick="catFilter(this)">🤝 Social</button>
+      </div>
+
+      <!-- Featured / Sponsored hero -->
+      <div class="ehero ai" style="background:linear-gradient(135deg,#1e1a30,#3d2060);" onclick="goTo('s-eventdetail', 0)">
+        <div class="ehero-bg">🎻</div>
+        <div class="ehero-grad"></div>
+        <div class="ehero-members">✦ 14 members here</div>
+        <div class="ehero-body">
+          <div class="ehero-spon">⭐ Sponsored</div>
+          <div class="ehero-title">London Symphony Orchestra<br>— An Evening of Brahms</div>
+          <div class="ehero-meta">Barbican Centre · Tonight 7:30pm · from £35</div>
+        </div>
+      </div>
+
+      <!-- Tonight -->
+      <div class="eshead"><div class="estitle">Tonight near you</div><div class="esall">See all →</div></div>
+      <div style="margin:10px 0 0;">
+        <div class="erow ai d1" onclick="goTo('s-eventdetail', 1)">
+          <div class="eicon ei2">🍷</div>
+          <div class="einfo"><div class="ename">Terroirs Natural Wine Evening</div><div class="emeta">Terroirs Wine Bar · Strand · Now open</div></div>
+          <div class="eright"><div class="emembers">6 members</div><div class="etime">Until 11pm</div></div>
+        </div>
+        <div class="erow ai d2" onclick="goTo('s-eventdetail', 2)">
+          <div class="eicon ei1">🎨</div>
+          <div class="einfo"><div class="ename">Tate Modern Late — After Hours</div><div class="emeta">Tate Modern · Bankside · Private view</div></div>
+          <div class="eright"><div class="emembers">9 members</div><div class="etime">Until 10pm</div></div>
+        </div>
+        <div class="erow ai d3" onclick="goTo('s-eventdetail', 3)">
+          <div class="eicon ei3">🎷</div>
+          <div class="einfo"><div class="ename">Jazz at Ronnie Scott's</div><div class="emeta">Ronnie Scott's · Soho · Late set</div></div>
+          <div class="eright"><div class="emembers">5 members</div><div class="etime">9:30pm</div></div>
+        </div>
+        <div class="erow ai d4" onclick="goTo('s-eventdetail', 4)">
+          <div class="eicon ei4">🍸</div>
+          <div class="einfo"><div class="ename">The Gibson Bar — Open Night</div><div class="emeta">The Gibson · Old Street · Cocktails</div></div>
+          <div class="eright"><div class="emembers">3 members</div><div class="etime">Until 1am</div></div>
+        </div>
+      </div>
+
+      <!-- This week -->
+      <div class="eshead" style="margin-top:4px;"><div class="estitle">This week</div><div class="esall">See all →</div></div>
+      <div style="margin:10px 0 0;">
+        <div class="erow" onclick="goTo('s-eventdetail', 5)">
+          <div class="eicon ei5">🎭</div>
+          <div class="einfo"><div class="ename">ENO — La Traviata Opening Night</div><div class="emeta">London Coliseum · Fri 8pm · from £25</div></div>
+          <div class="eright"><div class="espon">Sponsored</div><div class="etime">Fri</div></div>
+        </div>
+        <div class="erow" onclick="goTo('s-eventdetail', 6)">
+          <div class="eicon ei2">🖼️</div>
+          <div class="einfo"><div class="ename">National Portrait Gallery Members Evening</div><div class="emeta">NPG · St Martin's Place · Thu 6:30pm</div></div>
+          <div class="eright"><div class="emembers">2 members</div><div class="etime">Thu</div></div>
+        </div>
+        <div class="erow" onclick="goTo('s-eventdetail', 7)">
+          <div class="eicon ei3">🌿</div>
+          <div class="einfo"><div class="ename">Borough Market — After Dark</div><div class="emeta">Borough Market · Sat 6pm · Street food</div></div>
+          <div class="eright"><div class="emembers">7 members</div><div class="etime">Sat</div></div>
+        </div>
+      </div>
+      <div style="height:8px;"></div>
+
+      <div class="nav">
+        <button class="ni on" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S2: EVENT DETAIL (ticket / QR check-in)
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-eventdetail">
+
+      <!-- Hero image area -->
+      <div class="edhero edh1" id="ed-hero" style="flex-shrink:0;">
+        <span id="ed-emoji" style="filter:drop-shadow(0 4px 16px rgba(0,0,0,0.4));">🎻</span>
+        <div class="edhero-back"><button class="bbtn lt" onclick="goTo('s-events')">←</button></div>
+        <div class="edhero-spon" id="ed-spon-badge">⭐ Sponsored</div>
+        <div class="edhero-members" id="ed-members-badge">✦ 14 members here</div>
+      </div>
+
+      <!-- Event info -->
+      <div style="padding:18px 22px 0;">
+        <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;" id="ed-category">Classical Music · Barbican Centre</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:4px;line-height:1.25;" id="ed-title">London Symphony Orchestra — An Evening of Brahms</div>
+        <div style="font-size:13px;color:var(--warm-mid);margin-top:6px;display:flex;align-items:center;gap:8px;" id="ed-meta">
+          <span>📅 Tonight 7:30pm</span><span style="opacity:0.4;">·</span><span>from £35</span>
+        </div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:10px;line-height:1.6;" id="ed-desc">
+          The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's great concert series — expect a full house and an electric atmosphere.
+        </div>
+      </div>
+
+      <!-- Members attending -->
+      <div style="padding:16px 22px 0;">
+        <div class="slabel">Here members going</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div style="display:flex;">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(160deg,#d4a5a5,#c47a6b);border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:16px;margin-right:-10px;">👩</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(160deg,#a5c4d4,#6b8fc4);border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:16px;margin-right:-10px;">👨</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(160deg,#a5d4b5,#6ba87c);border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:16px;margin-right:-10px;">👩</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--ink);border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;">+11</div>
+          </div>
+          <div style="font-size:12px;color:var(--warm-mid);">14 here members attending</div>
+        </div>
+      </div>
+
+      <!-- Action buttons — sponsored has ticket + QR; others just QR or attend -->
+      <div id="ed-actions-sponsored" style="padding:16px 22px 0;">
+        <div style="display:flex;gap:10px;">
+          <button class="sbtn accent" style="flex:1;margin:0;padding:14px;" onclick="goTo('s-ticket')">🎟 Buy Ticket</button>
+          <button class="sbtn" style="flex:1;margin:0;padding:14px;background:rgba(139,115,85,0.12);color:var(--ink);" onclick="goTo('s-qrscan')">📷 Scan QR</button>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--warm-mid);text-align:center;line-height:1.5;">
+          Already have a ticket? Scan the venue QR at the entrance to activate your here. presence
+        </div>
+      </div>
+
+      <div id="ed-actions-normal" style="display:none;padding:16px 22px 0;">
+        <button class="sbtn" style="margin:0;width:100%;background:rgba(139,115,85,0.12);color:var(--ink);padding:14px;" onclick="goTo('s-qrscan')">
+          📷 Scan venue QR to check in
+        </button>
+        <div style="margin-top:10px;font-size:12px;color:var(--warm-mid);text-align:center;line-height:1.5;">
+          Scan the QR code at the venue entrance to activate your presence and discover matches here
+        </div>
+      </div>
+
+      <div style="height:24px;"></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S3: TICKET PURCHASE
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-ticket">
+      <div style="padding:22px 22px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-eventdetail')">←</button>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);">Buy Ticket</div>
+      </div>
+
+      <!-- Event summary -->
+      <div style="margin:16px 22px 0;padding:16px;background:white;border-radius:18px;box-shadow:0 2px 14px rgba(26,20,16,0.07);display:flex;gap:14px;align-items:center;">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#1e1a30,#3d2060);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🎻</div>
+        <div>
+          <div style="font-weight:600;font-size:14px;color:var(--ink);">LSO — An Evening of Brahms</div>
+          <div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">Barbican Centre · Tonight 7:30pm</div>
+        </div>
+      </div>
+
+      <!-- Ticket options -->
+      <div style="padding:18px 22px 0;">
+        <div class="slabel">Select ticket type</div>
+        <div id="tk1" class="roption on" onclick="selectTicket('tk1')">
+          <div class="ri">🪑</div>
+          <div style="flex:1;"><div class="rt">Standard — Stalls</div><div class="rs">Row G–M · Good sightlines</div></div>
+          <div style="font-weight:700;font-size:15px;color:var(--ink);">£35</div>
+        </div>
+        <div id="tk2" class="roption" onclick="selectTicket('tk2')">
+          <div class="ri">⭐</div>
+          <div style="flex:1;"><div class="rt">Premium — Front Stalls</div><div class="rs">Row A–F · Best seats in the house</div></div>
+          <div style="font-weight:700;font-size:15px;color:var(--ink);">£65</div>
+        </div>
+        <div id="tk3" class="roption" onclick="selectTicket('tk3')">
+          <div class="ri">🎭</div>
+          <div style="flex:1;"><div class="rt">Circle</div><div class="rs">Upper level · panoramic view</div></div>
+          <div style="font-weight:700;font-size:15px;color:var(--ink);">£22</div>
+        </div>
+      </div>
+
+      <!-- Here premium nudge -->
+      <div style="margin:14px 22px 0;padding:13px 16px;background:var(--gl);border:1px solid rgba(74,124,89,0.25);border-radius:14px;font-size:12px;color:var(--green);display:flex;gap:8px;line-height:1.5;">
+        <span>✨</span><span><strong>here. Premium</strong> members get priority check-in and extended visibility at this event</span>
+      </div>
+
+      <!-- Payment -->
+      <div style="padding:16px 22px 0;">
+        <div class="slabel">Payment</div>
+        <div style="padding:14px 16px;border:1.5px solid var(--border);border-radius:14px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="this.style.borderColor='var(--accent)'">
+          <span style="font-size:22px;">💳</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:var(--ink);">Visa ending 4242</div>
+            <div style="font-size:12px;color:var(--warm-mid);">Tap to change</div>
+          </div>
+          <span style="font-size:13px;color:var(--warm-mid);">›</span>
+        </div>
+      </div>
+
+      <div style="margin:14px 22px 0;display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);">
+        <span>1× Standard ticket</span><span style="font-weight:600;color:var(--ink);">£35.00</span>
+      </div>
+      <div style="margin:6px 22px 0;display:flex;justify-content:space-between;font-size:13px;color:var(--warm-mid);">
+        <span>Booking fee</span><span>£2.50</span>
+      </div>
+      <div style="margin:8px 22px 0;height:1px;background:var(--border);"></div>
+      <div style="margin:8px 22px 0;display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:var(--ink);">
+        <span>Total</span><span>£37.50</span>
+      </div>
+
+      <button class="sbtn accent" onclick="goTo('s-qrscan')" style="margin-top:16px;">Confirm & Pay £37.50 →</button>
+      <div style="margin:10px 22px 16px;font-size:12px;color:var(--warm-mid);text-align:center;">
+        Your ticket will activate your here. presence automatically at the venue
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S4: QR SCAN / CHECK IN
+    ════════════════════════════════════════════ -->
+    <div class="screen dark" id="s-qrscan">
+      <div style="padding:24px 24px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn lt" onclick="goTo('s-eventdetail')">←</button>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--cream);">Check In</div>
+      </div>
+
+      <!-- Venue info -->
+      <div style="margin:16px 24px 0;padding:14px 18px;background:rgba(245,240,232,0.06);border:1px solid rgba(245,240,232,0.1);border-radius:18px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;" id="qr-venue-emoji">🎻</span>
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--cream);" id="qr-venue-name">Barbican Centre</div>
+          <div style="font-size:12px;color:rgba(245,240,232,0.55);margin-top:2px;" id="qr-venue-meta">London Symphony Orchestra · Tonight 7:30pm</div>
+        </div>
+      </div>
+
+      <!-- QR viewfinder -->
+      <div style="margin:20px 24px 0;border-radius:22px;overflow:hidden;height:200px;background:rgba(0,0,0,0.6);position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="simulateScan()">
+        <!-- Corner brackets -->
+        <div style="position:absolute;top:16px;left:16px;width:32px;height:32px;border-top:3px solid var(--accent);border-left:3px solid var(--accent);border-radius:4px 0 0 0;"></div>
+        <div style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-top:3px solid var(--accent);border-right:3px solid var(--accent);border-radius:0 4px 0 0;"></div>
+        <div style="position:absolute;bottom:16px;left:16px;width:32px;height:32px;border-bottom:3px solid var(--accent);border-left:3px solid var(--accent);border-radius:0 0 0 4px;"></div>
+        <div style="position:absolute;bottom:16px;right:16px;width:32px;height:32px;border-bottom:3px solid var(--accent);border-right:3px solid var(--accent);border-radius:0 0 4px 0;"></div>
+        <!-- Scan line -->
+        <div style="position:absolute;width:calc(100% - 64px);height:2px;background:linear-gradient(to right,transparent,var(--accent),transparent);left:32px;animation:scanline 2s ease-in-out infinite;" id="scanline"></div>
+        <div id="scan-idle" style="text-align:center;color:rgba(245,240,232,0.5);font-size:13px;">
+          <div style="font-size:32px;margin-bottom:8px;">⬛</div>
+          Point camera at venue QR code
+        </div>
+        <div id="scan-success" style="display:none;text-align:center;">
+          <div style="font-size:48px;">✅</div>
+          <div style="color:var(--cream);font-size:15px;font-weight:600;margin-top:8px;">Checked in!</div>
+        </div>
+      </div>
+      <style>@keyframes scanline { 0%,100%{top:20%} 50%{top:75%} }</style>
+
+      <!-- Toggle visibility -->
+      <div style="margin:20px 24px 0;background:rgba(245,240,232,0.04);border:1px solid rgba(245,240,232,0.1);border-radius:20px;padding:20px;text-align:center;">
+        <div style="font-size:11px;color:rgba(245,240,232,0.45);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Your visibility at this event</div>
+        <div id="qrToggle" style="width:72px;height:72px;border-radius:50%;background:rgba(245,240,232,0.08);border:2px solid rgba(245,240,232,0.2);margin:0 auto;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);" onclick="qrToggleVis()">👁️</div>
+        <div style="margin-top:12px;font-size:15px;font-weight:600;color:var(--cream);" id="qrToggleStatus">Invisible</div>
+        <div style="font-size:12px;color:rgba(245,240,232,0.4);margin-top:4px;" id="qrToggleSub">Tap to become open to meet at this venue</div>
+      </div>
+
+      <button class="sbtn accent" onclick="goTo('s-discover')" id="qrDiscoverBtn" style="opacity:0;pointer-events:none;transition:opacity 0.4s;">See who's here →</button>
+      <div style="height:16px;"></div>
+
+      <div class="nav dark">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S5: NEARBY (general location mode)
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-nearby">
+      <div style="padding:20px 20px 0;display:flex;justify-content:space-between;align-items:flex-end;flex-shrink:0;">
+        <div>
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">General mode</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:1px;">Nearby</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);font-weight:500;" id="nearby-live" style="display:none;">
+          <div class="pdot"></div>Live
+        </div>
+      </div>
+
+      <!-- Location toggle card -->
+      <div class="loc-toggle">
+        <div class="loc-ring" id="locRing" onclick="toggleLocation()">📡</div>
+        <div class="loc-status" id="locStatus">Location off</div>
+        <div class="loc-sub" id="locSub">Turn on to discover here. members around you right now. No exact location is ever shared with others.</div>
+        <div class="loc-radius" id="locRadius" style="display:none;">
+          <button class="rad-btn on" onclick="setRadius(this,'250m')">250m</button>
+          <button class="rad-btn" onclick="setRadius(this,'500m')">500m</button>
+          <button class="rad-btn" onclick="setRadius(this,'1km')">1km</button>
+        </div>
+      </div>
+
+      <!-- Nearby members (hidden until location on) -->
+      <div id="nearbyMembers" style="display:none;">
+        <div style="padding:14px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);">3 members within 250m</div>
+          <div style="font-size:12px;color:var(--warm-mid);">Open to meet only</div>
+        </div>
+        <div style="padding:12px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="pcard open ai d1" onclick="goTo('s-request')">
+            <div class="pphoto pp1"><span>👩</span><div class="vbadge">✓</div><div class="obadge">Open</div></div>
+            <div class="pinfo"><div class="pname">Sophie, 29</div><div class="pmeta">~80m away</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag music">Classical</span></div>
+              <div class="pacts"><button class="bopen" onclick="event.stopPropagation();goTo('s-request')">Say hi →</button><button class="bpass" onclick="event.stopPropagation()">✕</button></div>
+            </div>
+          </div>
+          <div class="pcard open ai d2" onclick="goTo('s-request')">
+            <div class="pphoto pp2"><span>👨</span><div class="vbadge">✓</div><div class="obadge">Open</div></div>
+            <div class="pinfo"><div class="pname">James, 31</div><div class="pmeta">~150m away</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag art">Art</span></div>
+              <div class="pacts"><button class="bopen" onclick="event.stopPropagation();goTo('s-request')">Say hi →</button><button class="bpass" onclick="event.stopPropagation()">✕</button></div>
+            </div>
+          </div>
+          <div class="pcard ai d3" onclick="goTo('s-request')">
+            <div class="pphoto pp3"><span>👩</span><div class="vbadge">✓</div></div>
+            <div class="pinfo"><div class="pname">Priya, 27</div><div class="pmeta">~220m away</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag wine">Wine</span></div>
+              <div style="margin-top:8px;font-size:11px;color:var(--warm-mid);">Not open yet</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin:14px 20px;padding:12px 14px;background:rgba(139,115,85,0.08);border-radius:12px;font-size:12px;color:var(--warm-mid);display:flex;gap:8px;line-height:1.5;">
+          <span>🔒</span><span>Others only see your approximate area, never your exact location.</span>
+        </div>
+      </div>
+
+      <!-- Empty state when off -->
+      <div id="nearbyEmpty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;">
+        <div style="font-size:48px;opacity:0.3;margin-bottom:16px;">📡</div>
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px;">Discover people around you</div>
+        <div style="font-size:13px;color:var(--warm-mid);line-height:1.6;">Turn on location above to see here. members open to meet in your area right now.</div>
+      </div>
+
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni on" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S6: MATCHES / DISCOVER
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-discover">
+      <div style="padding:20px 22px 0;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
+        <div>
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">At this venue</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-top:1px;" id="disc-venue-name">Barbican Centre</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);font-weight:500;"><div class="pdot"></div>Live</div>
+      </div>
+      <div style="margin:12px 20px 0;padding:14px 16px;background:var(--gl);border:1px solid rgba(74,124,89,0.25);border-radius:16px;display:flex;align-items:center;gap:12px;" class="ai">
+        <span style="font-size:20px;">✨</span>
+        <div><div style="font-size:14px;font-weight:600;color:var(--green);">2 matches open to meet</div><div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">Mutual interest · tap to send a meet request</div></div>
+      </div>
+      <div style="display:flex;gap:8px;padding:12px 20px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;">
+        <button class="chip on" onclick="catFilter(this)">All here</button>
+        <button class="chip" onclick="catFilter(this)">Open to meet</button>
+        <button class="chip" onclick="catFilter(this)">Matches first</button>
+      </div>
+      <div style="padding:12px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;">
+        <div class="pcard open ai d1" onclick="goTo('s-request')">
+          <div class="pphoto pp1"><span>👩</span><div class="vbadge">✓</div><div class="obadge">Open</div></div>
+          <div class="pinfo"><div class="pname">Sophie, 29</div><div class="pmeta">Architect · Match</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag music">Classical</span><span class="itag travel">Travel</span></div>
+            <div class="pacts"><button class="bopen" onclick="event.stopPropagation();goTo('s-request')">Say hi →</button><button class="bpass" onclick="event.stopPropagation()">✕</button></div>
+          </div>
+        </div>
+        <div class="pcard open ai d2" onclick="goTo('s-request')">
+          <div class="pphoto pp2"><span>👨</span><div class="vbadge">✓</div><div class="obadge">Open</div></div>
+          <div class="pinfo"><div class="pname">James, 31</div><div class="pmeta">Designer · Match</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag art">Art</span><span class="itag food">Food</span></div>
+            <div class="pacts"><button class="bopen" onclick="event.stopPropagation();goTo('s-request')">Say hi →</button><button class="bpass" onclick="event.stopPropagation()">✕</button></div>
+          </div>
+        </div>
+        <div class="pcard ai d3">
+          <div class="pphoto pp3"><span>👩</span><div class="vbadge">✓</div></div>
+          <div class="pinfo"><div class="pname">Priya, 27</div><div class="pmeta">Lawyer</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag wine">Wine</span><span class="itag music">Music</span></div>
+            <div style="margin-top:8px;font-size:11px;color:var(--warm-mid);">Not open yet</div>
+          </div>
+        </div>
+        <div class="pcard ai d4">
+          <div class="pphoto pp4"><span>👨</span><div class="vbadge">✓</div></div>
+          <div class="pinfo"><div class="pname">Tom, 34</div><div class="pmeta">Engineer</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;"><span class="itag travel">Travel</span><span class="itag art">Art</span></div>
+            <div style="margin-top:8px;font-size:11px;color:var(--warm-mid);">Not open yet</div>
+          </div>
+        </div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S7: MEET REQUEST
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-request">
+      <div style="padding:20px 22px 0;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <button class="bbtn" onclick="history.back(), goTo('s-discover')">←</button>
+        <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(160deg,#d4a5a5,#c47a6b);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👩</div>
+        <div><div style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--ink);">Sophie, 29</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">Architect · Verified · Open to meet</div></div>
+      </div>
+
+      <div style="padding:18px 22px 0;">
+        <div class="slabel">How would you like to meet?</div>
+
+        <!-- Option 1: Spotted you / say hi now -->
+        <div id="req-spotted" class="roption on" onclick="selectMeetType('spotted')">
+          <div class="ri">👋</div>
+          <div><div class="rt">I spotted you — say hi</div><div class="rs">Send an instant "can I say hi?" — no location needed</div></div>
+        </div>
+
+        <!-- Option 2: Drop a pin -->
+        <div id="req-pin" class="roption" onclick="selectMeetType('pin')">
+          <div class="ri">📍</div>
+          <div><div class="rt">Drop a pin to meet here</div><div class="rs">Mark your current spot on the map — meet in ~10 min</div></div>
+        </div>
+
+        <!-- Option 3: Meet in 30 min -->
+        <div id="req-later" class="roption" onclick="selectMeetType('later')">
+          <div class="ri">⏱️</div>
+          <div><div class="rt">Meet in 30 min — pick a spot</div><div class="rs">Drop a pin for a planned meetup later</div></div>
+        </div>
+      </div>
+
+      <!-- Pin map (shown for pin or later) -->
+      <div id="req-mapSection" style="display:none;padding:14px 22px 0;">
+        <div class="slabel" id="req-mapLabel">Drop your pin — your current location</div>
+        <!-- Uses phone GPS location indicator -->
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);">
+          <div class="pdot"></div><span id="req-gps-text">Using your current location · tap map to adjust</span>
+        </div>
+        <div class="mapwrap" id="mapReq" onclick="dropPin(event,'req')">
+          <svg class="mapsvg" viewBox="0 0 342 190" xmlns="http://www.w3.org/2000/svg">
+            <rect width="342" height="190" fill="#ede7d9"/>
+            <rect x="14" y="14" width="314" height="162" rx="8" fill="#f5f0e6" stroke="#d8ccb4" stroke-width="1.5"/>
+            <rect x="30" y="30" width="132" height="74" rx="6" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="96" y="71" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">MAIN HALL</text>
+            <rect x="178" y="30" width="88" height="42" rx="5" fill="#ddd4be" stroke="#c8bca0" stroke-width="1"/>
+            <text x="222" y="55" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">BAR</text>
+            <rect x="178" y="82" width="88" height="38" rx="5" fill="#ddd4be" stroke="#c8bca0" stroke-width="1"/>
+            <text x="222" y="105" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">CAFÉ</text>
+            <rect x="30" y="120" width="236" height="42" rx="5" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="148" y="145" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">FOYER</text>
+            <rect x="276" y="120" width="52" height="42" rx="5" fill="#d8d0bc" stroke="#c8bca0" stroke-width="1"/>
+            <text x="302" y="145" text-anchor="middle" font-size="8" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">EXIT</text>
+            <!-- "You are here" GPS dot -->
+            <circle cx="96" cy="71" r="6" fill="#4A7C59" opacity="0.8"/>
+            <circle cx="96" cy="71" r="10" fill="#4A7C59" opacity="0.2"/>
+            <text x="112" y="58" font-size="8" fill="#4A7C59" font-family="DM Sans,sans-serif" font-weight="600">You</text>
+          </svg>
+          <div class="mhint" id="mhint-req"><div style="font-size:24px;">📍</div><div>Tap to place your meetup pin</div></div>
+          <div class="mpin" id="mpin-req">📍</div>
+          <div class="mpulse" id="mpulse-req"></div>
+          <div class="mlbl" id="mlbl-req"></div>
+        </div>
+        <div class="pconf" id="pconf-req"><span>✅</span><span id="pconf-req-text">Pin placed · Sophie will see this spot</span></div>
+      </div>
+
+      <div style="margin:12px 22px 0;padding:12px 14px;background:rgba(139,115,85,0.08);border-radius:12px;font-size:12px;color:var(--warm-mid);display:flex;gap:8px;line-height:1.5;">
+        <span>⚡</span><span>You have <strong>2 of 3</strong> daily requests remaining · max 1 per person per day</span>
+      </div>
+      <button class="sbtn" onclick="goTo('s-incoming')">Send meet request →</button>
+      <div style="margin:8px 22px 16px;font-size:12px;color:var(--warm-mid);text-align:center;line-height:1.5;">
+        Sophie is only notified if she also marked you as open to meet. Two-step consent.
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S8: INCOMING REQUEST (Sophie's view)
+    ════════════════════════════════════════════ -->
+    <div class="screen" id="s-incoming">
+      <div style="padding:22px 22px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-discover')">←</button>
+        <div style="font-size:12px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Meet request</div>
+      </div>
+      <!-- Sender -->
+      <div style="margin:16px 22px 0;display:flex;align-items:center;gap:16px;">
+        <div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(160deg,#d4c4a5,#c4a06b);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">👨</div>
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);">Alex, 30</div>
+          <div style="font-size:13px;color:var(--warm-mid);margin-top:2px;">Product Manager · Verified ✓</div>
+          <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;"><span class="itag music">Classical</span><span class="itag travel">Travel</span><span class="itag art">Art</span></div>
+        </div>
+      </div>
+      <!-- Request -->
+      <div style="margin:14px 22px 0;padding:14px 18px;background:var(--ag);border:1px solid rgba(196,120,58,0.3);border-radius:16px;">
+        <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:5px;">Their request</div>
+        <div id="inc-req-text" style="font-size:15px;font-weight:600;color:var(--ink);">👋 I spotted you — say hi</div>
+        <div id="inc-req-sub" style="font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5;">Alex wants to come say hi right now.</div>
+      </div>
+      <!-- Their pin (if they dropped one) -->
+      <div id="inc-pin-preview" style="display:none;margin:12px 22px 0;">
+        <div class="slabel">Their pinned spot</div>
+        <div style="border-radius:14px;overflow:hidden;height:110px;position:relative;border:1px solid var(--border);">
+          <svg width="100%" height="100%" viewBox="0 0 342 190" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+            <rect width="342" height="190" fill="#ede7d9"/><rect x="14" y="14" width="314" height="162" rx="8" fill="#f5f0e6" stroke="#d8ccb4" stroke-width="1.5"/>
+            <rect x="30" y="30" width="132" height="74" rx="6" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="96" y="71" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">MAIN HALL</text>
+            <rect x="178" y="30" width="88" height="42" rx="5" fill="#ddd4be" stroke="#c8bca0" stroke-width="1"/>
+            <text x="222" y="55" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">BAR</text>
+            <rect x="30" y="120" width="236" height="42" rx="5" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="148" y="145" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">FOYER</text>
+          </svg>
+          <div id="inc-pin-marker" style="position:absolute;font-size:26px;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4));pointer-events:none;left:55%;top:42%;">📍</div>
+        </div>
+        <div id="inc-pin-area" style="font-size:12px;color:var(--warm-mid);margin-top:5px;">📍 Near the Bar · waiting for you</div>
+      </div>
+      <!-- Response -->
+      <div style="padding:14px 22px 0;">
+        <div class="slabel">Your response</div>
+        <div id="inc-accept" class="roption on" onclick="selectIncResponse('accept')">
+          <div class="ri">✅</div>
+          <div><div class="rt">Accept</div><div class="rs" id="inc-accept-sub">Come find me — I'll reveal my hint</div></div>
+        </div>
+        <div id="inc-counter" class="roption" onclick="selectIncResponse('counter')">
+          <div class="ri">📍</div>
+          <div><div class="rt">Counter — drop your own pin</div><div class="rs">Suggest a spot to meet at</div></div>
+        </div>
+      </div>
+      <!-- Counter pin map -->
+      <div id="inc-counter-map" style="display:none;padding:10px 22px 0;">
+        <div class="slabel">Drop your pin</div>
+        <div class="mapwrap" id="mapInc" onclick="dropPin(event,'inc')">
+          <svg class="mapsvg" viewBox="0 0 342 190" xmlns="http://www.w3.org/2000/svg">
+            <rect width="342" height="190" fill="#ede7d9"/><rect x="14" y="14" width="314" height="162" rx="8" fill="#f5f0e6" stroke="#d8ccb4" stroke-width="1.5"/>
+            <rect x="30" y="30" width="132" height="74" rx="6" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="96" y="71" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">MAIN HALL</text>
+            <rect x="178" y="30" width="88" height="42" rx="5" fill="#ddd4be" stroke="#c8bca0" stroke-width="1"/>
+            <text x="222" y="55" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">BAR</text>
+            <rect x="178" y="82" width="88" height="38" rx="5" fill="#ddd4be" stroke="#c8bca0" stroke-width="1"/>
+            <text x="222" y="105" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">CAFÉ</text>
+            <rect x="30" y="120" width="236" height="42" rx="5" fill="#e4dcc8" stroke="#c8bca0" stroke-width="1"/>
+            <text x="148" y="145" text-anchor="middle" font-size="9" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">FOYER</text>
+            <rect x="276" y="120" width="52" height="42" rx="5" fill="#d8d0bc" stroke="#c8bca0" stroke-width="1"/>
+            <text x="302" y="145" text-anchor="middle" font-size="8" fill="#8B7355" font-family="DM Sans,sans-serif" font-weight="600">EXIT</text>
+          </svg>
+          <div class="mhint" id="mhint-inc"><div style="font-size:24px;">📍</div><div>Tap to drop your pin</div></div>
+          <div class="mpin" id="mpin-inc">📍</div>
+          <div class="mpulse" id="mpulse-inc"></div>
+          <div class="mlbl" id="mlbl-inc"></div>
+        </div>
+        <div class="pconf" id="pconf-inc"><span>✅</span><span id="pconf-inc-text">Pin placed · Alex will see this spot</span></div>
+      </div>
+      <div style="margin:10px 22px 0;padding:12px 14px;background:rgba(139,115,85,0.08);border-radius:12px;font-size:12px;color:var(--warm-mid);display:flex;gap:8px;line-height:1.5;">
+        <span>🔒</span><span>Your exact location is never shared. Only the pinned spot is visible.</span>
+      </div>
+      <button class="sbtn green" onclick="goTo('s-match')">Confirm response →</button>
+      <div style="height:8px;"></div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         S9: MATCH CONFIRMED
+    ════════════════════════════════════════════ -->
+    <div class="screen dark" id="s-match">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 0 0;">
+        <div class="mspark">✨</div>
+        <div class="mtitle" id="m-title">It's a<br><em>mutual match</em></div>
+        <div style="font-size:13px;color:rgba(245,240,232,0.6);margin-top:10px;line-height:1.6;padding:0 24px;text-align:center;" id="m-sub">Sophie accepted your request.</div>
+
+        <!-- Hint card -->
+        <div class="hcard" id="m-hintcard" style="width:calc(100% - 48px);">
+          <div class="hlbl">Identifying hint</div>
+          <div class="htxt" id="m-hint">👗 Sophie is wearing a <em style="color:var(--accent);">blue linen dress</em> near the main bar</div>
+        </div>
+
+        <!-- Pin map card -->
+        <div id="m-pincard" style="display:none;width:calc(100% - 48px);margin-top:16px;">
+          <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:8px;">📍 Your meetup spot</div>
+          <div style="border-radius:16px;overflow:hidden;height:135px;position:relative;border:1px solid rgba(245,240,232,0.1);">
+            <svg width="100%" height="100%" viewBox="0 0 342 190" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+              <rect width="342" height="190" fill="#261e14"/><rect x="14" y="14" width="314" height="162" rx="8" fill="#332618" stroke="#443420" stroke-width="1.5"/>
+              <rect x="30" y="30" width="132" height="74" rx="6" fill="#2c2010" stroke="#443420" stroke-width="1"/>
+              <text x="96" y="71" text-anchor="middle" font-size="9" fill="#6b5030" font-family="DM Sans,sans-serif" font-weight="600">MAIN HALL</text>
+              <rect x="178" y="30" width="88" height="42" rx="5" fill="#2a1e0e" stroke="#443420" stroke-width="1"/>
+              <text x="222" y="55" text-anchor="middle" font-size="9" fill="#6b5030" font-family="DM Sans,sans-serif" font-weight="600">BAR</text>
+              <rect x="30" y="120" width="236" height="42" rx="5" fill="#2c2010" stroke="#443420" stroke-width="1"/>
+              <text x="148" y="145" text-anchor="middle" font-size="9" fill="#6b5030" font-family="DM Sans,sans-serif" font-weight="600">FOYER</text>
+            </svg>
+            <div id="m-pinmarker" style="position:absolute;font-size:30px;transform:translate(-50%,-100%);filter:drop-shadow(0 3px 10px rgba(196,120,58,0.6));pointer-events:none;left:55%;top:42%;">📍</div>
+          </div>
+          <div id="m-pinarea" style="margin-top:8px;font-size:13px;color:rgba(245,240,232,0.7);text-align:center;"></div>
+        </div>
+
+        <div style="margin:16px 24px 0;text-align:center;">
+          <div class="tring"><div class="ttext" id="m-timer">14:52</div></div>
+          <div style="font-size:12px;color:rgba(245,240,232,0.4);margin-top:8px;" id="m-timerlbl">Hint visible for 15 min · then auto-erased</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding:16px 24px 0;">
+        <button style="padding:14px;border:1px solid rgba(184,80,66,0.3);border-radius:14px;background:transparent;color:rgba(245,240,232,0.6);font-size:13px;font-family:inherit;cursor:pointer;flex:1;" onclick="goTo('s-discover')">Report</button>
+        <button style="padding:14px;border:none;border-radius:14px;background:var(--accent);color:white;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;flex:2;" onclick="goTo('s-events')">✓ Met them!</button>
+      </div>
+      <div style="margin:12px 24px 0;padding:12px 16px;background:rgba(245,240,232,0.04);border-radius:14px;border:1px solid rgba(245,240,232,0.08);text-align:center;">
+        <div style="font-size:12px;color:rgba(245,240,232,0.4);line-height:1.5;">🔒 Screenshot blocked · auto-erases after timer · location never shared</div>
+      </div>
+      <div style="height:28px;"></div>
+    </div>
+
+    <!-- S10: PROFILE (stub) -->
+    <div class="screen" id="s-profile">
+      <div style="padding:24px 22px 0;flex-shrink:0;">
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--ink);">Your Profile</div>
+      </div>
+      <div style="margin:20px 22px 0;background:white;border-radius:20px;box-shadow:0 2px 16px rgba(26,20,16,0.07);padding:20px;display:flex;align-items:center;gap:16px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(160deg,#d4c4a5,#c4a06b);display:flex;align-items:center;justify-content:center;font-size:30px;">🧑</div>
+        <div>
+          <div style="font-weight:600;font-size:18px;color:var(--ink);">You, 28</div>
+          <div style="font-size:13px;color:var(--warm-mid);margin-top:3px;">Marketing · London</div>
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;"><span class="itag music">Classical</span><span class="itag travel">Travel</span><span class="itag food">Food</span></div>
+        </div>
+      </div>
+      <div style="margin:16px 22px 0;background:white;border-radius:18px;box-shadow:0 2px 16px rgba(26,20,16,0.07);overflow:hidden;">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <span style="font-size:14px;font-weight:500;color:var(--ink);">✓ Verified profile</span>
+          <span style="font-size:12px;color:var(--green);font-weight:600;">Active</span>
+        </div>
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <span style="font-size:14px;font-weight:500;color:var(--ink);">⚡ here. Premium</span>
+          <span style="font-size:12px;color:var(--accent);font-weight:600;">Upgrade →</span>
+        </div>
+        <div style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <span style="font-size:14px;font-weight:500;color:var(--ink);">🔒 Privacy settings</span>
+          <span style="font-size:13px;color:var(--warm-mid);">›</span>
+        </div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-discover')"><span class="ic">✦</span><span class="lb">Matches</span></button>
+        <button class="ni on" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+</div><!-- /phone -->
+
+<script>
+  let meetType = 'spotted';
+  let currentEvent = EVENTS[0]; // defaults to first event
+  let incResponse = 'accept';
+  let timerInterval;
+  let locOn = false;
+  let qrVisOn = false;
+  const pins = { req: null, inc: null };
+
+  const EVENTS = [
+    { emoji:'🎻', bg:'edh1', venue:'Barbican Centre', cat:'Classical Music · Barbican Centre', title:'London Symphony Orchestra — An Evening of Brahms', meta:'Tonight 7:30pm · from £35', desc:'The LSO performs Brahms\' Symphony No. 4 and Piano Concerto No. 1. One of London\'s great concert series — expect a full house and an electric atmosphere.', members:'14 members here', sponsored:true },
+    { emoji:'🍷', bg:'edh2', venue:'Terroirs Wine Bar', cat:'Wine & Food · Strand', title:'Terroirs Natural Wine Evening', meta:'Tonight · until 11pm · Free entry', desc:'The best natural wine bar in London opens its doors for an evening of exceptional low-intervention wines and spontaneous conversation.', members:'6 members here', sponsored:false },
+    { emoji:'🎨', bg:'edh1', venue:'Tate Modern', cat:'Art · Bankside', title:'Tate Modern Late — After Hours', meta:'Tonight until 10pm · £12', desc:'Private evening access to the galleries with a specially curated DJ set. The best way to see modern art — with a glass of wine and without the crowds.', members:'9 members here', sponsored:false },
+    { emoji:'🎷', bg:'edh3', venue:"Ronnie Scott's", cat:'Live Music · Soho', title:"Jazz at Ronnie Scott's", meta:'Tonight 9:30pm · from £30', desc:'The world-famous jazz club presents a late set featuring some of the finest jazz musicians performing in London right now.', members:'5 members here', sponsored:false },
+    { emoji:'🍸', bg:'edh4', venue:'The Gibson Bar', cat:'Cocktails · Old Street', title:'The Gibson Bar — Open Night', meta:'Tonight until 1am · Free', desc:'Award-winning cocktail bar with an intimate atmosphere. Creative seasonal menus and a crowd that loves good drinks and conversation.', members:'3 members here', sponsored:false },
+    { emoji:'🎭', bg:'edh1', venue:'London Coliseum', cat:'Opera · West End', title:'ENO — La Traviata Opening Night', meta:'Friday 8pm · from £25', desc:"English National Opera's new production of Verdi's La Traviata. A season highlight — emotional, spectacular, unforgettable.", members:'0 members going', sponsored:true },
+    { emoji:'🖼️', bg:'edh2', venue:'National Portrait Gallery', cat:"Art · St Martin's Place", title:'National Portrait Gallery Members Evening', meta:'Thursday 6:30pm · Members free', desc:'Exclusive after-hours access for members with guided tours of the new permanent collection and a private drinks reception.', members:'2 members going', sponsored:false },
+    { emoji:'🌿', bg:'edh3', venue:'Borough Market', cat:'Food · Borough', title:'Borough Market — After Dark', meta:'Saturday 6pm · Free entry', desc:"London's most iconic food market stays open late with street food, pop-ups and live music along the riverside.", members:'7 members going', sponsored:false },
+  ];
+
+  const AREAS = [
+    { x:[0,0.48], y:[0,0.6], name:'near the Main Hall' },
+    { x:[0.48,1], y:[0,0.38], name:'near the Bar' },
+    { x:[0.48,1], y:[0.38,0.68], name:'near the Café' },
+    { x:[0,0.82], y:[0.6,1], name:'in the Foyer' },
+    { x:[0.76,1], y:[0.6,1], name:'near the Exit' },
+  ];
+
+  function getArea(fx, fy) {
+    for (const a of AREAS) if (fx>=a.x[0]&&fx<a.x[1]&&fy>=a.y[0]&&fy<a.y[1]) return a.name;
+    return 'inside the venue';
+  }
+
+  function goTo(id, data) {
+    const cur = document.querySelector('.screen.active');
+    const nxt = document.getElementById(id);
+    if (!nxt || cur === nxt) return;
+
+    // Populate event detail
+    if (id === 's-eventdetail' && data !== undefined) {
+      const e = EVENTS[data];
+      currentEvent = e;
+      document.getElementById('ed-emoji').textContent = e.emoji;
+      const hero = document.getElementById('ed-hero');
+      hero.className = 'edhero ' + e.bg;
+      document.getElementById('ed-category').textContent = e.cat;
+      document.getElementById('ed-title').textContent = e.title;
+      document.getElementById('ed-meta').innerHTML = '📅 ' + e.meta;
+      document.getElementById('ed-desc').textContent = e.desc;
+      document.getElementById('ed-members-badge').textContent = '✦ ' + e.members;
+      document.getElementById('ed-spon-badge').style.display = e.sponsored ? 'block' : 'none';
+      document.getElementById('ed-actions-sponsored').style.display = e.sponsored ? 'block' : 'none';
+      document.getElementById('ed-actions-normal').style.display = e.sponsored ? 'none' : 'block';
+    }
+    // Update venue name wherever it appears
+    if (id === 's-qrscan' || id === 's-discover') {
+      const vname = currentEvent.venue;
+      const vemoji = currentEvent.emoji;
+      const vmeta = currentEvent.meta;
+      if (id === 's-qrscan') {
+        document.getElementById('qr-venue-name').textContent = vname;
+        document.getElementById('qr-venue-emoji').textContent = vemoji;
+        document.getElementById('qr-venue-meta').textContent = vmeta;
+      }
+      if (id === 's-discover') {
+        document.getElementById('disc-venue-name').textContent = vname;
+      }
+    }
+
+    if (id === 's-incoming') syncIncoming();
+    if (id === 's-match') { syncMatch(); startTimer(); }
+
+    // Status bar colour
+    const darkScreens = ['s-qrscan','s-match'];
+    const sb = document.getElementById('statusbar');
+    sb.className = darkScreens.includes(id) ? 'sb dark' : 'sb';
+
+    cur.classList.add('exit'); cur.classList.remove('active');
+    setTimeout(() => cur.classList.remove('exit'), 350);
+    nxt.classList.add('active');
+  }
+
+  function catFilter(el) {
+    el.closest('div').querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    el.classList.add('on');
+  }
+
+  function selectTicket(id) {
+    ['tk1','tk2','tk3'].forEach(k => document.getElementById(k).classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+  }
+
+  function simulateScan() {
+    document.getElementById('scan-idle').style.display = 'none';
+    document.getElementById('scan-success').style.display = 'block';
+    document.getElementById('scanline').style.display = 'none';
+  }
+
+  function qrToggleVis() {
+    qrVisOn = !qrVisOn;
+    const ring = document.getElementById('qrToggle');
+    ring.textContent = qrVisOn ? '✓' : '👁️';
+    ring.style.background = qrVisOn ? 'var(--green)' : 'rgba(245,240,232,0.08)';
+    ring.style.borderColor = qrVisOn ? 'var(--green)' : 'rgba(245,240,232,0.2)';
+    ring.style.boxShadow = qrVisOn ? '0 0 0 8px rgba(74,124,89,0.15),0 0 30px rgba(74,124,89,0.25)' : 'none';
+    document.getElementById('qrToggleStatus').textContent = qrVisOn ? 'Open to meet' : 'Invisible';
+    document.getElementById('qrToggleSub').textContent = qrVisOn ? 'You\'re visible to members at this venue' : 'Tap to become open to meet at this venue';
+    const btn = document.getElementById('qrDiscoverBtn');
+    btn.style.opacity = qrVisOn ? '1' : '0';
+    btn.style.pointerEvents = qrVisOn ? 'auto' : 'none';
+  }
+
+  function toggleLocation() {
+    locOn = !locOn;
+    const ring = document.getElementById('locRing');
+    ring.textContent = locOn ? '✓' : '📡';
+    ring.classList.toggle('on', locOn);
+    document.getElementById('locStatus').textContent = locOn ? 'Location on · sharing approximate area' : 'Location off';
+    document.getElementById('locSub').textContent = locOn ? 'Showing members open to meet within 250m of you. Your exact location is never revealed.' : 'Turn on to discover here. members around you right now. No exact location is ever shared.';
+    document.getElementById('locRadius').style.display = locOn ? 'flex' : 'none';
+    document.getElementById('nearbyMembers').style.display = locOn ? 'block' : 'none';
+    document.getElementById('nearbyEmpty').style.display = locOn ? 'none' : 'flex';
+    document.getElementById('nearby-live').style.display = locOn ? 'flex' : 'none';
+  }
+
+  function setRadius(el, val) {
+    document.querySelectorAll('.rad-btn').forEach(b => b.classList.remove('on'));
+    el.classList.add('on');
+  }
+
+  function selectMeetType(type) {
+    meetType = type;
+    ['spotted','pin','later'].forEach(t => document.getElementById('req-'+t).classList.toggle('on', t === type));
+    const showMap = type === 'pin' || type === 'later';
+    document.getElementById('req-mapSection').style.display = showMap ? 'block' : 'none';
+    if (showMap) {
+      document.getElementById('req-mapLabel').textContent = type === 'pin' ? 'Your current location — tap to adjust pin' : 'Choose a spot to meet in 30 min';
+      document.getElementById('req-gps-text').textContent = type === 'pin' ? 'Based on your phone GPS · tap to adjust' : 'Tap map to pick a meetup spot';
+    }
+  }
+
+  function selectIncResponse(mode) {
+    incResponse = mode;
+    ['accept','counter'].forEach(m => document.getElementById('inc-'+m).classList.toggle('on', m === mode));
+    document.getElementById('inc-counter-map').style.display = mode === 'counter' ? 'block' : 'none';
+  }
+
+  function dropPin(e, id) {
+    const wrap = document.getElementById('map' + (id === 'req' ? 'Req' : 'Inc'));
+    const rect = wrap.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const fx = px / rect.width, fy = py / rect.height;
+    pins[id] = { px, py, fx, fy };
+    const pin = document.getElementById('mpin-'+id);
+    const pulse = document.getElementById('mpulse-'+id);
+    const lbl = document.getElementById('mlbl-'+id);
+    const hint = document.getElementById('mhint-'+id);
+    const conf = document.getElementById('pconf-'+id);
+    const confTxt = document.getElementById('pconf-'+id+'-text');
+    pin.style.left = px+'px'; pin.style.top = py+'px';
+    pulse.style.left = px+'px'; pulse.style.top = py+'px';
+    pin.classList.add('show'); pulse.classList.add('show');
+    hint.classList.add('gone'); wrap.classList.add('pinned');
+    const area = getArea(fx, fy);
+    lbl.textContent = area; lbl.classList.add('show');
+    confTxt.textContent = 'Pin placed ' + area + (id === 'req' ? ' · Sophie will see this spot' : ' · Alex will see this spot');
+    conf.classList.add('show');
+  }
+
+  function syncIncoming() {
+    const isSpotted = meetType === 'spotted';
+    const isPin = meetType === 'pin';
+    const isLater = meetType === 'later';
+    document.getElementById('inc-req-text').textContent = isSpotted ? '👋 I spotted you — say hi' : isPin ? '📍 I\'m here — drop pin' : '⏱️ Meet in 30 min — pin dropped';
+    document.getElementById('inc-req-sub').textContent = isSpotted ? 'Alex wants to come say hi right now.' : isPin ? 'Alex has pinned their current spot.' : 'Alex has pinned a meetup spot for in 30 minutes.';
+    document.getElementById('inc-accept-sub').textContent = isSpotted ? 'Come find me — I\'ll reveal my hint' : 'Meet at the pinned spot';
+    const prev = document.getElementById('inc-pin-preview');
+    if (!isSpotted && pins.req) {
+      prev.style.display = 'block';
+      const m = document.getElementById('inc-pin-marker');
+      m.style.left = (pins.req.fx * 100) + '%';
+      m.style.top = (pins.req.fy * 100) + '%';
+      document.getElementById('inc-pin-area').textContent = '📍 ' + getArea(pins.req.fx, pins.req.fy) + (isLater ? ' · in 30 min' : ' · waiting for you');
+    } else { prev.style.display = 'none'; }
+  }
+
+  function syncMatch() {
+    const usePin = (meetType !== 'spotted' && pins.req) || (incResponse === 'counter' && pins.inc);
+    const activePin = (incResponse === 'counter' && pins.inc) ? pins.inc : pins.req;
+    document.getElementById('m-title').innerHTML = usePin ? 'Meetup<br><em>confirmed</em>' : 'It\'s a<br><em>mutual match</em>';
+    const isSpotted = meetType === 'spotted';
+    document.getElementById('m-sub').textContent = usePin ? 'Head to the pinned spot.' : isSpotted ? 'Sophie accepted. Here\'s your identifying hint.' : 'Sophie accepted your request.';
+    document.getElementById('m-hintcard').style.display = usePin ? 'none' : 'block';
+    document.getElementById('m-pincard').style.display = usePin ? 'block' : 'none';
+    document.getElementById('m-timerlbl').textContent = usePin ? 'Pin visible for 30 min · auto-erases after' : 'Hint visible for 15 min · then auto-erased';
+    document.getElementById('m-timer').textContent = usePin ? '30:00' : '14:52';
+    if (usePin && activePin) {
+      const marker = document.getElementById('m-pinmarker');
+      marker.style.left = (activePin.fx * 100) + '%';
+      marker.style.top = (activePin.fy * 100) + '%';
+      const area = getArea(activePin.fx, activePin.fy);
+      document.getElementById('m-pinarea').textContent = '📍 ' + area.charAt(0).toUpperCase() + area.slice(1);
+    }
+  }
+
+  function startTimer() {
+    const usePin = (meetType !== 'spotted' && pins.req) || (incResponse === 'counter' && pins.inc);
+    let secs = usePin ? 30*60 : 14*60+52;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (--secs < 0) return clearInterval(timerInterval);
+      const m = Math.floor(secs/60), s = secs%60;
+      const el = document.getElementById('m-timer');
+      if (el) el.textContent = m+':'+String(s).padStart(2,'0');
+    }, 1000);
+  }
+
+  // On a real mobile device (touch + small screen), go full screen
+  if (window.innerWidth <= 430 && 'ontouchstart' in window) {
+    document.body.style.padding = '0';
+    document.body.style.background = 'var(--cream)';
+    document.body.style.alignItems = 'flex-start';
+    const phone = document.querySelector('.phone');
+    phone.style.width = '100%';
+    phone.style.height = (window.innerHeight) + 'px';
+    phone.style.borderRadius = '0';
+    phone.style.boxShadow = 'none';
+    const notch = document.querySelector('.sb .notch');
+    if (notch) notch.style.display = 'none';
+  }
+</script>
+</body>
+</html>
