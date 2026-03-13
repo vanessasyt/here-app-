@@ -956,7 +956,7 @@ function NearbyScreen({
         <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
           style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
           <span>🔄</span>
-          <span>Cards rotate every 5 minutes — <strong>no scores, no popularity metrics, no persistent rankings.</strong> Everyone gets equal exposure.</span>
+          <span>Profiles refresh every 5 minutes, ordered by <strong>proximity</strong> — the closer someone is, the higher they appear.</span>
         </div>
       )}
 
@@ -1357,8 +1357,8 @@ function IncomingScreen({
 
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
-  matchData, onNavigate, currentUser, onBlock,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void }) {
+  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted,
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void }) {
   const person    = matchData.person || matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
   const timerMins = matchData.response==="15min" ? 15 : 30;
@@ -1476,6 +1476,11 @@ function MatchScreen({
                       created_at:  new Date().toISOString(),
                     });
                     onBlock(reportedId);
+                    // Remove the associated request from inbox state (both as receiver and as sender)
+                    const requestId = (matchData.request as any)?.id;
+                    if (requestId) onDecline(requestId);
+                    // Clear the accepted-sent banner if it references this match
+                    onClearAccepted();
                     // The blocked_users row is bidirectional — fetchUsers on both sides
                     // already excludes any user where either party is in the block list,
                     // so no further profile mutation is needed.
@@ -1517,6 +1522,24 @@ function ProfileScreen({
   const [ageMax, setAgeMax]       = useState(35);
   const [photoLoading, setPhotoL] = useState(false);
   const fileRef                   = useRef<HTMLInputElement>(null);
+  // Interests editing
+  const [editingInterests, setEditingInterests] = useState(false);
+  const [draftInterests,   setDraftInterests]   = useState<string[]>(currentUser.interests);
+  const [savingInterests,  setSavingInterests]  = useState(false);
+
+  function toggleDraftInterest(id: string) {
+    setDraftInterests(prev =>
+      prev.includes(id) ? prev.filter(x=>x!==id) : prev.length < MAX_INTERESTS ? [...prev, id] : prev
+    );
+  }
+
+  async function saveInterests() {
+    setSavingInterests(true);
+    await supabase.from("profiles").update({ interests: draftInterests }).eq("id", currentUser.id);
+    currentUser.interests = draftInterests;
+    setSavingInterests(false);
+    setEditingInterests(false);
+  }
 
   const total    = 50-18;
   const leftPct  = ((ageMin-18)/total)*100;
@@ -1549,9 +1572,11 @@ function ProfileScreen({
         <div className="text-[24px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your Profile</div>
       </div>
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        {/* Profile card */}
-        <div className="mx-[22px] mt-5 p-5 bg-white rounded-[20px] flex items-center gap-4" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
-          <div className="relative flex-shrink-0">
+        {/* Profile card — tap to edit interests */}
+        <div className="mx-[22px] mt-5 p-5 bg-white rounded-[20px] flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)", border:`1.5px solid ${editingInterests ? C.accent : "transparent"}` }}
+          onClick={()=>{ setDraftInterests(currentUser.interests); setEditingInterests(true); }}>
+          <div className="relative flex-shrink-0" onClick={e=>e.stopPropagation()}>
             <AvatarCircle user={currentUser} size={64} />
             <button onClick={()=>fileRef.current?.click()} disabled={photoLoading}
               className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center cursor-pointer text-[10px]"
@@ -1560,12 +1585,56 @@ function ProfileScreen({
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
+            <div className="text-[11px] mt-2" style={{ color:C.accent }}>✎ Tap to edit interests</div>
           </div>
         </div>
+
+        {/* Interests edit modal */}
+        {editingInterests && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingInterests(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Edit your interests</div>
+              <div className="text-xs mb-4" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} · {draftInterests.length}/{MAX_INTERESTS} selected</div>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {INTERESTS.map(i=>{
+                  const active = draftInterests.includes(i.id);
+                  const disabled = !active && draftInterests.length >= MAX_INTERESTS;
+                  return (
+                    <button key={i.id}
+                      onClick={()=>!disabled && toggleDraftInterest(i.id)}
+                      className="px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                      style={{
+                        border:`1px solid ${active ? C.ink : C.border}`,
+                        background: active ? C.ink : "white",
+                        color: active ? C.cream : disabled ? "rgba(139,115,85,0.35)" : C.inkSoft,
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        fontFamily:"'DM Sans',sans-serif",
+                      }}>
+                      {i.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={saveInterests} disabled={savingInterests || draftInterests.length === 0}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+                style={{ background:C.accent, opacity:(savingInterests||draftInterests.length===0)?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                {savingInterests ? "Saving…" : "Save interests"}
+              </button>
+              <button onClick={()=>setEditingInterests(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mx-[22px] mt-4 bg-white rounded-[18px] overflow-hidden" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
@@ -1710,6 +1779,7 @@ export default function App() {
   }, [currentUser, fetchInbox]);
 
   // Poll for sender's own outgoing requests that got accepted
+  const seenAcceptedIdsRef = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!currentUser) return;
     async function checkSentAccepted() {
@@ -1724,14 +1794,19 @@ export default function App() {
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
-      if (data && !declinedIdsRef.current.has(data.id)) {
+      if (
+        data &&
+        !declinedIdsRef.current.has(data.id) &&
+        !seenAcceptedIdsRef.current.has(data.id)
+      ) {
+        seenAcceptedIdsRef.current.add(data.id);
         const recipient = data.profiles as UserProfile;
         setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
-        clearInterval(sentPollRef.current!);
+        // Keep polling — don't clearInterval — so new matches surface without a page refresh
       }
     }
     checkSentAccepted();
-    sentPollRef.current = setInterval(checkSentAccepted, 8_000);
+    sentPollRef.current = setInterval(checkSentAccepted, 6_000);
     return () => { if (sentPollRef.current) clearInterval(sentPollRef.current); };
   }, [currentUser]);
   // Auto-turn-off location access timer
@@ -1865,7 +1940,7 @@ export default function App() {
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
-            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
           </div>
