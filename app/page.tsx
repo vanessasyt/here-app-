@@ -759,14 +759,16 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 function NearbyScreen({
   currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive,
 }: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void }) {
-  const [locOn,     setLocOn]     = useState(isLive);   // initialise from lifted state
-  const [rawUsers,  setRawUsers]  = useState<UserProfile[]>([]);
-  const [dismissed, setDismissed] = useState<string[]>([]);
-  const [loading,   setLoading]   = useState(false);
-  const [offset,    setOffset]    = useState(0);   // round-robin pointer
-  const [myLat,     setMyLat]     = useState<number|null>(currentUser.lat ?? null);
-  const [myLng,     setMyLng]     = useState<number|null>(currentUser.lng ?? null);
-  const [locError,  setLocError]  = useState<string|null>(null);
+  const [locOn,      setLocOn]     = useState(isLive);
+  const [rawUsers,   setRawUsers]  = useState<UserProfile[]>([]);
+  const [dismissed,  setDismissed] = useState<string[]>([]);
+  // interacted: profiles the user has tapped "Say hi" on — hidden from grid immediately
+  const [interacted, setInteracted] = useState<string[]>([]);
+  const [loading,    setLoading]   = useState(false);
+  const [offset,     setOffset]    = useState(0);
+  const [myLat,      setMyLat]     = useState<number|null>(currentUser.lat ?? null);
+  const [myLng,      setMyLng]     = useState<number|null>(currentUser.lng ?? null);
+  const [locError,   setLocError]  = useState<string|null>(null);
 
   const pollRef     = useRef<ReturnType<typeof setInterval>|null>(null);
   const rotationRef = useRef<ReturnType<typeof setInterval>|null>(null);
@@ -897,7 +899,7 @@ function NearbyScreen({
 
   // Round-robin all open users (no distance filter — page ranks by proximity already)
   const ordered = applyRoundRobin(rawUsers, offset);
-  const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id));
+  const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id) && !interacted.includes(u.id));
 
   const eventName = currentUser.checked_in_event_id !== null
     ? (EVENTS.find(e=>e.id===currentUser.checked_in_event_id)?.name ?? "this event")
@@ -905,12 +907,14 @@ function NearbyScreen({
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
-      {/* Header — discoverability pill lives in top-right */}
+      {/* Header */}
       <div className="flex justify-between items-center px-5 pt-5 pb-0 flex-shrink-0">
         <div>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>
-            {eventName ? `At ${eventName}` : "General mode"}
-          </div>
+          {eventName && (
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>
+              At {eventName}
+            </div>
+          )}
           <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
         </div>
 
@@ -977,8 +981,7 @@ function NearbyScreen({
           ) : visible.length===0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-8 text-center">
               <div className="text-4xl mb-3 opacity-30">🔍</div>
-              <div className="text-[14px] font-semibold mb-1.5" style={{ color:C.ink }}>No one else is open to meet yet</div>
-              <div className="text-xs leading-relaxed" style={{ color:C.warmMid }}>Be the first — others will appear as they turn on discoverability</div>
+              <div className="text-[14px] font-semibold" style={{ color:C.ink }}>No one else is open to meet yet</div>
             </div>
           ) : (
             <div className="px-5 pt-3 grid grid-cols-2 gap-3">
@@ -986,15 +989,15 @@ function NearbyScreen({
                 <NearbyCard
                   key={u.id}
                   user={u}
-                  onSayHi={()=>onNavigate("request",u.id)}
-                  onDismiss={()=>setDismissed(prev=>[...prev,u.id])}
+                  onSayHi={()=>{ setInteracted(prev=>[...prev,u.id]); onNavigate("request",u.id); }}
+                  onDismiss={()=>{ setDismissed(prev=>[...prev,u.id]); setInteracted(prev=>[...prev,u.id]); }}
                 />
               ))}
             </div>
           )}
 
           <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
-            <span>🔒</span><span>Others only see your approximate area, never your exact location. Visibility ends when the event does.</span>
+            <span>🔒</span><span>Others only see your approximate area, never your exact location. Your visibility ends when you turn off the Go live button or your location access.</span>
           </div>
         </div>
       ) : (
@@ -1021,6 +1024,21 @@ function RequestScreen({
 
   async function sendRequest() {
     setSending(true); setError("");
+    // Guard: check if a request was already sent to this person today
+    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    const { data: existing } = await supabase
+      .from("meet_requests")
+      .select("id")
+      .eq("from_id", currentUser.id)
+      .eq("to_id", person.id)
+      .gte("created_at", startOfDay.toISOString())
+      .limit(1)
+      .single();
+    if (existing) {
+      setError("You've already sent a request to this person today.");
+      setSending(false);
+      return;
+    }
     const sentAt = new Date().toISOString();
     const { error: err } = await supabase.from("meet_requests").insert({
       from_id:    currentUser.id,
@@ -1060,9 +1078,6 @@ function RequestScreen({
             className="w-full p-3 rounded-[14px] text-[13px] resize-none outline-none leading-relaxed"
             style={{ border:`1.5px solid ${C.border}`, fontFamily:"'DM Sans',sans-serif", color:C.ink, background:"white", height:72 }} />
           <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{hint.length} / 120</div>
-        </div>
-        <div className="mx-[22px] mt-3 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
-          <span>⚡</span><span>You have <strong>2 of 3</strong> daily requests remaining · max 1 per person per day</span>
         </div>
         <button onClick={sendRequest} disabled={sending}
           className="mx-[22px] mt-3.5 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
