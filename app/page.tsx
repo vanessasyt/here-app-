@@ -757,9 +757,9 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 }
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
-  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds,
-}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[] }) {
-  const [locOn,     setLocOn]     = useState(false);
+  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive,
+}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void }) {
+  const [locOn,     setLocOn]     = useState(isLive);   // initialise from lifted state
   const [rawUsers,  setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [loading,   setLoading]   = useState(false);
@@ -799,6 +799,7 @@ function NearbyScreen({
     if (locOn) {
       // Turn OFF
       setLocOn(false);
+      setIsLive(false);
       await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id",currentUser.id);
       setRawUsers([]);
       if (pollRef.current)     clearInterval(pollRef.current);
@@ -835,6 +836,7 @@ function NearbyScreen({
         await fetchUsers();
         setLoading(false);
         setLocOn(true);
+        setIsLive(true);
 
         pollRef.current = setInterval(fetchUsers, 15_000);
         rotationRef.current = setInterval(()=>setOffset(o=>o+1), ROTATION_MS);
@@ -842,6 +844,7 @@ function NearbyScreen({
         // Register callback so App-level timer can force turn off
         onForceTurnOff(async () => {
           setLocOn(false);
+          setIsLive(false);
           await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
           setRawUsers([]);
           if (pollRef.current)     clearInterval(pollRef.current);
@@ -868,6 +871,7 @@ function NearbyScreen({
   useEffect(() => {
     if (!locationGranted && locOn) {
       setLocOn(false);
+      setIsLive(false);
       supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
       setRawUsers([]);
       if (pollRef.current)     clearInterval(pollRef.current);
@@ -879,6 +883,16 @@ function NearbyScreen({
   useEffect(() => () => {
     if (pollRef.current)     clearInterval(pollRef.current);
     if (rotationRef.current) clearInterval(rotationRef.current);
+  }, []);
+
+  // Re-fetch and restart polls when screen mounts while already live
+  useEffect(() => {
+    if (isLive && locationGranted) {
+      fetchUsers();
+      if (!pollRef.current)     pollRef.current     = setInterval(fetchUsers, 15_000);
+      if (!rotationRef.current) rotationRef.current = setInterval(()=>setOffset(o=>o+1), ROTATION_MS);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Round-robin all open users (no distance filter — page ranks by proximity already)
@@ -1462,8 +1476,9 @@ function MatchScreen({
                       created_at:  new Date().toISOString(),
                     });
                     onBlock(reportedId);
-                    // Set reported user's open_to_meet to false so they can't see reporter
-                    await supabase.from("profiles").update({ open_to_meet: false }).eq("id", reportedId);
+                    // The blocked_users row is bidirectional — fetchUsers on both sides
+                    // already excludes any user where either party is in the block list,
+                    // so no further profile mutation is needed.
                   }
                   setSubmitting(false);
                   setShowReport(false);
@@ -1647,14 +1662,19 @@ export default function App() {
   const autoOffRef      = useRef<ReturnType<typeof setTimeout>|null>(null);
   const inboxPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const turnOffLiveRef  = useRef<(()=>void)|null>(null);
+  // Lifted from NearbyScreen so Go Live persists across tab navigation
+  const [isLive,          setIsLive]           = useState(false);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
+    // Only fetch pending requests created in the last 30 min — older ones are expired
+    const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data } = await supabase
       .from("meet_requests")
       .select("*, profiles!meet_requests_from_id_fkey(*)")
       .eq("to_id", userId)
       .in("status", ["pending"])
+      .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
 
     if (!data) return;
@@ -1693,11 +1713,14 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     async function checkSentAccepted() {
+      // Only surface accepted requests from the last 30 min — older ones are stale / hint-expired
+      const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
       const { data } = await supabase
         .from("meet_requests")
         .select("*, profiles!meet_requests_to_id_fkey(*)")
         .eq("from_id", currentUser!.id)
         .eq("status", "accepted")
+        .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
@@ -1718,6 +1741,7 @@ export default function App() {
     const ms = autoOffTimer === "30min" ? 30*60_000 : autoOffTimer === "60min" ? 60*60_000 : 120*60_000;
     autoOffRef.current = setTimeout(() => {
       setLocationGranted(false);
+      setIsLive(false);
       // Also turn off Go live in NearbyScreen if it is active
       if (turnOffLiveRef.current) turnOffLiveRef.current();
     }, ms);
@@ -1836,7 +1860,7 @@ export default function App() {
               </div>
             )}
 
-            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} />}
+            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
