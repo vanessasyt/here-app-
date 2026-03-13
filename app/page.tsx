@@ -13,7 +13,7 @@ const supabase = createClient(
 type Screen =
   | "splash" | "login" | "signup" | "onboarding"
   | "events" | "eventdetail" | "nearby" | "request"
-  | "inbox"  | "incoming"    | "match" | "profile";
+  | "inbox"  | "incoming"    | "match" | "profile" | "pending";
 
 type IncResponse  = "accept" | "15min" | "30min";
 
@@ -51,6 +51,7 @@ interface InboxRequest {
   id: number; name: string; photo_url: string | null; bg: string;
   gender: "m" | "f"; meta: string; tags: string[];
   reqLabel: string; time: string; isNew: boolean;
+  from_id?: string; hint?: string | null;
 }
 
 // ── Design tokens ──────────────────────────────────────────
@@ -133,11 +134,7 @@ const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
   movies:       { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
 };
 
-const DUMMY_INBOX: InboxRequest[] = [
-  { id:1, name:"Sophie, 23", photo_url:null, bg:"linear-gradient(160deg,#d4a5a5,#c47a6b)", gender:"f", meta:"Architect",         tags:["music","travel"],  reqLabel:"👋 Spotted you — wants to say hi", time:"2m ago", isNew:true  },
-  { id:2, name:"Alex, 29",  photo_url:null, bg:"linear-gradient(160deg,#d4c4a5,#c4a06b)", gender:"m", meta:"Investment Banker",  tags:["movies","gym"],    reqLabel:"👋 Spotted you — wants to say hi", time:"8m ago", isNew:true  },
-  { id:3, name:"James, 24",  photo_url:null, bg:"linear-gradient(160deg,#a5c4d4,#6b8fc4)", gender:"m", meta:"Software Engineer", tags:["art","food"],      reqLabel:"👋 Said hi · You declined",         time:"1h ago", isNew:false },
-];
+// No dummy inbox — all requests come from Supabase
 
 // ── Round-robin rotation ───────────────────────────────────
 // Every ROTATION_MS we advance the top slot by 1, giving each person
@@ -775,14 +772,28 @@ function NearbyScreen({
   const rotationRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
   const fetchUsers = useCallback(async () => {
-    // Scope to same checked-in event when available; otherwise all open users
+    // Fetch all blocked relationships involving current user
+    const { data: blocksData } = await supabase
+      .from("blocked_users")
+      .select("blocker_id, blocked_id")
+      .or(`blocker_id.eq.${currentUser.id},blocked_id.eq.${currentUser.id}`);
+
+    const excludeIds = new Set<string>();
+    (blocksData ?? []).forEach((b: any) => {
+      if (b.blocker_id === currentUser.id) excludeIds.add(b.blocked_id);
+      if (b.blocked_id === currentUser.id) excludeIds.add(b.blocker_id);
+    });
+    // Also exclude client-side blockedIds
+    blockedIds.forEach(id => excludeIds.add(id));
+
     let q = supabase.from("profiles").select("*").eq("open_to_meet",true).neq("id",currentUser.id);
     if (currentUser.checked_in_event_id !== null) {
       q = q.eq("checked_in_event_id", currentUser.checked_in_event_id);
     }
     const { data } = await q;
-    setRawUsers((data as UserProfile[]) ?? []);
-  }, [currentUser.id, currentUser.checked_in_event_id]);
+    const filtered = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
+    setRawUsers(filtered);
+  }, [currentUser.id, currentUser.checked_in_event_id, blockedIds]);
 
   async function toggleLoc() {
     if (locOn) {
@@ -1005,7 +1016,7 @@ function RequestScreen({
     });
     setSending(false);
     if (err) { setError("Failed to send: " + err.message); return; }
-    onNavigate("match", { person, fromRequest: true });
+    onNavigate("pending", { person });
   }
 
   return (
@@ -1054,6 +1065,97 @@ function RequestScreen({
   );
 }
 
+// ── Pending Screen (request sent, waiting for other party) ─
+function PendingScreen({
+  person, onNavigate, inboxCount, currentUser,
+}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; currentUser:UserProfile }) {
+  const firstName = person.name.split(",")[0];
+  const [checking, setChecking] = useState(false);
+  const [acceptedData, setAcceptedData] = useState<{ recipientHint: string|null } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
+
+  // Poll to see if the other user accepted
+  const checkStatus = useCallback(async () => {
+    const { data } = await supabase
+      .from("meet_requests")
+      .select("*")
+      .eq("from_id", currentUser.id)
+      .eq("to_id", person.id)
+      .eq("status", "accepted")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data) {
+      clearInterval(pollRef.current!);
+      setAcceptedData({ recipientHint: data.recipient_hint ?? null });
+    }
+  }, [currentUser.id, person.id]);
+
+  useEffect(() => {
+    checkStatus();
+    pollRef.current = setInterval(checkStatus, 8_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [checkStatus]);
+
+  // Once accepted, go to match screen
+  useEffect(() => {
+    if (acceptedData) {
+      onNavigate("match", { person, recipientHint: acceptedData.recipientHint, fromIncoming: false });
+    }
+  }, [acceptedData]);
+
+  return (
+    <div className="flex flex-col h-full" style={{ background:C.ink }}>
+      <div className="px-6 pt-6 flex items-center gap-3 flex-shrink-0">
+        <button onClick={()=>onNavigate("inbox")}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-base cursor-pointer flex-shrink-0 border-0"
+          style={{ background:"rgba(245,240,232,0.1)", color:C.cream }}>✕</button>
+        <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:"rgba(245,240,232,0.45)" }}>Request sent</div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="text-[54px] mb-5" style={{ animation:"float 3s ease-in-out infinite" }}>⏳</div>
+        <div className="text-[28px] leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+          Request sent to<br /><em style={{ color:C.accent }}>{firstName}</em>
+        </div>
+        <div className="text-[13px] leading-relaxed mb-6 max-w-[280px]" style={{ color:"rgba(245,240,232,0.55)" }}>
+          You can leave this page and go back to Nearby. If {firstName} accepts, you&apos;ll see it in your <strong style={{ color:"rgba(245,240,232,0.8)" }}>Meet Requests</strong> inbox.
+        </div>
+
+        {/* Animated waiting indicator */}
+        <div className="flex gap-2 mb-6">
+          {[0,1,2].map(i=>(
+            <div key={i} className="w-2 h-2 rounded-full" style={{ background:C.accent, animation:`pulse 1.4s ${i*0.2}s ease-in-out infinite` }} />
+          ))}
+        </div>
+
+        <div className="w-full p-4 rounded-[18px] mb-4 text-left" style={{ background:"rgba(196,120,58,0.08)", border:"1px solid rgba(196,120,58,0.2)" }}>
+          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.accent }}>What happens next</div>
+          <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
+            When {firstName} accepts, their identifying hint will appear in your Meet Requests so you can find each other. Your hint has been shared.
+          </div>
+        </div>
+
+        <div className="text-xs leading-relaxed" style={{ color:"rgba(245,240,232,0.35)" }}>
+          🔒 Hints auto-erase after 30 min · location never shared
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 flex flex-col gap-2.5">
+        <button onClick={()=>onNavigate("nearby")} className="w-full py-3.5 rounded-2xl text-[15px] font-semibold cursor-pointer border-0"
+          style={{ background:C.accent, color:"white", fontFamily:"'DM Sans',sans-serif" }}>
+          ← Back to Nearby
+        </button>
+        <button onClick={()=>onNavigate("inbox")} className="w-full py-3.5 rounded-2xl text-[14px] font-medium cursor-pointer border-0"
+          style={{ background:"rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.55)", fontFamily:"'DM Sans',sans-serif" }}>
+          View Meet Requests
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
   requests, onNavigate, onDecline, onDismiss,
@@ -1091,7 +1193,7 @@ function InboxScreen({
               </div>
               <div className="flex gap-2 mt-3">
                 <button onClick={e=>{e.stopPropagation();onNavigate("incoming",r.id);}} className="flex-[2] py-2.5 rounded-xl text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green }}>Respond →</button>
-                <button onClick={e=>{e.stopPropagation();onDecline(r.id);}}              className="flex-1 py-2.5 rounded-xl text-[13px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid }}>Decline</button>
+                <button onClick={e=>{e.stopPropagation();onNavigate("incoming",r.id);}} className="flex-1 py-2.5 rounded-xl text-[13px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid }}>Decline</button>
               </div>
             </div>
           ))}
@@ -1129,16 +1231,69 @@ function InboxScreen({
 
 // ── Incoming ───────────────────────────────────────────────
 function IncomingScreen({
-  request, onNavigate, inboxCount,
-}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+  request, onNavigate, inboxCount, onDecline,
+}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:number)=>void }) {
   const [response, setResponse] = useState<IncResponse>("accept");
   const [hint, setHint]         = useState("");
+  const [sending, setSending]   = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [error, setError]       = useState("");
   const firstName               = request.name.split(",")[0];
   const options: { id:IncResponse; icon:string; label:string; sub:string }[] = [
     { id:"accept", icon:"✅", label:"Accept — meet now",  sub:"I'll come find you"       },
     { id:"15min",  icon:"⏱️", label:"Meet in 15 min",     sub:"I'll be with you shortly" },
     { id:"30min",  icon:"🕐", label:"Meet in 30 min",     sub:"See you in a bit"         },
   ];
+
+  async function confirm() {
+    setSending(true); setError("");
+    const { error: err } = await supabase
+      .from("meet_requests")
+      .update({ status: "accepted", recipient_hint: hint.trim() || null, response_timing: response })
+      .eq("id", request.id);
+    setSending(false);
+    if (err) { setError("Failed: " + err.message); return; }
+    onNavigate("match", { request, response, fromIncoming: true, recipientHint: hint.trim() });
+  }
+
+  async function handleDecline() {
+    setDeclining(true);
+    await supabase.from("meet_requests").update({ status: "declined" }).eq("id", request.id);
+    onDecline(request.id);
+    setDeclining(false);
+    setDeclined(true);
+  }
+
+  // Declined state — replace the whole screen
+  if (declined) {
+    return (
+      <div className="flex flex-col h-full" style={{ background:C.cream }}>
+        <div className="px-[22px] pt-[22px] flex items-center gap-3 flex-shrink-0">
+          <BackBtn onClick={()=>onNavigate("inbox")} />
+          <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Meet request</div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-16">
+          <div className="text-[54px] mb-5">😶</div>
+          <div className="text-[24px] leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>
+            Not right now
+          </div>
+          <div className="text-[14px] leading-relaxed mb-8 max-w-[280px]" style={{ color:C.warmMid }}>
+            Unfortunately, <strong style={{ color:C.ink }}>{firstName}</strong> is not open to meet right now. Their request has been declined.
+          </div>
+          <button onClick={()=>onNavigate("nearby")}
+            className="px-8 py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+            style={{ background:C.ink }}>
+            ← Back to Nearby
+          </button>
+          <button onClick={()=>onNavigate("inbox")} className="mt-3 text-[13px] cursor-pointer border-0 bg-transparent" style={{ color:C.warmMid }}>
+            Go to Requests
+          </button>
+        </div>
+        <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -1155,10 +1310,14 @@ function IncomingScreen({
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{request.tags.map(t=><InterestTag key={t} interest={t} />)}</div>
           </div>
         </div>
+        {/* Show sender's hint */}
         <div className="mx-[22px] mt-3.5 p-[14px_18px] rounded-2xl" style={{ background:"rgba(196,120,58,0.15)", border:"1px solid rgba(196,120,58,0.3)" }}>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>Their request</div>
-          <div className="text-[15px] font-semibold" style={{ color:C.ink }}>👋 I spotted you — wants to say hi</div>
-          <div className="text-xs mt-1 leading-relaxed" style={{ color:C.inkSoft }}>{firstName} wants to come say hi.</div>
+          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>Their identifying hint</div>
+          {request.hint
+            ? <div className="text-[15px] font-semibold" style={{ color:C.ink }}>👋 &ldquo;{request.hint}&rdquo;</div>
+            : <div className="text-[14px]" style={{ color:C.inkSoft }}>👋 {firstName} wants to meet — no hint provided</div>
+          }
+          <div className="text-xs mt-1 leading-relaxed" style={{ color:C.inkSoft }}>Accepting will share your hint with {firstName}.</div>
         </div>
         <div className="px-[22px] pt-3.5">
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2.5" style={{ color:C.warmMid }}>Your response</div>
@@ -1175,17 +1334,26 @@ function IncomingScreen({
           ))}
         </div>
         <div className="px-[22px] pt-1">
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your identifying hint</div>
+          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
+            Your identifying hint <span className="normal-case text-[10px] font-normal">(so they can spot you)</span>
+          </div>
           <textarea value={hint} onChange={e=>setHint(e.target.value)} maxLength={120}
             placeholder="e.g. I'm in a green top near the entrance…"
             className="w-full p-3 rounded-[14px] text-[13px] resize-none outline-none leading-relaxed"
             style={{ border:`1.5px solid ${C.border}`, fontFamily:"'DM Sans',sans-serif", color:C.ink, background:"white", height:72 }} />
           <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{hint.length} / 120</div>
         </div>
-        <button onClick={()=>onNavigate("match",{ request, response, fromIncoming:true })}
+        {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
+        <button onClick={confirm} disabled={sending}
           className="mx-[22px] mt-3 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:C.green, width:"calc(100% - 44px)" }}>
-          Confirm response →
+          style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+          {sending ? "Confirming…" : "Confirm response →"}
+        </button>
+        {/* Decline button */}
+        <button onClick={handleDecline} disabled={declining}
+          className="mx-[22px] mt-2.5 py-[13px] rounded-2xl text-[14px] cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.warmMid, width:"calc(100% - 44px)", fontFamily:"'DM Sans',sans-serif", opacity:declining?0.5:1 }}>
+          {declining ? "Declining…" : "Decline request"}
         </button>
         <div className="h-6" />
       </div>
@@ -1197,12 +1365,19 @@ function IncomingScreen({
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
   matchData, onNavigate, currentUser, onBlock,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void }) {
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void }) {
   const person    = matchData.person || matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
   const timerMins = matchData.response==="15min" ? 15 : 30;
-  // Resolve the reported user's id from whichever shape matchData carries
   const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
+  const fromIncoming = matchData.fromIncoming ?? false;
+
+  // The hint to show depends on perspective:
+  // - If recipient (fromIncoming=true): show sender's hint (from request.hint)
+  // - If sender (fromIncoming=false): show recipient's hint (recipientHint)
+  const hintToShow = fromIncoming
+    ? (matchData.request?.hint ?? null)
+    : (matchData.recipientHint ?? null);
 
   const [secs,         setSecs]       = useState(timerMins*60);
   const [erased,       setErased]     = useState(false);
@@ -1227,15 +1402,24 @@ function MatchScreen({
           It&apos;s a<br /><em style={{ color:C.accent }}>mutual match</em>
         </div>
         <div className="text-[13px] text-center mt-2.5 leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
-          {firstName} accepted. Here&apos;s their identifying hint.
+          {fromIncoming
+            ? `You accepted ${firstName}'s request. Here's their hint so you can find them.`
+            : `${firstName} accepted your request. Here's their hint so you can find them.`}
         </div>
         <div className="w-full mt-4 p-[18px_20px] rounded-[20px]" style={{ background:"rgba(196,120,58,0.12)", border:"1px solid rgba(196,120,58,0.3)" }}>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>Identifying hint</div>
+          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>
+            {fromIncoming ? `${firstName}'s identifying hint` : `${firstName}'s identifying hint`}
+          </div>
           {erased
             ? <div className="text-[14px]" style={{ color:"rgba(245,240,232,0.3)" }}>Hint auto-erased</div>
-            : <div className="text-[18px] leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
-                👋 &quot;I&apos;ll wave when I spot you — come say hi!&quot;
-              </div>}
+            : hintToShow
+              ? <div className="text-[18px] leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+                  &ldquo;{hintToShow}&rdquo;
+                </div>
+              : <div className="text-[14px] leading-relaxed" style={{ color:"rgba(245,240,232,0.55)" }}>
+                  {firstName} didn&apos;t leave a hint — look around and wave! 👋
+                </div>
+          }
         </div>
         {!erased && (
           <button onClick={()=>setErased(true)} className="w-full mt-3 p-3 rounded-[13px] text-[13px] text-left cursor-pointer"
@@ -1284,14 +1468,14 @@ function MatchScreen({
                 disabled={submitting}
                 onClick={async () => {
                   setSubmitting(true);
-                  // Write report to Supabase
+                  // Write report to Supabase — include reported user's name/email via join
                   await supabase.from("reports").insert({
                     reporter_id:  currentUser.id,
                     reported_id:  reportedId,
                     reason:       reportOpt,
                     created_at:   new Date().toISOString(),
                   });
-                  // Block the user — add to blocked_users table and hide from Nearby
+                  // Block the user
                   if (reportedId) {
                     await supabase.from("blocked_users").insert({
                       blocker_id:  currentUser.id,
@@ -1299,6 +1483,8 @@ function MatchScreen({
                       created_at:  new Date().toISOString(),
                     });
                     onBlock(reportedId);
+                    // Set reported user's open_to_meet to false so they can't see reporter
+                    await supabase.from("profiles").update({ open_to_meet: false }).eq("id", reportedId);
                   }
                   setSubmitting(false);
                   setShowReport(false);
@@ -1472,7 +1658,7 @@ export default function App() {
   const [screenData,      setData]    = useState<unknown>(null);
   const [animKey,         setAnimKey] = useState(0);
   const [currentUser,     setUser]    = useState<UserProfile|null>(null);
-  const [inbox,           setInbox]   = useState<InboxRequest[]>(DUMMY_INBOX);
+  const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
   const [locationGranted, setLocationGranted] = useState(false);
   const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
   const [autoOffTimer,    setAutoOffTimer]     = useState("never");
@@ -1486,7 +1672,7 @@ export default function App() {
       .from("meet_requests")
       .select("*, profiles!meet_requests_from_id_fkey(*)")
       .eq("to_id", userId)
-      .eq("status", "pending")
+      .in("status", ["pending"])
       .order("created_at", { ascending: false });
 
     if (!data) return;
@@ -1506,10 +1692,11 @@ export default function App() {
         reqLabel:  r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
         time:      timeLabel,
         isNew:     true,
+        from_id:   r.from_id,
+        hint:      r.hint,
       };
     });
-    // Real requests shown first, dummy profiles appended after for demo
-    setInbox([...mapped, ...DUMMY_INBOX]);
+    setInbox(mapped);
   }, []);
 
   // Start polling when user is known
@@ -1571,10 +1758,10 @@ export default function App() {
   const selectedPerson = selectedPersonProfile ?? blankUser;
   const selectedRequest  = inbox.find(r=>r.id===screenData) ?? inbox[0];
   const matchData        = (screen==="match" && screenData && typeof screenData==="object")
-    ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse }
+    ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }
     : {};
 
-  const darkScreens: Screen[] = ["splash","login","signup","match"];
+  const darkScreens: Screen[] = ["splash","login","signup","match","pending"];
   const isDark = darkScreens.includes(screen);
 
   return (
@@ -1636,8 +1823,9 @@ export default function App() {
             {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} />}
-            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} />}
+            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; return <PendingScreen person={pPerson} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
           </div>
         </div>
