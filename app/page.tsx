@@ -1074,21 +1074,27 @@ function PendingScreen({
   const [acceptedData, setAcceptedData] = useState<{ recipientHint: string|null } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
-  // Poll to see if the other user accepted
+  const [declinedByThem, setDeclinedByThem] = useState(false);
+
+  // Poll to see if the other user accepted or declined
   const checkStatus = useCallback(async () => {
     const { data } = await supabase
       .from("meet_requests")
       .select("*")
       .eq("from_id", currentUser.id)
       .eq("to_id", person.id)
-      .eq("status", "accepted")
+      .in("status", ["accepted", "declined"])
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
     if (data) {
       clearInterval(pollRef.current!);
-      setAcceptedData({ recipientHint: data.recipient_hint ?? null });
+      if (data.status === "accepted") {
+        setAcceptedData({ recipientHint: data.recipient_hint ?? null });
+      } else if (data.status === "declined") {
+        setDeclinedByThem(true);
+      }
     }
   }, [currentUser.id, person.id]);
 
@@ -1104,6 +1110,13 @@ function PendingScreen({
       onNavigate("match", { person, recipientHint: acceptedData.recipientHint, fromIncoming: false });
     }
   }, [acceptedData]);
+
+  // If they declined, go back to nearby
+  useEffect(() => {
+    if (declinedByThem) {
+      onNavigate("nearby");
+    }
+  }, [declinedByThem]);
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.ink }}>
@@ -1193,7 +1206,7 @@ function InboxScreen({
               </div>
               <div className="flex gap-2 mt-3">
                 <button onClick={e=>{e.stopPropagation();onNavigate("incoming",r.id);}} className="flex-[2] py-2.5 rounded-xl text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green }}>Respond →</button>
-                <button onClick={e=>{e.stopPropagation();onNavigate("incoming",r.id);}} className="flex-1 py-2.5 rounded-xl text-[13px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid }}>Decline</button>
+                <button onClick={e=>{e.stopPropagation();onDecline(r.id);}} className="flex-1 py-2.5 rounded-xl text-[13px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid }}>Decline</button>
               </div>
             </div>
           ))}
@@ -1237,7 +1250,6 @@ function IncomingScreen({
   const [hint, setHint]         = useState("");
   const [sending, setSending]   = useState(false);
   const [declining, setDeclining] = useState(false);
-  const [declined, setDeclined] = useState(false);
   const [error, setError]       = useState("");
   const firstName               = request.name.split(",")[0];
   const options: { id:IncResponse; icon:string; label:string; sub:string }[] = [
@@ -1261,38 +1273,8 @@ function IncomingScreen({
     setDeclining(true);
     await supabase.from("meet_requests").update({ status: "declined" }).eq("id", request.id);
     onDecline(request.id);
+    // onDecline already navigates away to inbox, so no need to set local declined state
     setDeclining(false);
-    setDeclined(true);
-  }
-
-  // Declined state — replace the whole screen
-  if (declined) {
-    return (
-      <div className="flex flex-col h-full" style={{ background:C.cream }}>
-        <div className="px-[22px] pt-[22px] flex items-center gap-3 flex-shrink-0">
-          <BackBtn onClick={()=>onNavigate("inbox")} />
-          <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Meet request</div>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-16">
-          <div className="text-[54px] mb-5">😶</div>
-          <div className="text-[24px] leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>
-            Not right now
-          </div>
-          <div className="text-[14px] leading-relaxed mb-8 max-w-[280px]" style={{ color:C.warmMid }}>
-            Unfortunately, <strong style={{ color:C.ink }}>{firstName}</strong> is not open to meet right now. Their request has been declined.
-          </div>
-          <button onClick={()=>onNavigate("nearby")}
-            className="px-8 py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-            style={{ background:C.ink }}>
-            ← Back to Nearby
-          </button>
-          <button onClick={()=>onNavigate("inbox")} className="mt-3 text-[13px] cursor-pointer border-0 bg-transparent" style={{ color:C.warmMid }}>
-            Go to Requests
-          </button>
-        </div>
-        <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
-      </div>
-    );
   }
 
   return (
@@ -1659,6 +1641,7 @@ export default function App() {
   const [animKey,         setAnimKey] = useState(0);
   const [currentUser,     setUser]    = useState<UserProfile|null>(null);
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
+  const declinedIdsRef = useRef<Set<number>>(new Set());
   const [locationGranted, setLocationGranted] = useState(false);
   const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
   const [autoOffTimer,    setAutoOffTimer]     = useState("never");
@@ -1696,7 +1679,7 @@ export default function App() {
         hint:      r.hint,
       };
     });
-    setInbox(mapped);
+    setInbox(mapped.filter(r => !declinedIdsRef.current.has(r.id)));
   }, []);
 
   // Start polling when user is known
@@ -1743,10 +1726,19 @@ export default function App() {
   }
 
   function declineRequest(id: number) {
+    // Track locally so poll doesn't restore it before DB confirms
+    declinedIdsRef.current.add(id);
+    // Mark declined in DB — this overwrites any previous status (including accepted)
     supabase.from("meet_requests").update({ status: "declined" }).eq("id", id).then(() => {
+      // Safe to remove from ref now — DB is confirmed declined
+      declinedIdsRef.current.delete(id);
       if (currentUser) fetchInbox(currentUser.id);
     });
-    setInbox(prev=>prev.filter(r=>r.id!==id));
+    setInbox(prev => prev.filter(r => r.id !== id));
+    // If currently viewing this request or on match/incoming screen for it, go back to inbox
+    if (screen === "incoming" || screen === "match") {
+      navigate("inbox");
+    }
   }
   function dismissRequest(id: number) {
     setInbox(prev=>prev.filter(r=>r.id!==id));
@@ -1824,6 +1816,7 @@ export default function App() {
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
+            {screen==="incoming" && !selectedRequest && navigate("inbox") && null}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; return <PendingScreen person={pPerson} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
