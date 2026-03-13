@@ -15,7 +15,6 @@ type Screen =
   | "events" | "eventdetail" | "nearby" | "request"
   | "inbox"  | "incoming"    | "match" | "profile";
 
-type RadiusOption = "250m" | "500m" | "1km";
 type IncResponse  = "accept" | "15min" | "30min";
 
 interface UserProfile {
@@ -73,32 +72,28 @@ const EVENTS: HereEvent[] = [
   { id:7, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"wine",      name:"Borough Market — After Dark",        venue:"Borough Market",       area:"Borough",       meta:"Saturday 6pm · Free",             members:46, time:"Sat",             section:"week", desc:"London's most iconic food market stays open late." },
 ];
 
-// 24 interests — each user picks up to 4
+// 20 interests — each user picks up to 4
 const INTERESTS: { id: string; emoji: string; label: string }[] = [
-  { id:"music",        emoji:"🎵", label:"Music"        },
-  { id:"art",          emoji:"🎨", label:"Art"          },
-  { id:"travel",       emoji:"✈️", label:"Travel"       },
-  { id:"food",         emoji:"🍴", label:"Food"         },
-  { id:"fitness",      emoji:"🏋️", label:"Fitness"      },
-  { id:"sports",       emoji:"⚽", label:"Sports"       },
-  { id:"film",         emoji:"🎬", label:"Film"         },
-  { id:"wine",         emoji:"🍷", label:"Wine"         },
-  { id:"dance",        emoji:"💃", label:"Dance"        },
-  { id:"reading",      emoji:"📚", label:"Reading"      },
-  { id:"photography",  emoji:"📷", label:"Photography"  },
-  { id:"cooking",      emoji:"🍳", label:"Cooking"      },
-  { id:"theatre",      emoji:"🎭", label:"Theatre"      },
-  { id:"gaming",       emoji:"🎮", label:"Gaming"       },
-  { id:"hiking",       emoji:"🥾", label:"Hiking"       },
-  { id:"yoga",         emoji:"🧘", label:"Yoga"         },
-  { id:"tech",         emoji:"💻", label:"Tech"         },
-  { id:"fashion",      emoji:"👗", label:"Fashion"      },
-  { id:"architecture", emoji:"🏛️", label:"Architecture" },
-  { id:"comedy",       emoji:"😂", label:"Comedy"       },
-  { id:"volunteering", emoji:"🤝", label:"Volunteering" },
-  { id:"cycling",      emoji:"🚴", label:"Cycling"      },
-  { id:"podcasts",     emoji:"🎙️", label:"Podcasts"     },
-  { id:"startups",     emoji:"🚀", label:"Startups"     },
+  { id:"music",        emoji:"", label:"Music"        },
+  { id:"art",          emoji:"", label:"Art"          },
+  { id:"travel",       emoji:"", label:"Travel"       },
+  { id:"food",         emoji:"", label:"Food"         },
+  { id:"fitness",      emoji:"", label:"Fitness"      },
+  { id:"sports",       emoji:"", label:"Sports"       },
+  { id:"film",         emoji:"", label:"Film"         },
+  { id:"wine",         emoji:"", label:"Wine"         },
+  { id:"dance",        emoji:"", label:"Dance"        },
+  { id:"reading",      emoji:"", label:"Reading"      },
+  { id:"photography",  emoji:"", label:"Photography"  },
+  { id:"cooking",      emoji:"", label:"Cooking"      },
+  { id:"theatre",      emoji:"", label:"Theatre"      },
+  { id:"gaming",       emoji:"", label:"Gaming"       },
+  { id:"tech",         emoji:"", label:"Tech"         },
+  { id:"fashion",      emoji:"", label:"Fashion"      },
+  { id:"architecture", emoji:"", label:"Architecture" },
+  { id:"comedy",       emoji:"", label:"Comedy"       },
+  { id:"volunteering", emoji:"", label:"Volunteering" },
+  { id:"podcasts",     emoji:"", label:"Podcasts"     },
 ];
 
 const MAX_INTERESTS = 4;
@@ -127,16 +122,12 @@ const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
   cooking:      { background:"rgba(196,140,40,0.12)",   color:"#c48c28" },
   theatre:      { background:"rgba(120,40,120,0.1)",    color:"#782878" },
   gaming:       { background:"rgba(40,140,180,0.1)",    color:"#288cb4" },
-  hiking:       { background:"rgba(80,120,60,0.12)",    color:"#50783c" },
-  yoga:         { background:"rgba(180,100,140,0.1)",   color:"#b4648c" },
   tech:         { background:"rgba(60,80,180,0.1)",     color:"#3c50b4" },
   fashion:      { background:"rgba(200,80,120,0.1)",    color:"#c85078" },
   architecture: { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
   comedy:       { background:"rgba(220,160,40,0.12)",   color:"#dca028" },
   volunteering: { background:"rgba(60,160,100,0.1)",    color:"#3ca064" },
-  cycling:      { background:"rgba(40,140,100,0.1)",    color:"#288c64" },
   podcasts:     { background:"rgba(140,60,200,0.1)",    color:"#8c3cc8" },
-  startups:     { background:"rgba(220,100,40,0.12)",   color:"#dc6428" },
   // legacy aliases so old profiles still render
   gym:          { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
   movies:       { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
@@ -144,7 +135,7 @@ const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
 
 const DUMMY_INBOX: InboxRequest[] = [
   { id:1, name:"Sophie, 23", photo_url:null, bg:"linear-gradient(160deg,#d4a5a5,#c47a6b)", gender:"f", meta:"Architect",         tags:["music","travel"],  reqLabel:"👋 Spotted you — wants to say hi", time:"2m ago", isNew:true  },
-  { id:2, name:"Lucas, 29",  photo_url:null, bg:"linear-gradient(160deg,#d4c4a5,#c4a06b)", gender:"m", meta:"Quant Researcher",  tags:["movies","gym"],    reqLabel:"👋 Spotted you — wants to say hi", time:"8m ago", isNew:true  },
+  { id:2, name:"Alex, 29",  photo_url:null, bg:"linear-gradient(160deg,#d4c4a5,#c4a06b)", gender:"m", meta:"Investment Banker",  tags:["movies","gym"],    reqLabel:"👋 Spotted you — wants to say hi", time:"8m ago", isNew:true  },
   { id:3, name:"James, 24",  photo_url:null, bg:"linear-gradient(160deg,#a5c4d4,#6b8fc4)", gender:"m", meta:"Software Engineer", tags:["art","food"],      reqLabel:"👋 Said hi · You declined",         time:"1h ago", isNew:false },
 ];
 
@@ -225,7 +216,7 @@ function AvatarFill({
 function InterestTag({ interest }: { interest: string }) {
   const s    = INTEREST_STYLE[interest] ?? { background: "rgba(139,115,85,0.1)", color: C.inkSoft };
   const meta = INTERESTS.find(i => i.id === interest);
-  const display = meta ? `${meta.emoji} ${meta.label}` : interest;
+  const display = meta ? meta.label : interest;
   return (
     <span className="text-[10px] px-1.5 py-0.5 rounded-lg" style={s}>{display}</span>
   );
@@ -369,6 +360,9 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     setLoading(true); setError("");
     const { error:err } = await supabase.auth.signUp({ email, password:pass });
     if (err) { setError(err.message); setLoading(false); return; }
+    // Sign in immediately so session is active before onboarding saves profile
+    const { error:signInErr } = await supabase.auth.signInWithPassword({ email, password:pass });
+    if (signInErr) { setError("Account created — please sign in."); setLoading(false); onNavigate("login"); return; }
     setLoading(false); onNavigate("onboarding");
   }
 
@@ -452,7 +446,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
     const profile: UserProfile = {
       id: user.id, email: user.email ?? "", name, age: parseInt(age),
       occupation: occ, interests, photo_url, bg,
-      open_to_meet: false, checked_in_event_id: null, checked_in_at: null,
+      open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
     };
     const { error: dbErr } = await supabase.from("profiles").upsert(profile);
     if (dbErr) { setError(dbErr.message); setLoading(false); return; }
@@ -533,19 +527,19 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
       {/* ─── Step 2: Interests ─── */}
       {step===2 && (
-        <div className="flex-1 flex flex-col px-6 pb-8 overflow-y-auto">
-          <div className="mb-3">
+        <div className="flex-1 flex flex-col px-6 pb-8" style={{ minHeight:0 }}>
+          <div className="mb-3 flex-shrink-0">
             <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
             <div className="text-sm mt-1" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters on your card</div>
           </div>
 
           {/* Fairness notice */}
-          <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
+          <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
             💬 These tags <strong>never</strong> affect who sees you or in what order — purely for starting conversations.
           </div>
 
           {/* Counter + clear */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="text-xs font-semibold" style={{ color:C.inkSoft }}>
               {interests.length === MAX_INTERESTS
                 ? <span style={{ color:C.green }}>✓ {MAX_INTERESTS} selected</span>
@@ -556,8 +550,8 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             )}
           </div>
 
-          {/* 24 emoji pills */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {/* Interest pills — scrollable */}
+          <div className="flex flex-wrap gap-2 mb-4 overflow-y-auto flex-1" style={{ minHeight:0 }}>
             {INTERESTS.map(item => {
               const on     = interests.includes(item.id);
               const maxed  = !on && interests.length >= MAX_INTERESTS;
@@ -572,6 +566,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                     cursor:      maxed ? "not-allowed" : "pointer",
                     fontFamily:  "'DM Sans',sans-serif",
                     opacity:     maxed ? 0.55 : 1,
+                    alignSelf:   "flex-start",
                   }}>
                   <span style={{ fontSize:13, lineHeight:1 }}>{item.emoji}</span>
                   {item.label}
@@ -580,9 +575,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             })}
           </div>
 
-          {error && <div className="text-xs mb-2 text-center" style={{ color:"#ef4444" }}>{error}</div>}
+          {error && <div className="text-xs mb-2 text-center flex-shrink-0" style={{ color:"#ef4444" }}>{error}</div>}
 
-          <div className="flex gap-3 mt-auto">
+          <div className="flex gap-3 flex-shrink-0">
             <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>← Back</button>
             <button onClick={()=>interests.length>0&&setStep(3)} disabled={!interests.length}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
@@ -763,18 +758,15 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-const RADIUS_M:Record<RadiusOption,number>={ "250m":250,"500m":500,"1km":1000 };
-
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
   currentUser, onNavigate, inboxCount,
 }: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
   const [locOn,     setLocOn]     = useState(false);
-  const [radius,    setRadius]    = useState<RadiusOption>("250m");
   const [rawUsers,  setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [loading,   setLoading]   = useState(false);
-  const [offset,    setOffset]    = useState(0);
+  const [offset,    setOffset]    = useState(0);   // round-robin pointer
   const [myLat,     setMyLat]     = useState<number|null>(currentUser.lat ?? null);
   const [myLng,     setMyLng]     = useState<number|null>(currentUser.lng ?? null);
   const [locError,  setLocError]  = useState<string|null>(null);
@@ -783,15 +775,15 @@ function NearbyScreen({
   const rotationRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
   const fetchUsers = useCallback(async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("open_to_meet", true)
-      .neq("id", currentUser.id);
+    // Scope to same checked-in event when available; otherwise all open users
+    let q = supabase.from("profiles").select("*").eq("open_to_meet",true).neq("id",currentUser.id);
+    if (currentUser.checked_in_event_id !== null) {
+      q = q.eq("checked_in_event_id", currentUser.checked_in_event_id);
+    }
+    const { data } = await q;
     setRawUsers((data as UserProfile[]) ?? []);
-  }, [currentUser.id]);
+  }, [currentUser.id, currentUser.checked_in_event_id]);
 
-  // Get GPS position, save to Supabase, then enable discoverability
   async function toggleLoc() {
     if (locOn) {
       // Turn OFF
@@ -820,7 +812,6 @@ function NearbyScreen({
         setMyLat(lat);
         setMyLng(lng);
 
-        // Save lat/lng + open_to_meet to Supabase
         await supabase.from("profiles")
           .update({ open_to_meet:true, lat, lng })
           .eq("id", currentUser.id);
@@ -829,22 +820,22 @@ function NearbyScreen({
         setLoading(false);
         setLocOn(true);
 
-        // Refresh list every 15 s
         pollRef.current = setInterval(fetchUsers, 15_000);
-        // Advance round-robin every 30 s
         rotationRef.current = setInterval(()=>setOffset(o=>o+1), ROTATION_MS);
       },
       (err) => {
         setLoading(false);
         if (err.code === err.PERMISSION_DENIED) {
-          setLocError("Location access was denied. Please allow location in your browser settings, then try again.");
+          setLocError("Location denied. On iPhone: Settings → Safari → Location → set to Allow. Then reload the page.");
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setLocError("Location unavailable. Try moving to an open area.");
+          setLocError("Location unavailable. Make sure Location Services is on in iPhone Settings → Privacy → Location Services.");
+        } else if (err.code === err.TIMEOUT) {
+          setLocError("Location timed out. Please try again.");
         } else {
-          setLocError("Couldn't get your location. Please try again.");
+          setLocError(`Location error (code ${err.code}). Please try again.`);
         }
       },
-      { enableHighAccuracy:true, timeout:10_000, maximumAge:60_000 }
+      { enableHighAccuracy:false, timeout:20_000, maximumAge:300_000 }
     );
   }
 
@@ -854,14 +845,8 @@ function NearbyScreen({
     if (rotationRef.current) clearInterval(rotationRef.current);
   }, []);
 
-  // Filter by GPS radius (if both sides have coords), then round-robin, then strip dismissed
-  const radiusMetres = RADIUS_M[radius];
-  const withinRadius = rawUsers.filter(u => {
-    if (myLat===null||myLng===null) return true; // no GPS yet → show all
-    if (u.lat===null||u.lng===null) return false; // other user has no coords
-    return haversineMetres(myLat,myLng,u.lat,u.lng) <= radiusMetres;
-  });
-  const ordered = applyRoundRobin(withinRadius, offset);
+  // Round-robin all open users (no distance filter — page ranks by proximity already)
+  const ordered = applyRoundRobin(rawUsers, offset);
   const visible = ordered.filter(u=>!dismissed.includes(u.id));
 
   const eventName = currentUser.checked_in_event_id !== null
@@ -870,52 +855,45 @@ function NearbyScreen({
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
-      {/* Header */}
-      <div className="flex justify-between items-end px-5 pt-5 pb-0 flex-shrink-0">
+      {/* Header — discoverability pill lives in top-right */}
+      <div className="flex justify-between items-center px-5 pt-5 pb-0 flex-shrink-0">
         <div>
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>
             {eventName ? `At ${eventName}` : "General mode"}
           </div>
           <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
         </div>
-        {locOn && (
-          <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color:C.green }}>
-            <span className="w-2 h-2 rounded-full inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
-            Live
-          </div>
-        )}
-      </div>
 
-      {/* Discoverability toggle */}
-      <div className="mx-5 mt-4 p-5 bg-white rounded-[20px] flex-shrink-0" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
-        <button onClick={toggleLoc}
-          className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-[28px] mx-auto mb-3.5 border-2 cursor-pointer transition-all duration-[400ms]"
-          style={{ background:locOn?C.green:"rgba(139,115,85,0.08)", borderColor:locOn?C.green:C.border, boxShadow:locOn?"0 0 0 8px rgba(74,124,89,0.12),0 0 32px rgba(74,124,89,0.25)":"none", transform:locOn?"scale(1.05)":"scale(1)" }}>
-          {locOn?"✓":"📡"}
+        {/* Compact discoverability toggle — top-right corner */}
+        <button
+          onClick={toggleLoc}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer border-0 transition-all duration-300 flex-shrink-0"
+          style={{
+            background: locOn ? "rgba(74,124,89,0.12)" : "rgba(139,115,85,0.10)",
+            border: `1.5px solid ${locOn ? "rgba(74,124,89,0.35)" : C.border}`,
+          }}
+        >
+          {loading
+            ? <span style={{ fontSize:11, animation:"spin 1s linear infinite", display:"inline-block", color:C.warmMid }}>⟳</span>
+            : <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: locOn ? C.green : C.warmMid, animation: locOn ? "pulse 2s infinite" : "none", display:"inline-block" }} />
+          }
+          <span className="text-[11px] font-semibold" style={{ color: locOn ? C.green : C.warmMid }}>
+            {loading ? "Locating…" : locOn ? "Live" : "Go live"}
+          </span>
         </button>
-        <div className="text-center text-[15px] font-semibold" style={{ color:C.ink }}>
-          {locOn ? "Discoverability on" : "Discoverability off"}
-        </div>
-        <div className="text-center text-xs mt-1.5 leading-relaxed" style={{ color:C.warmMid }}>
-          {locOn
-            ? "You're visible · order rotates every 5 minutes so everyone gets equal time at the top"
-            : "Tap to share your location and see who's nearby"}
-        </div>
-        {locError && (
-          <div className="mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed text-center" style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#dc2626" }}>
-            📍 {locError}
-          </div>
-        )}
-        {locOn && (
-          <div className="flex justify-center gap-2 mt-3.5">
-            {(["250m","500m","1km"] as RadiusOption[]).map(r=><Chip key={r} label={r} active={radius===r} onClick={()=>setRadius(r)} />)}
-          </div>
-        )}
       </div>
 
-      {/* Fairness note */}
+      {/* Location error banner */}
+      {locError && (
+        <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#dc2626" }}>
+          📍 {locError}
+        </div>
+      )}
+
+      {/* Fairness note — only when live */}
       {locOn && (
-        <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2"
+        <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
           style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
           <span>🔄</span>
           <span>Cards rotate every 5 minutes — <strong>no scores, no popularity metrics, no persistent rankings.</strong> Everyone gets equal exposure.</span>
@@ -927,7 +905,7 @@ function NearbyScreen({
         <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
           <div className="px-5 pt-3 flex justify-between items-center">
             <div className="text-[13px] font-semibold" style={{ color:C.ink }}>
-              {loading ? "Getting your location…" : `${visible.length} open to meet within ${radius}`}
+              {loading ? "Finding people…" : `${visible.length} open to meet nearby`}
             </div>
             {eventName && <div className="text-[11px] font-medium" style={{ color:C.accent }}>🎟 Same event</div>}
           </div>
@@ -963,7 +941,7 @@ function NearbyScreen({
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-8">
           <div className="text-[48px] opacity-30 mb-4">📡</div>
           <div className="text-[15px] font-semibold mb-2" style={{ color:C.ink }}>Discover people around you</div>
-          <div className="text-[13px] leading-relaxed" style={{ color:C.warmMid }}>Tap the button above to become discoverable and see who else is open to meet right now.</div>
+          <div className="text-[13px] leading-relaxed" style={{ color:C.warmMid }}>Tap <strong>Go live</strong> in the top-right to become discoverable and see who else is open to meet right now.</div>
         </div>
       )}
 
@@ -974,10 +952,26 @@ function NearbyScreen({
 
 // ── Send request ───────────────────────────────────────────
 function RequestScreen({
-  person, onNavigate, inboxCount,
-}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+  person, currentUser, onNavigate, inboxCount,
+}: { person:UserProfile; currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
   const [hint, setHint] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const firstName = person.name.split(",")[0];
+
+  async function sendRequest() {
+    setSending(true); setError("");
+    const { error: err } = await supabase.from("meet_requests").insert({
+      from_id:   currentUser.id,
+      to_id:     person.id,
+      hint:           hint.trim() || null,
+      status:         "pending",
+      created_at:     new Date().toISOString(),
+    });
+    setSending(false);
+    if (err) { setError("Failed to send: " + err.message); return; }
+    onNavigate("match", { person, fromRequest: true });
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -1009,11 +1003,12 @@ function RequestScreen({
         <div className="mx-[22px] mt-3 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
           <span>⚡</span><span>You have <strong>2 of 3</strong> daily requests remaining · max 1 per person per day</span>
         </div>
-        <button onClick={()=>onNavigate("match",{ person, fromRequest:true })}
+        <button onClick={sendRequest} disabled={sending}
           className="mx-[22px] mt-3.5 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:C.ink, width:"calc(100% - 44px)" }}>
-          Send meet request →
+          style={{ background:C.ink, width:"calc(100% - 44px)", opacity:sending?0.6:1 }}>
+          {sending ? "Sending…" : "Send meet request →"}
         </button>
+        {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
         <div className="text-xs text-center mt-2 px-[22px] leading-relaxed" style={{ color:C.warmMid }}>
           {firstName} is only notified if they also marked you as open to meet. Two-step consent.
         </div>
@@ -1414,12 +1409,55 @@ export default function App() {
   const [screenData,  setData]    = useState<unknown>(null);
   const [animKey,     setAnimKey] = useState(0);
   const [currentUser, setUser]    = useState<UserProfile|null>(null);
-  const [inbox,       setInbox]   = useState<InboxRequest[]>(DUMMY_INBOX);
+  const [inbox,       setInbox]   = useState<InboxRequest[]>([]);
+  const inboxPollRef = useRef<ReturnType<typeof setInterval>|null>(null);
+
+  // Poll Supabase for real incoming meet_requests
+  const fetchInbox = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("meet_requests")
+      .select("*, profiles!meet_requests_from_id_fkey(*)")
+      .eq("to_id", userId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (!data) return;
+    const mapped: InboxRequest[] = data.map((r: any) => {
+      const sender = r.profiles as UserProfile;
+      const ageMs  = Date.now() - new Date(r.created_at).getTime();
+      const mins   = Math.floor(ageMs / 60_000);
+      const timeLabel = mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
+      return {
+        id:        r.id,
+        name:      `${sender.name}, ${sender.age}`,
+        photo_url: sender.photo_url,
+        bg:        sender.bg,
+        gender:    "m" as const,
+        meta:      sender.occupation,
+        tags:      sender.interests ?? [],
+        reqLabel:  r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
+        time:      timeLabel,
+        isNew:     true,
+      };
+    });
+    setInbox(mapped);
+  }, []);
+
+  // Start polling when user is known
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchInbox(currentUser.id);
+    inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 10_000);
+    return () => { if (inboxPollRef.current) clearInterval(inboxPollRef.current); };
+  }, [currentUser, fetchInbox]);
+  const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
   // Restore session on mount
   useEffect(()=>{
-    supabase.auth.getSession().then(async({ data:{ session } })=>{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.auth.getSession().then(async({ data } : any)=>{
+      const session = data?.session;
       if (session?.user) {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
         if (p) { setUser(p as UserProfile); navigate("events"); }
@@ -1428,12 +1466,20 @@ export default function App() {
     });
   },[]);
 
-  function navigate(to: Screen, data?: unknown) {
+  async function navigate(to: Screen, data?: unknown) {
     setData(data??null); setScreen(to); setAnimKey(k=>k+1);
+    // When navigating to request screen, fetch the real user profile by id
+    if (to === "request" && typeof data === "string") {
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
+      if (profile) setSelectedPersonProfile(profile as UserProfile);
+    }
   }
 
   function declineRequest(id: number) {
-    setInbox(prev=>prev.map(r=>r.id===id ? { ...r, isNew:false, reqLabel:r.reqLabel+" · You declined" } : r));
+    supabase.from("meet_requests").update({ status: "declined" }).eq("id", id).then(() => {
+      if (currentUser) fetchInbox(currentUser.id);
+    });
+    setInbox(prev=>prev.filter(r=>r.id!==id));
   }
   function dismissRequest(id: number) {
     setInbox(prev=>prev.filter(r=>r.id!==id));
@@ -1442,7 +1488,7 @@ export default function App() {
   // Resolve per-screen data
   const selectedEvent    = EVENTS.find(e=>e.id===screenData) ?? EVENTS[0];
   const blankUser: UserProfile = { id:"", email:"", name:"User", age:25, occupation:"Professional", interests:[], photo_url:null, bg:BG_OPTIONS[0], open_to_meet:true, checked_in_event_id:null, checked_in_at:null, lat:null, lng:null };
-  const selectedPerson   = screen==="request" && screenData ? blankUser : blankUser; // NearbyScreen passes id; real lookup happens there
+  const selectedPerson = selectedPersonProfile ?? blankUser;
   const selectedRequest  = inbox.find(r=>r.id===screenData) ?? inbox[0];
   const matchData        = (screen==="match" && screenData && typeof screenData==="object")
     ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse }
@@ -1508,7 +1554,7 @@ export default function App() {
             )}
 
             {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson}  onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="match"    &&                <MatchScreen    matchData={matchData} onNavigate={navigate} />}
