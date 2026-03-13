@@ -760,8 +760,8 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 }
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
-  currentUser, onNavigate, inboxCount,
-}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds,
+}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[] }) {
   const [locOn,     setLocOn]     = useState(false);
   const [rawUsers,  setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -795,7 +795,7 @@ function NearbyScreen({
       return;
     }
 
-    // Turn ON — request GPS first
+    // Turn ON — use cached coords if location already granted
     setLoading(true);
     setLocError(null);
 
@@ -804,6 +804,11 @@ function NearbyScreen({
       setLoading(false);
       return;
     }
+
+    // If location was already granted in Profile, use a quick cached position
+    const geoOptions = locationGranted
+      ? { enableHighAccuracy:false, timeout:5_000, maximumAge:600_000 }
+      : { enableHighAccuracy:false, timeout:20_000, maximumAge:300_000 };
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -822,6 +827,15 @@ function NearbyScreen({
 
         pollRef.current = setInterval(fetchUsers, 15_000);
         rotationRef.current = setInterval(()=>setOffset(o=>o+1), ROTATION_MS);
+
+        // Register callback so App-level timer can force turn off
+        onForceTurnOff(async () => {
+          setLocOn(false);
+          await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
+          setRawUsers([]);
+          if (pollRef.current)     clearInterval(pollRef.current);
+          if (rotationRef.current) clearInterval(rotationRef.current);
+        });
       },
       (err) => {
         setLoading(false);
@@ -835,9 +849,20 @@ function NearbyScreen({
           setLocError(`Location error (code ${err.code}). Please try again.`);
         }
       },
-      { enableHighAccuracy:false, timeout:20_000, maximumAge:300_000 }
+      geoOptions
     );
   }
+
+  // If locationGranted is turned off externally (Profile toggle / timer), turn off Go live too
+  useEffect(() => {
+    if (!locationGranted && locOn) {
+      setLocOn(false);
+      supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
+      setRawUsers([]);
+      if (pollRef.current)     clearInterval(pollRef.current);
+      if (rotationRef.current) clearInterval(rotationRef.current);
+    }
+  }, [locationGranted]);
 
   // Cleanup on unmount
   useEffect(() => () => {
@@ -847,7 +872,7 @@ function NearbyScreen({
 
   // Round-robin all open users (no distance filter — page ranks by proximity already)
   const ordered = applyRoundRobin(rawUsers, offset);
-  const visible = ordered.filter(u=>!dismissed.includes(u.id));
+  const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id));
 
   const eventName = currentUser.checked_in_event_id !== null
     ? (EVENTS.find(e=>e.id===currentUser.checked_in_event_id)?.name ?? "this event")
@@ -866,12 +891,15 @@ function NearbyScreen({
 
         {/* Compact discoverability toggle — top-right corner */}
         <button
-          onClick={toggleLoc}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer border-0 transition-all duration-300 flex-shrink-0"
+          onClick={locationGranted ? toggleLoc : undefined}
+          disabled={loading || !locationGranted}
+          title={!locationGranted ? "Enable Location Access in Profile first" : undefined}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-0 transition-all duration-300 flex-shrink-0"
           style={{
-            background: locOn ? "rgba(74,124,89,0.12)" : "rgba(139,115,85,0.10)",
-            border: `1.5px solid ${locOn ? "rgba(74,124,89,0.35)" : C.border}`,
+            background: locOn ? "rgba(74,124,89,0.12)" : locationGranted ? "rgba(139,115,85,0.10)" : "rgba(139,115,85,0.05)",
+            border: `1.5px solid ${locOn ? "rgba(74,124,89,0.35)" : locationGranted ? C.border : "rgba(139,115,85,0.1)"}`,
+            cursor: locationGranted ? "pointer" : "not-allowed",
+            opacity: locationGranted ? 1 : 0.45,
           }}
         >
           {loading
@@ -883,6 +911,13 @@ function NearbyScreen({
           </span>
         </button>
       </div>
+
+      {/* Hint when location access is off */}
+      {!locationGranted && (
+        <div className="mx-5 mt-2 text-center text-[11px]" style={{ color:C.warmMid }}>
+          Enable <strong>Location Access</strong> in Profile to go live
+        </div>
+      )}
 
       {/* Location error banner */}
       {locError && (
@@ -1161,17 +1196,20 @@ function IncomingScreen({
 
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
-  matchData, onNavigate,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse }; onNavigate:(s:Screen,d?:unknown)=>void }) {
+  matchData, onNavigate, currentUser, onBlock,
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void }) {
   const person    = matchData.person || matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
   const timerMins = matchData.response==="15min" ? 15 : 30;
+  // Resolve the reported user's id from whichever shape matchData carries
+  const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
 
-  const [secs,       setSecs]       = useState(timerMins*60);
-  const [erased,     setErased]     = useState(false);
-  const [showReport, setShowReport] = useState(false);
-  const [reportOpt,  setReportOpt]  = useState("");
-  const [showToast,  setShowToast]  = useState(false);
+  const [secs,         setSecs]       = useState(timerMins*60);
+  const [erased,       setErased]     = useState(false);
+  const [showReport,   setShowReport] = useState(false);
+  const [reportOpt,    setReportOpt]  = useState("");
+  const [showToast,    setShowToast]  = useState(false);
+  const [submitting,   setSubmitting] = useState(false);
 
   useEffect(()=>{
     if (erased) return;
@@ -1242,10 +1280,34 @@ function MatchScreen({
               </button>
             ))}
             {reportOpt && (
-              <button onClick={()=>{ setShowReport(false); setShowToast(true); setTimeout(()=>{ setShowToast(false); onNavigate("inbox"); },3000); }}
+              <button
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  // Write report to Supabase
+                  await supabase.from("reports").insert({
+                    reporter_id:  currentUser.id,
+                    reported_id:  reportedId,
+                    reason:       reportOpt,
+                    created_at:   new Date().toISOString(),
+                  });
+                  // Block the user — add to blocked_users table and hide from Nearby
+                  if (reportedId) {
+                    await supabase.from("blocked_users").insert({
+                      blocker_id:  currentUser.id,
+                      blocked_id:  reportedId,
+                      created_at:  new Date().toISOString(),
+                    });
+                    onBlock(reportedId);
+                  }
+                  setSubmitting(false);
+                  setShowReport(false);
+                  setShowToast(true);
+                  setTimeout(()=>{ setShowToast(false); onNavigate("inbox"); }, 3000);
+                }}
                 className="w-full py-3.5 rounded-[14px] text-[14px] font-semibold text-white border-0 cursor-pointer mb-2.5"
-                style={{ background:C.ink, fontFamily:"'DM Sans',sans-serif" }}>
-                Submit report
+                style={{ background:C.ink, opacity:submitting?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+                {submitting ? "Submitting…" : "Submit report"}
               </button>
             )}
             <button onClick={()=>setShowReport(false)} className="w-full py-3.5 rounded-[14px] text-[14px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>Cancel</button>
@@ -1265,13 +1327,14 @@ function MatchScreen({
 // ── Profile ────────────────────────────────────────────────
 function ProfileScreen({
   currentUser, onNavigate, onSignOut, inboxCount,
-}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number }) {
+  locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer,
+}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number;
+     locationGranted:boolean; setLocationGranted:(v:boolean)=>void;
+     autoOffTimer:string; setAutoOffTimer:(v:string)=>void }) {
   const [ageExpanded,  setAgeX]   = useState(false);
   const [privExpanded, setPrivX]  = useState(false);
   const [ageMin, setAgeMin]       = useState(18);
   const [ageMax, setAgeMax]       = useState(35);
-  const [locOn,  setLocOn]        = useState(false);
-  const [timer,  setTimer]        = useState("30min");
   const [photoLoading, setPhotoL] = useState(false);
   const fileRef                   = useRef<HTMLInputElement>(null);
 
@@ -1374,14 +1437,14 @@ function ProfileScreen({
                     <div className="text-[13px] font-semibold" style={{ color:C.ink }}>📍 Location Access</div>
                     <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>Only visible when discoverability is on</div>
                   </div>
-                  <button onClick={()=>setLocOn(v=>!v)} className="ml-3 flex-shrink-0 w-[44px] h-[26px] rounded-full relative cursor-pointer border-0 transition-colors duration-200" style={{ background:locOn?C.green:"rgba(139,115,85,0.2)" }}>
-                    <div className="absolute top-[3px] w-5 h-5 rounded-full bg-white transition-all duration-200" style={{ left:locOn?"21px":"3px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }} />
+                  <button onClick={()=>setLocationGranted(!locationGranted)} className="ml-3 flex-shrink-0 w-[44px] h-[26px] rounded-full relative cursor-pointer border-0 transition-colors duration-200" style={{ background:locationGranted?C.green:"rgba(139,115,85,0.2)" }}>
+                    <div className="absolute top-[3px] w-5 h-5 rounded-full bg-white transition-all duration-200" style={{ left:locationGranted?"21px":"3px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }} />
                   </button>
                 </div>
                 <div className="text-xs font-semibold mb-2" style={{ color:C.inkSoft }}>Discoverability auto-turns off after</div>
                 <div className="flex gap-2 flex-wrap">
                   {[{id:"30min",label:"30 min"},{id:"60min",label:"1 hour"},{id:"120min",label:"2 hours"},{id:"never",label:"Never"}].map(t=>(
-                    <Chip key={t.id} label={t.label} active={timer===t.id} onClick={()=>setTimer(t.id)} />
+                    <Chip key={t.id} label={t.label} active={autoOffTimer===t.id} onClick={()=>setAutoOffTimer(t.id)} />
                   ))}
                 </div>
               </div>
@@ -1405,12 +1468,17 @@ function ProfileScreen({
 // ROOT
 // ══════════════════════════════════════════════════════════
 export default function App() {
-  const [screen,      setScreen]  = useState<Screen>("splash");
-  const [screenData,  setData]    = useState<unknown>(null);
-  const [animKey,     setAnimKey] = useState(0);
-  const [currentUser, setUser]    = useState<UserProfile|null>(null);
-  const [inbox,       setInbox]   = useState<InboxRequest[]>([]);
-  const inboxPollRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const [screen,          setScreen]  = useState<Screen>("splash");
+  const [screenData,      setData]    = useState<unknown>(null);
+  const [animKey,         setAnimKey] = useState(0);
+  const [currentUser,     setUser]    = useState<UserProfile|null>(null);
+  const [inbox,           setInbox]   = useState<InboxRequest[]>(DUMMY_INBOX);
+  const [locationGranted, setLocationGranted] = useState(false);
+  const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
+  const [autoOffTimer,    setAutoOffTimer]     = useState("never");
+  const autoOffRef      = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const inboxPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
+  const turnOffLiveRef  = useRef<(()=>void)|null>(null);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -1440,7 +1508,8 @@ export default function App() {
         isNew:     true,
       };
     });
-    setInbox(mapped);
+    // Real requests shown first, dummy profiles appended after for demo
+    setInbox([...mapped, ...DUMMY_INBOX]);
   }, []);
 
   // Start polling when user is known
@@ -1450,14 +1519,25 @@ export default function App() {
     inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 10_000);
     return () => { if (inboxPollRef.current) clearInterval(inboxPollRef.current); };
   }, [currentUser, fetchInbox]);
+  // Auto-turn-off location access timer
+  useEffect(() => {
+    if (autoOffRef.current) clearTimeout(autoOffRef.current);
+    if (!locationGranted || autoOffTimer === "never") return;
+    const ms = autoOffTimer === "30min" ? 30*60_000 : autoOffTimer === "60min" ? 60*60_000 : 120*60_000;
+    autoOffRef.current = setTimeout(() => {
+      setLocationGranted(false);
+      // Also turn off Go live in NearbyScreen if it is active
+      if (turnOffLiveRef.current) turnOffLiveRef.current();
+    }, ms);
+    return () => { if (autoOffRef.current) clearTimeout(autoOffRef.current); };
+  }, [locationGranted, autoOffTimer]);
+
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
   // Restore session on mount
   useEffect(()=>{
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    supabase.auth.getSession().then(async({ data } : any)=>{
-      const session = data?.session;
+    supabase.auth.getSession().then(async({ data:{ session } })=>{
       if (session?.user) {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
         if (p) { setUser(p as UserProfile); navigate("events"); }
@@ -1553,12 +1633,12 @@ export default function App() {
               </div>
             )}
 
-            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="match"    &&                <MatchScreen    matchData={matchData} onNavigate={navigate} />}
-            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} />}
+            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
           </div>
         </div>
       </div>
