@@ -1007,16 +1007,17 @@ function RequestScreen({
 
   async function sendRequest() {
     setSending(true); setError("");
+    const sentAt = new Date().toISOString();
     const { error: err } = await supabase.from("meet_requests").insert({
-      from_id:   currentUser.id,
-      to_id:     person.id,
-      hint:           hint.trim() || null,
-      status:         "pending",
-      created_at:     new Date().toISOString(),
+      from_id:    currentUser.id,
+      to_id:      person.id,
+      hint:       hint.trim() || null,
+      status:     "pending",
+      created_at: sentAt,
     });
     setSending(false);
     if (err) { setError("Failed to send: " + err.message); return; }
-    onNavigate("pending", { person });
+    onNavigate("pending", { person, sentAt });
   }
 
   return (
@@ -1067,56 +1068,36 @@ function RequestScreen({
 
 // ── Pending Screen (request sent, waiting for other party) ─
 function PendingScreen({
-  person, onNavigate, inboxCount, currentUser,
-}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; currentUser:UserProfile }) {
+  person, onNavigate, inboxCount, currentUser, sentAt,
+}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; currentUser:UserProfile; sentAt:string }) {
   const firstName = person.name.split(",")[0];
-  const [checking, setChecking] = useState(false);
-  const [acceptedData, setAcceptedData] = useState<{ recipientHint: string|null } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
-  const [declinedByThem, setDeclinedByThem] = useState(false);
-
-  // Poll to see if the other user accepted or declined
-  const checkStatus = useCallback(async () => {
-    const { data } = await supabase
-      .from("meet_requests")
-      .select("*")
-      .eq("from_id", currentUser.id)
-      .eq("to_id", person.id)
-      .in("status", ["accepted", "declined"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (data) {
-      clearInterval(pollRef.current!);
-      if (data.status === "accepted") {
-        setAcceptedData({ recipientHint: data.recipient_hint ?? null });
-      } else if (data.status === "declined") {
-        setDeclinedByThem(true);
+  // No auto-navigation — sender stays here until they tap a button.
+  // We just stop polling silently when a final status is reached.
+  useEffect(() => {
+    async function checkStatus() {
+      const { data } = await supabase
+        .from("meet_requests")
+        .select("status")
+        .eq("from_id", currentUser.id)
+        .eq("to_id", person.id)
+        .gte("created_at", sentAt)
+        .in("status", ["accepted", "declined"])
+        .limit(1)
+        .single();
+      if (data) {
+        // Stop polling — but don't navigate. User taps the button themselves.
+        clearInterval(pollRef.current!);
       }
     }
-  }, [currentUser.id, person.id]);
-
-  useEffect(() => {
-    checkStatus();
-    pollRef.current = setInterval(checkStatus, 8_000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [checkStatus]);
-
-  // Once accepted, go to match screen
-  useEffect(() => {
-    if (acceptedData) {
-      onNavigate("match", { person, recipientHint: acceptedData.recipientHint, fromIncoming: false });
-    }
-  }, [acceptedData]);
-
-  // If they declined, go back to nearby
-  useEffect(() => {
-    if (declinedByThem) {
-      onNavigate("nearby");
-    }
-  }, [declinedByThem]);
+    // Small delay before first poll so the insert has time to settle
+    const delay = setTimeout(() => {
+      checkStatus();
+      pollRef.current = setInterval(checkStatus, 8_000);
+    }, 3_000);
+    return () => { clearTimeout(delay); if (pollRef.current) clearInterval(pollRef.current); };
+  }, [currentUser.id, person.id, sentAt]);
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.ink }}>
@@ -1133,7 +1114,7 @@ function PendingScreen({
           Request sent to<br /><em style={{ color:C.accent }}>{firstName}</em>
         </div>
         <div className="text-[13px] leading-relaxed mb-6 max-w-[280px]" style={{ color:"rgba(245,240,232,0.55)" }}>
-          You can leave this page and go back to Nearby. If {firstName} accepts, you&apos;ll see it in your <strong style={{ color:"rgba(245,240,232,0.8)" }}>Meet Requests</strong> inbox.
+          Waiting for <strong style={{ color:"rgba(245,240,232,0.8)" }}>{firstName}</strong> to respond. If they accept, you&apos;ll see it in your <strong style={{ color:"rgba(245,240,232,0.8)" }}>Meet Requests</strong> inbox — tap it to see the match screen.
         </div>
 
         {/* Animated waiting indicator */}
@@ -1146,7 +1127,7 @@ function PendingScreen({
         <div className="w-full p-4 rounded-[18px] mb-4 text-left" style={{ background:"rgba(196,120,58,0.08)", border:"1px solid rgba(196,120,58,0.2)" }}>
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.accent }}>What happens next</div>
           <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
-            When {firstName} accepts, their identifying hint will appear in your Meet Requests so you can find each other. Your hint has been shared.
+            When {firstName} accepts, their request will appear in your <strong style={{ color:"rgba(245,240,232,0.75)" }}>Meet Requests</strong> inbox. Open it to see the mutual match screen and their identifying hint.
           </div>
         </div>
 
@@ -1171,8 +1152,8 @@ function PendingScreen({
 
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
-  requests, onNavigate, onDecline, onDismiss,
-}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:number)=>void; onDismiss:(id:number)=>void }) {
+  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch,
+}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:number)=>void; onDismiss:(id:number)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
   const newReqs = requests.filter(r=>r.isNew);
   const oldReqs = requests.filter(r=>!r.isNew);
 
@@ -1182,6 +1163,22 @@ function InboxScreen({
         <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming</div>
         <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Meet Requests</div>
       </div>
+
+      {/* Accepted sent request banner — shown to the sender */}
+      {acceptedSent && (
+        <div className="mx-[22px] mt-3 px-4 py-3 rounded-[14px] cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ background:"rgba(74,124,89,0.12)", border:"1.5px solid rgba(74,124,89,0.4)", boxShadow:"0 2px 14px rgba(74,124,89,0.12)" }}
+          onClick={onViewMatch}>
+          <div className="flex items-center gap-3">
+            <AvatarCircle user={acceptedSent.person} size={40} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold" style={{ color:C.ink }}>✨ It&apos;s a match with {acceptedSent.person.name.split(",")[0]}!</div>
+              <div className="text-xs mt-0.5" style={{ color:C.green }}>They accepted your request — tap to see the match</div>
+            </div>
+            <span style={{ color:C.green, fontSize:18 }}>→</span>
+          </div>
+        </div>
+      )}
       {newReqs.length>0 && (
         <div className="mx-[22px] mt-3 px-4 py-3 rounded-[14px] flex items-center gap-2.5" style={{ background:"rgba(74,124,89,0.12)", border:"1px solid rgba(74,124,89,0.25)" }}>
           <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
@@ -1641,7 +1638,9 @@ export default function App() {
   const [animKey,         setAnimKey] = useState(0);
   const [currentUser,     setUser]    = useState<UserProfile|null>(null);
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
+  const [acceptedSent,    setAcceptedSent] = useState<{ requestId: number; person: UserProfile; recipientHint: string|null } | null>(null);
   const declinedIdsRef = useRef<Set<number>>(new Set());
+  const sentPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
   const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
   const [autoOffTimer,    setAutoOffTimer]     = useState("never");
@@ -1689,6 +1688,29 @@ export default function App() {
     inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 10_000);
     return () => { if (inboxPollRef.current) clearInterval(inboxPollRef.current); };
   }, [currentUser, fetchInbox]);
+
+  // Poll for sender's own outgoing requests that got accepted
+  useEffect(() => {
+    if (!currentUser) return;
+    async function checkSentAccepted() {
+      const { data } = await supabase
+        .from("meet_requests")
+        .select("*, profiles!meet_requests_to_id_fkey(*)")
+        .eq("from_id", currentUser!.id)
+        .eq("status", "accepted")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (data && !declinedIdsRef.current.has(data.id)) {
+        const recipient = data.profiles as UserProfile;
+        setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
+        clearInterval(sentPollRef.current!);
+      }
+    }
+    checkSentAccepted();
+    sentPollRef.current = setInterval(checkSentAccepted, 8_000);
+    return () => { if (sentPollRef.current) clearInterval(sentPollRef.current); };
+  }, [currentUser]);
   // Auto-turn-off location access timer
   useEffect(() => {
     if (autoOffRef.current) clearTimeout(autoOffRef.current);
@@ -1735,6 +1757,8 @@ export default function App() {
       if (currentUser) fetchInbox(currentUser.id);
     });
     setInbox(prev => prev.filter(r => r.id !== id));
+    // Clear any accepted banner that might reference this request
+    setAcceptedSent(prev => (prev && (prev as any).requestId === id ? null : prev));
     // If currently viewing this request or on match/incoming screen for it, go back to inbox
     if (screen === "incoming" || screen === "match") {
       navigate("inbox");
@@ -1814,11 +1838,11 @@ export default function App() {
 
             {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} />}
+            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} />}
-            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; return <PendingScreen person={pPerson} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
+            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
           </div>
         </div>
