@@ -162,7 +162,7 @@ function applyRoundRobin(users: UserProfile[], offset: number): NearbyUser[] {
 }
 
 function timeAtEventLabel(mins: number) {
-  if (mins < 1)  return "Just arrived";
+  if (mins < 1)  return "";
   if (mins < 60) return `${mins}m here`;
   const h = Math.floor(mins / 60), m = mins % 60;
   return m ? `${h}h ${m}m here` : `${h}h here`;
@@ -1370,8 +1370,8 @@ function IncomingScreen({
 
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
-  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void }) {
+  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem,
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void }) {
   const person    = matchData.person || matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
   const timerMins = matchData.response==="15min" ? 15 : 30;
@@ -1449,7 +1449,7 @@ function MatchScreen({
 
       <div className="flex gap-3 px-6 pt-4">
         <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
-        <button onClick={()=>onNavigate("events")} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>✓ Met them!</button>
+        <button onClick={()=>{ if(reportedId) onMetThem(reportedId); onNavigate("events"); }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>✓ Met them!</button>
       </div>
       <div className="mx-6 mt-3 mb-6 p-3 rounded-[14px] text-center text-xs leading-relaxed" style={{ background:"rgba(245,240,232,0.04)", border:"1px solid rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.4)" }}>
         🔒 Auto-erases after {timerMins} min · location never shared
@@ -1955,7 +1955,7 @@ export default function App() {
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
-            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
           </div>
