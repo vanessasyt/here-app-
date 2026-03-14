@@ -757,13 +757,11 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 }
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
-  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive,
-}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void }) {
+  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive, interactedIds, setInteractedIds,
+}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void; interactedIds:string[]; setInteractedIds:React.Dispatch<React.SetStateAction<string[]>> }) {
   const [locOn,      setLocOn]     = useState(isLive);
   const [rawUsers,   setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed,  setDismissed] = useState<string[]>([]);
-  // interacted: profiles the user has tapped "Say hi" on — hidden from grid immediately
-  const [interacted, setInteracted] = useState<string[]>([]);
   const [loading,    setLoading]   = useState(false);
   const [offset,     setOffset]    = useState(0);
   const [myLat,      setMyLat]     = useState<number|null>(currentUser.lat ?? null);
@@ -899,7 +897,7 @@ function NearbyScreen({
 
   // Round-robin all open users (no distance filter — page ranks by proximity already)
   const ordered = applyRoundRobin(rawUsers, offset);
-  const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id) && !interacted.includes(u.id));
+  const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id) && !interactedIds.includes(u.id));
 
   const eventName = currentUser.checked_in_event_id !== null
     ? (EVENTS.find(e=>e.id===currentUser.checked_in_event_id)?.name ?? "this event")
@@ -989,8 +987,8 @@ function NearbyScreen({
                 <NearbyCard
                   key={u.id}
                   user={u}
-                  onSayHi={()=>{ setInteracted(prev=>[...prev,u.id]); onNavigate("request",u.id); }}
-                  onDismiss={()=>{ setDismissed(prev=>[...prev,u.id]); setInteracted(prev=>[...prev,u.id]); }}
+                  onSayHi={()=>{ setInteractedIds(prev=>[...prev,u.id]); onNavigate("request",u.id); }}
+                  onDismiss={()=>{ setDismissed(prev=>[...prev,u.id]); setInteractedIds(prev=>[...prev,u.id]); }}
                 />
               ))}
             </div>
@@ -1748,6 +1746,8 @@ export default function App() {
   const turnOffLiveRef  = useRef<(()=>void)|null>(null);
   // Lifted from NearbyScreen so Go Live persists across tab navigation
   const [isLive,          setIsLive]           = useState(false);
+  // Lifted so interacted profiles stay hidden after navigating away and back
+  const [interactedIds,   setInteractedIds]    = useState<string[]>([]);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -1950,7 +1950,7 @@ export default function App() {
               </div>
             )}
 
-            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} />}
+            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
