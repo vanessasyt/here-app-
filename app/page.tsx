@@ -24,6 +24,7 @@ interface UserProfile {
   age: number;
   occupation: string;
   interests: string[];
+  languages: string[];          // spoken languages
   photo_url: string | null;   // uploaded photo
   bg: string;                  // fallback gradient colour
   open_to_meet: boolean;
@@ -98,6 +99,13 @@ const INTERESTS: { id: string; emoji: string; label: string }[] = [
 ];
 
 const MAX_INTERESTS = 4;
+
+const LANGUAGES = [
+  "English","Mandarin","Spanish","Hindi","Arabic","French","Portuguese","Bengali",
+  "Russian","Urdu","Japanese","German","Korean","Turkish","Italian","Cantonese",
+  "Polish","Dutch","Swedish","Greek","Hebrew","Persian","Romanian","Czech",
+  "Hungarian","Finnish","Norwegian","Danish","Thai","Vietnamese","Malay","Swahili",
+];
 
 const BG_OPTIONS = [
   "linear-gradient(160deg,#d4a5a5,#c47a6b)",
@@ -398,12 +406,23 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [age,  setAge]            = useState("");
   const [occ,  setOcc]            = useState("");
   const [interests, setInterests] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>(["English"]);
+  const [langInput,  setLangInput] = useState("");
+  const [langOpen,   setLangOpen]  = useState(false);
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [photoPreview, setPreview]= useState<string|null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const fileRef                   = useRef<HTMLInputElement>(null);
   const bg = BG_OPTIONS[Math.floor(Math.random() * BG_OPTIONS.length)];
+
+  function toggleLanguage(lang: string) {
+    setLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
+  }
+
+  const filteredLangs = LANGUAGES.filter(l =>
+    l.toLowerCase().includes(langInput.toLowerCase()) && !languages.includes(l)
+  );
 
   function toggleInterest(id: string) {
     setInterests(prev => prev.includes(id) ? prev.filter(x=>x!==id) : prev.length<MAX_INTERESTS ? [...prev,id] : prev);
@@ -419,6 +438,8 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
     reader.readAsDataURL(file);
     setError("");
   }
+
+  function todaySelfieKey(uid: string) { return `selfie_date_${uid}`; }
 
   async function finish() {
     if (!interests.length) { setError("Pick at least one interest"); return; }
@@ -442,7 +463,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
     const profile: UserProfile = {
       id: user.id, email: user.email ?? "", name, age: parseInt(age),
-      occupation: occ, interests, photo_url, bg,
+      occupation: occ, interests, languages, photo_url, bg,
       open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
     };
     const { error: dbErr } = await supabase.from("profiles").upsert(profile);
@@ -473,32 +494,37 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <div className="text-sm mt-1" style={{ color:C.warmMid }}>This is what others will see</div>
           </div>
 
-          {/* Photo upload */}
+          {/* Selfie capture — camera only, no gallery */}
           <div className="mb-5">
-            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-3" style={{ color:C.warmMid }}>Profile photo</div>
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today&apos;s Selfie</div>
+            {/* Rationale banner */}
+            <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
+              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. To help people recognise you in person, your profile photo must be a selfie taken <strong style={{ color:C.ink }}>today</strong> — reflecting how you actually look right now. Gallery uploads are not permitted.
+            </div>
             <div className="flex items-center gap-4">
               {/* Preview */}
               <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
                 style={{ background: photoPreview ? "transparent" : "rgba(139,115,85,0.1)", border:`2px dashed ${photoPreview ? C.green : C.border}` }}>
                 {photoPreview
                   ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-                  : <span className="text-2xl opacity-40">📷</span>}
+                  : <span className="text-2xl opacity-40">🤳</span>}
               </div>
               <div className="flex-1">
                 <button onClick={()=>fileRef.current?.click()}
                   className="w-full py-3 rounded-2xl text-sm font-semibold cursor-pointer border-0"
                   style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'DM Sans',sans-serif" }}>
-                  {photoPreview ? "✓ Change photo" : "Upload photo"}
+                  {photoPreview ? "✓ Retake selfie" : "📷 Take selfie now"}
                 </button>
                 <div className="text-[11px] mt-1.5 leading-relaxed" style={{ color:C.warmMid }}>
-                  {photoPreview ? "Looking good! You can change it later in Profile." : "JPG or PNG · Max 5 MB · Optional — you can add one later"}
+                  {photoPreview ? "Looks great! You can retake it if needed." : "Opens your camera — front-facing recommended"}
                 </div>
               </div>
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
+            {/* camera capture only — no gallery */}
+            <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
           </div>
 
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-4">
             {[
               { label:"First name",  val:name, set:setName, placeholder:"e.g. Sophie", type:"text"   },
               { label:"Age",         val:age,  set:setAge,  placeholder:"e.g. 26",     type:"number" },
@@ -511,6 +537,49 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                   style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
+          </div>
+
+          {/* Languages */}
+          <div className="mb-6">
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Languages spoken</div>
+            {/* Selected pills */}
+            {languages.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {languages.map(l => (
+                  <span key={l} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                    style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                    {l}
+                    <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer leading-none text-xs" style={{ color:"rgba(245,240,232,0.6)" }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Search + dropdown */}
+            <div className="relative">
+              <input
+                value={langInput}
+                onChange={e=>{ setLangInput(e.target.value); setLangOpen(true); }}
+                onFocus={()=>setLangOpen(true)}
+                onBlur={()=>setTimeout(()=>setLangOpen(false), 150)}
+                placeholder="Search or add a language…"
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                style={{ border:`1.5px solid ${langOpen ? C.accent : C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
+              />
+              {langOpen && filteredLangs.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 rounded-2xl overflow-hidden z-20"
+                  style={{ background:"white", border:`1.5px solid ${C.border}`, boxShadow:"0 8px 24px rgba(26,20,16,0.12)", maxHeight:180, overflowY:"auto" }}>
+                  {filteredLangs.slice(0, 12).map(l => (
+                    <button key={l} onMouseDown={()=>{ toggleLanguage(l); setLangInput(""); }}
+                      className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0 bg-transparent"
+                      style={{ color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}` }}
+                      onMouseEnter={e=>(e.currentTarget.style.background="rgba(139,115,85,0.06)")}
+                      onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
@@ -737,9 +806,17 @@ function NearbyCard({
       </div>
 
       {/* (4) Interest tags — conversation starters, no ranking */}
-      <div className="px-2.5 pb-1.5 flex flex-wrap gap-1 min-h-[20px]">
+      <div className="px-2.5 pb-1 flex flex-wrap gap-1 min-h-[20px]">
         {user.interests.slice(0,3).map(i=><InterestTag key={i} interest={i} />)}
       </div>
+      {/* (5) Languages */}
+      {user.languages?.length > 0 && (
+        <div className="px-2.5 pb-1.5 flex flex-wrap gap-1">
+          {user.languages.slice(0,3).map(l=>(
+            <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-1.5 px-2.5 pb-2.5">
         <button onClick={onSayHi}   className="flex-1 py-1.5 rounded-[10px] text-[11px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green }}>Say hi →</button>
@@ -800,6 +877,7 @@ function NearbyScreen({
       // Turn OFF
       setLocOn(false);
       setIsLive(false);
+      localStorage.removeItem("here_is_live");
       await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id",currentUser.id);
       setRawUsers([]);
       if (pollRef.current)     clearInterval(pollRef.current);
@@ -845,6 +923,7 @@ function NearbyScreen({
         onForceTurnOff(async () => {
           setLocOn(false);
           setIsLive(false);
+          localStorage.removeItem("here_is_live");
           await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
           setRawUsers([]);
           if (pollRef.current)     clearInterval(pollRef.current);
@@ -1191,25 +1270,39 @@ function InboxScreen({
         <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Meet Requests</div>
       </div>
 
-      {/* Accepted sent request banner — shown to the sender */}
+      {/* ── Flashy acceptance banner (sender sees this) ── */}
       {acceptedSent && (
-        <div className="mx-[22px] mt-3 px-4 py-3 rounded-[14px] cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:"rgba(74,124,89,0.12)", border:"1.5px solid rgba(74,124,89,0.4)", boxShadow:"0 2px 14px rgba(74,124,89,0.12)" }}
+        <div className="mx-[22px] mt-3 rounded-[18px] overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ background:"linear-gradient(135deg,#1a3a28,#2a5a3a)", border:"2px solid rgba(74,124,89,0.6)", boxShadow:"0 4px 24px rgba(74,124,89,0.25)" }}
           onClick={onViewMatch}>
-          <div className="flex items-center gap-3">
-            <AvatarCircle user={acceptedSent.person} size={40} />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold" style={{ color:C.ink }}>✨ It&apos;s a match with {acceptedSent.person.name.split(",")[0]}!</div>
-              <div className="text-xs mt-0.5" style={{ color:C.green }}>They accepted your request — tap to see the match</div>
+          {/* Shimmer bar */}
+          <div style={{ height:3, background:"linear-gradient(to right,transparent,rgba(74,124,89,0.8),var(--c-green,#4A7C59),rgba(74,124,89,0.8),transparent)", animation:"shimmer 2s linear infinite", backgroundSize:"200% 100%" }} />
+          <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+          <div className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                <AvatarCircle user={acceptedSent.person} size={44} />
+                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px]" style={{ background:C.green, border:"2px solid #1a3a28" }}>✓</div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-0.5" style={{ color:"rgba(74,124,89,0.8)" }}>Match accepted ✦</div>
+                <div className="text-[15px] font-semibold" style={{ color:"#e8f5ee", fontFamily:"'DM Serif Display',Georgia,serif" }}>
+                  {acceptedSent.person.name.split(",")[0]} said yes! ✨
+                </div>
+                <div className="text-[12px] mt-0.5" style={{ color:"rgba(232,245,238,0.65)" }}>Tap to reveal their identifying hint →</div>
+              </div>
+              <div className="text-[22px]" style={{ animation:"float 2s ease-in-out infinite" }}>✨</div>
             </div>
-            <span style={{ color:C.green, fontSize:18 }}>→</span>
           </div>
         </div>
       )}
+
+      {/* ── Incoming requests section ── */}
       {newReqs.length>0 && (
         <div className="mx-[22px] mt-3 px-4 py-3 rounded-[14px] flex items-center gap-2.5" style={{ background:"rgba(74,124,89,0.12)", border:"1px solid rgba(74,124,89,0.25)" }}>
           <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
-          <div className="text-[13px] font-semibold" style={{ color:C.green }}>{newReqs.length} new request{newReqs.length>1?"s":""} right now</div>
+          <div className="text-[13px] font-semibold" style={{ color:C.green }}>{newReqs.length} new meet request{newReqs.length>1?"s":""}</div>
+          <div className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-bold text-white" style={{ background:C.green }}>{newReqs.length}</div>
         </div>
       )}
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
@@ -1570,8 +1663,13 @@ function ProfileScreen({
     const url = urlData.publicUrl+`?v=${Date.now()}`;
     await supabase.from("profiles").update({ photo_url:url }).eq("id",currentUser.id);
     currentUser.photo_url = url;
+    // Store today's date so we can show "selfie taken today" badge
+    localStorage.setItem(`selfie_date_${currentUser.id}`, new Date().toDateString());
     setPhotoL(false);
   }
+
+  const todaySelfieDate = typeof window !== "undefined" ? localStorage.getItem(`selfie_date_${currentUser.id}`) : null;
+  const selfieIsToday = todaySelfieDate === new Date().toDateString();
 
   async function handleSignOut() {
     await supabase.from("profiles").update({ open_to_meet:false, checked_in_event_id:null, checked_in_at:null }).eq("id",currentUser.id);
@@ -1594,15 +1692,29 @@ function ProfileScreen({
             <button onClick={()=>fileRef.current?.click()} disabled={photoLoading}
               className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center cursor-pointer text-[10px]"
               style={{ background:C.accent, color:"white" }}>
-              {photoLoading ? "⟳" : "✎"}
+              {photoLoading ? "⟳" : "🤳"}
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            {/* camera-only, no gallery */}
+            <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
-            <div className="text-[11px] mt-2" style={{ color:C.accent }}>✎ Tap to edit interests</div>
+            {currentUser.languages?.length > 0 && (
+              <div className="flex gap-1 mt-1.5 flex-wrap">
+                {currentUser.languages.map(l=>(
+                  <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
+                ))}
+              </div>
+            )}
+            {/* Daily selfie nudge */}
+            <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
+              className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer border-0"
+              style={{ background: selfieIsToday ? "rgba(74,124,89,0.12)" : "rgba(196,120,58,0.1)", color: selfieIsToday ? C.green : C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              {selfieIsToday ? "✓ Today's selfie taken" : "Update today's selfie"}
+            </button>
+            <div className="text-[11px] mt-1.5" style={{ color:C.accent }}>✎ Tap card to edit interests</div>
           </div>
         </div>
 
@@ -1745,7 +1857,17 @@ export default function App() {
   const inboxPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const turnOffLiveRef  = useRef<(()=>void)|null>(null);
   // Lifted from NearbyScreen so Go Live persists across tab navigation
-  const [isLive,          setIsLive]           = useState(false);
+  const [isLive, setIsLiveState] = useState(() => {
+    // Restore from localStorage — if user was live before closing, restore that state
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("here_is_live") === "true";
+    }
+    return false;
+  });
+  function setIsLive(v: boolean) {
+    setIsLiveState(v);
+    if (typeof window !== "undefined") localStorage.setItem("here_is_live", String(v));
+  }
   // Lifted so interacted profiles stay hidden after navigating away and back
   const [interactedIds,   setInteractedIds]    = useState<string[]>([]);
 
@@ -1846,10 +1968,19 @@ export default function App() {
     supabase.auth.getSession().then(async({ data:{ session } })=>{
       if (session?.user) {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
-        if (p) { setUser(p as UserProfile); navigate("events"); }
-        else     navigate("onboarding");
+        if (p) {
+          setUser(p as UserProfile);
+          // If user was live before closing the page, re-assert open_to_meet in DB
+          const wasLive = localStorage.getItem("here_is_live") === "true";
+          if (wasLive) {
+            await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
+          }
+          navigate("events");
+        }
+        else navigate("onboarding");
       } else navigate("login");
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
   async function navigate(to: Screen, data?: unknown) {
@@ -1884,7 +2015,7 @@ export default function App() {
 
   // Resolve per-screen data
   const selectedEvent    = EVENTS.find(e=>e.id===screenData) ?? EVENTS[0];
-  const blankUser: UserProfile = { id:"", email:"", name:"User", age:25, occupation:"Professional", interests:[], photo_url:null, bg:BG_OPTIONS[0], open_to_meet:true, checked_in_event_id:null, checked_in_at:null, lat:null, lng:null };
+  const blankUser: UserProfile = { id:"", email:"", name:"User", age:25, occupation:"Professional", interests:[], languages:[], photo_url:null, bg:BG_OPTIONS[0], open_to_meet:true, checked_in_event_id:null, checked_in_at:null, lat:null, lng:null };
   const selectedPerson = selectedPersonProfile ?? blankUser;
   const selectedRequest  = inbox.find(r=>r.id===screenData) ?? inbox[0];
   const matchData        = (screen==="match" && screenData && typeof screenData==="object")
