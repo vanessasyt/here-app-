@@ -408,7 +408,6 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [interests, setInterests] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>(["English"]);
   const [langInput,  setLangInput] = useState("");
-  const [langOpen,   setLangOpen]  = useState(false);
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [photoPreview, setPreview]= useState<string|null>(null);
   const [loading, setLoading]     = useState(false);
@@ -488,39 +487,34 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
       {/* ─── Step 1: Photo + basic info ─── */}
       {step===1 && (
-        <div className="flex-1 flex flex-col px-6 pb-8 overflow-y-auto">
-          <div className="mb-5">
-            <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Tell us about you</div>
-            <div className="text-sm mt-1" style={{ color:C.warmMid }}>This is what others will see</div>
-          </div>
+        <div className="flex-1 flex flex-col px-6 pb-8" style={{ minHeight:0 }}>
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto" style={{ minHeight:0 }}>
 
-          {/* Selfie capture — camera only, no gallery */}
+          {/* Today's photo */}
           <div className="mb-5">
-            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today&apos;s Selfie</div>
-            {/* Rationale banner */}
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today&apos;s Photo</div>
             <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
-              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. To help people recognise you in person, your profile photo must be a selfie taken <strong style={{ color:C.ink }}>today</strong> — reflecting how you actually look right now. Gallery uploads are not permitted.
+              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. To help others recognise you in person, your profile photo must be a photo taken <strong style={{ color:C.ink }}>today</strong> — accurately reflecting how you look right now.
             </div>
             <div className="flex items-center gap-4">
-              {/* Preview */}
               <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
                 style={{ background: photoPreview ? "transparent" : "rgba(139,115,85,0.1)", border:`2px dashed ${photoPreview ? C.green : C.border}` }}>
                 {photoPreview
                   ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-                  : <span className="text-2xl opacity-40">🤳</span>}
+                  : <span className="text-2xl opacity-40">📷</span>}
               </div>
               <div className="flex-1">
                 <button onClick={()=>fileRef.current?.click()}
                   className="w-full py-3 rounded-2xl text-sm font-semibold cursor-pointer border-0"
                   style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'DM Sans',sans-serif" }}>
-                  {photoPreview ? "✓ Retake selfie" : "📷 Take selfie now"}
+                  {photoPreview ? "✓ Retake photo" : "Take photo now"}
                 </button>
                 <div className="text-[11px] mt-1.5 leading-relaxed" style={{ color:C.warmMid }}>
-                  {photoPreview ? "Looks great! You can retake it if needed." : "Opens your camera — front-facing recommended"}
+                  {photoPreview ? "Looks great! Retake if needed." : "Opens your camera"}
                 </div>
               </div>
             </div>
-            {/* camera capture only — no gallery */}
             <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
           </div>
 
@@ -539,8 +533,8 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             ))}
           </div>
 
-          {/* Languages */}
-          <div className="mb-6">
+          {/* Languages — tap-to-toggle list, no onBlur issues */}
+          <div className="mb-4">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Languages spoken</div>
             {/* Selected pills */}
             {languages.length > 0 && (
@@ -549,42 +543,40 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                   <span key={l} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
                     style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
                     {l}
-                    <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer leading-none text-xs" style={{ color:"rgba(245,240,232,0.6)" }}>×</button>
+                    <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer leading-none" style={{ color:"rgba(245,240,232,0.6)", fontSize:14, lineHeight:1 }}>×</button>
                   </span>
                 ))}
               </div>
             )}
-            {/* Search + dropdown */}
-            <div className="relative">
-              <input
-                value={langInput}
-                onChange={e=>{ setLangInput(e.target.value); setLangOpen(true); }}
-                onFocus={()=>setLangOpen(true)}
-                onBlur={()=>setTimeout(()=>setLangOpen(false), 150)}
-                placeholder="Search or add a language…"
-                className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-                style={{ border:`1.5px solid ${langOpen ? C.accent : C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
-              />
-              {langOpen && filteredLangs.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 rounded-2xl overflow-hidden z-20"
-                  style={{ background:"white", border:`1.5px solid ${C.border}`, boxShadow:"0 8px 24px rgba(26,20,16,0.12)", maxHeight:180, overflowY:"auto" }}>
-                  {filteredLangs.slice(0, 12).map(l => (
-                    <button key={l} onMouseDown={()=>{ toggleLanguage(l); setLangInput(""); }}
-                      className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0 bg-transparent"
-                      style={{ color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}` }}
-                      onMouseEnter={e=>(e.currentTarget.style.background="rgba(139,115,85,0.06)")}
-                      onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
+            {/* Filter input */}
+            <input
+              value={langInput}
+              onChange={e=>setLangInput(e.target.value)}
+              placeholder="Search languages…"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
+            />
+            {/* Always-visible scrollable list */}
+            <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:140, overflowY:"auto" }}>
+              {filteredLangs.slice(0, 20).map((l, idx) => (
+                <button key={l} onClick={()=>{ toggleLanguage(l); setLangInput(""); }}
+                  className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0"
+                  style={{ background: idx%2===0 ? "white" : "rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}` }}>
+                  {l}
+                </button>
+              ))}
+              {filteredLangs.length===0 && (
+                <div className="px-4 py-3 text-sm" style={{ color:C.warmMid }}>No matches</div>
               )}
             </div>
           </div>
 
           {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
+          </div>{/* end scrollable */}
+
+          {/* Next button — always pinned at bottom */}
           <button onClick={()=>canStep1&&setStep(2)} disabled={!canStep1}
-            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mt-auto transition-opacity"
+            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mt-4 flex-shrink-0 transition-opacity"
             style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'DM Sans',sans-serif" }}>
             Next →
           </button>
@@ -789,8 +781,10 @@ function NearbyCard({
           <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" style={{ animation:"pulse 2s infinite" }} />
           Open
         </div>
-        {/* Verified tick */}
-        <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>✓</div>
+        {/* Verified tick — only shown when user has an uploaded photo */}
+        {user.photo_url && (
+          <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>
+        )}
 
         {/* (2) Time at event — bottom gradient strip */}
         <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center leading-none"
@@ -848,7 +842,30 @@ function NearbyScreen({
   const pollRef     = useRef<ReturnType<typeof setInterval>|null>(null);
   const rotationRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
+  const myLatRef = useRef<number|null>(currentUser.lat ?? null);
+  const myLngRef = useRef<number|null>(currentUser.lng ?? null);
+
+  const RADIUS_M = 250; // only show users within this distance
+
   const fetchUsers = useCallback(async () => {
+    // Refresh our own GPS coords first so the distance calc stays accurate
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          myLatRef.current = lat;
+          myLngRef.current = lng;
+          setMyLat(lat);
+          setMyLng(lng);
+          // Keep our own DB row up to date
+          await supabase.from("profiles").update({ lat, lng }).eq("id", currentUser.id);
+        },
+        () => {}, // silently ignore errors on background refresh
+        { enableHighAccuracy:false, timeout:5_000, maximumAge:30_000 }
+      );
+    }
+
     // Fetch all blocked relationships involving current user
     const { data: blocksData } = await supabase
       .from("blocked_users")
@@ -860,7 +877,6 @@ function NearbyScreen({
       if (b.blocker_id === currentUser.id) excludeIds.add(b.blocked_id);
       if (b.blocked_id === currentUser.id) excludeIds.add(b.blocker_id);
     });
-    // Also exclude client-side blockedIds
     blockedIds.forEach(id => excludeIds.add(id));
 
     let q = supabase.from("profiles").select("*").eq("open_to_meet",true).neq("id",currentUser.id);
@@ -868,8 +884,20 @@ function NearbyScreen({
       q = q.eq("checked_in_event_id", currentUser.checked_in_event_id);
     }
     const { data } = await q;
-    const filtered = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
-    setRawUsers(filtered);
+    let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
+
+    // Distance filter — only show users within RADIUS_M metres
+    // Requires both parties to have GPS coords stored
+    const myLat = myLatRef.current;
+    const myLng = myLngRef.current;
+    if (myLat !== null && myLng !== null) {
+      candidates = candidates.filter(u => {
+        if (u.lat === null || u.lng === null) return false;
+        return haversineMetres(myLat, myLng, u.lat, u.lng) <= RADIUS_M;
+      });
+    }
+
+    setRawUsers(candidates);
   }, [currentUser.id, currentUser.checked_in_event_id, blockedIds]);
 
   async function toggleLoc() {
@@ -906,6 +934,8 @@ function NearbyScreen({
         const lng = pos.coords.longitude;
         setMyLat(lat);
         setMyLng(lng);
+        myLatRef.current = lat;
+        myLngRef.current = lng;
 
         await supabase.from("profiles")
           .update({ open_to_meet:true, lat, lng })
@@ -993,6 +1023,11 @@ function NearbyScreen({
             </div>
           )}
           <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
+          {locOn && (
+            <div className="text-[11px] mt-0.5 font-medium" style={{ color:C.warmMid }}>
+              Within <strong style={{ color:C.ink }}>250 m</strong> · open to meet only
+            </div>
+          )}
         </div>
 
         {/* Compact discoverability toggle — top-right corner */}
@@ -1036,8 +1071,8 @@ function NearbyScreen({
       {locOn && (
         <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
           style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
-          <span>🔄</span>
-          <span>Profiles refresh every 5 minutes, ordered by <strong>proximity</strong> — the closer someone is, the higher they appear.</span>
+          <span>📍</span>
+          <span>Showing only people <strong>within 250 m</strong> who are open to meet. List refreshes every 15 seconds — profiles outside range are removed automatically.</span>
         </div>
       )}
 
@@ -1670,6 +1705,8 @@ function ProfileScreen({
 
   const todaySelfieDate = typeof window !== "undefined" ? localStorage.getItem(`selfie_date_${currentUser.id}`) : null;
   const selfieIsToday = todaySelfieDate === new Date().toDateString();
+  // photoIsToday alias for clarity in the UI
+  const photoIsToday = selfieIsToday;
 
   async function handleSignOut() {
     await supabase.from("profiles").update({ open_to_meet:false, checked_in_event_id:null, checked_in_at:null }).eq("id",currentUser.id);
@@ -1711,8 +1748,8 @@ function ProfileScreen({
             {/* Daily selfie nudge */}
             <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
               className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer border-0"
-              style={{ background: selfieIsToday ? "rgba(74,124,89,0.12)" : "rgba(196,120,58,0.1)", color: selfieIsToday ? C.green : C.accent, fontFamily:"'DM Sans',sans-serif" }}>
-              {selfieIsToday ? "✓ Today's selfie taken" : "Update today's selfie"}
+              style={{ background: photoIsToday ? "rgba(74,124,89,0.12)" : "rgba(196,120,58,0.1)", color: photoIsToday ? C.green : C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              {photoIsToday ? "✓ Today's photo taken" : "Update today's photo"}
             </button>
             <div className="text-[11px] mt-1.5" style={{ color:C.accent }}>✎ Tap card to edit interests</div>
           </div>
