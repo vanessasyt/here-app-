@@ -1151,7 +1151,7 @@ function NearbyScreen({
         <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
           style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
           <span>📍</span>
-          <span>Showing only people <strong>within 500 m</strong> who are open to meet. List refreshes every 15 seconds — profiles outside range are removed automatically.</span>
+          <span>Showing only people <strong>within 500 m</strong> who are open to meet.</span>
         </div>
       )}
 
@@ -2195,31 +2195,9 @@ export default function App() {
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
-  // Restore session on mount — also handles magic link / email confirmation redirects
-  // Supabase puts the session tokens in the URL hash after the user clicks a link
+  // Restore session on mount — handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
-    // First let Supabase process any auth tokens in the URL hash (magic link, reset, confirm)
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        // User clicked password reset link — show a simple new-password prompt
-        // For now navigate to login; a full reset UI can be added later
-        navigate("login");
-        return;
-      }
-      if (event === "SIGNED_IN" && session?.user) {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-        if (p) {
-          setUser(p as UserProfile);
-          const wasLive = localStorage.getItem("here_is_live") === "true";
-          if (wasLive) await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
-          navigate("events");
-        } else {
-          navigate("onboarding");
-        }
-      }
-    });
-
-    // Also check for an existing session (normal app load / page refresh)
+    // Check for an existing session first (normal page load / refresh)
     supabase.auth.getSession().then(async({ data:{ session } })=>{
       if (session?.user) {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
@@ -2230,10 +2208,40 @@ export default function App() {
             await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
           }
           navigate("events");
+        } else {
+          navigate("onboarding");
         }
-        else navigate("onboarding");
-      } else navigate("login");
+      } else {
+        navigate("login");
+      }
     });
+
+    // Listen for auth events triggered by link clicks only
+    // (magic link, email confirmation, password reset)
+    // We do NOT handle SIGNED_IN here for normal password login —
+    // that is handled directly in the LoginScreen handle() function
+    // to avoid a race condition that freezes the button.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("login");
+        return;
+      }
+      // Only handle SIGNED_IN for link-based flows (magic link / email confirm)
+      // Detect by checking if there is no password in the session (link-based)
+      if (event === "SIGNED_IN" && session?.user) {
+        // If the user came via a link (not password login), their profile
+        // may not be loaded yet — fetch and navigate
+        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        if (p) {
+          setUser(p as UserProfile);
+          navigate("events");
+        } else {
+          navigate("onboarding");
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
