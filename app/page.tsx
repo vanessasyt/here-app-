@@ -462,7 +462,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
     const profile: UserProfile = {
       id: user.id, email: user.email ?? "", name, age: parseInt(age),
-      occupation: occ, interests, languages, photo_url, bg,
+      occupation: occ, interests, languages: languages ?? [], photo_url, bg,
       open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
     };
     const { error: dbErr } = await supabase.from("profiles").upsert(profile);
@@ -495,7 +495,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           <div className="mb-5">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today&apos;s Photo</div>
             <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
-              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. To help others recognise you in person, your profile photo must be a photo taken <strong style={{ color:C.ink }}>today</strong> — accurately reflecting how you look right now.
+              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. Your profile photo must be taken daily to accurately represent how you look today. A green tick next to a profile photo indicates the photo has been updated today.
             </div>
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
@@ -591,7 +591,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
           {/* Fairness notice */}
           <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
-            💬 These tags <strong>never</strong> affect who sees you or in what order — purely for starting conversations.
+            These tags don&apos;t affect who sees you or in what order — purely for starting conversations.
           </div>
 
           {/* Counter + clear */}
@@ -661,7 +661,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                 ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
                 : <div className="w-full h-full flex items-center justify-center font-bold text-white text-6xl" style={{ background:bg }}>{name[0]?.toUpperCase()}</div>}
               {/* (1) Open to meet */}
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>✦ Open</div>
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>Active</div>
               {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>}
               {/* (2) Time at event */}
               <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center"
@@ -688,7 +688,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <button onClick={finish} disabled={loading}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
               style={{ background:C.green, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
-              {loading ? "Saving…" : "Enter here. ✦"}
+              {loading ? "Saving…" : "Enter here."}
             </button>
           </div>
         </div>
@@ -780,7 +780,7 @@ function NearbyCard({
         {/* (1) Open-to-meet status — top-left badge */}
         <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>
           <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" style={{ animation:"pulse 2s infinite" }} />
-          Open
+          Active
         </div>
         {/* Verified tick — only shown when user has an uploaded photo */}
         {user.photo_url && (
@@ -805,9 +805,9 @@ function NearbyCard({
         {user.interests.slice(0,3).map(i=><InterestTag key={i} interest={i} />)}
       </div>
       {/* (5) Languages */}
-      {user.languages?.length > 0 && (
+      {(user.languages ?? []).length > 0 && (
         <div className="px-2.5 pb-1.5 flex flex-wrap gap-1">
-          {user.languages.slice(0,3).map(l=>(
+          {(user.languages ?? []).slice(0,3).map(l=>(
             <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
           ))}
         </div>
@@ -1663,6 +1663,7 @@ function ProfileScreen({
   const [ageMin, setAgeMin]       = useState(18);
   const [ageMax, setAgeMax]       = useState(35);
   const [photoLoading, setPhotoL] = useState(false);
+  const [profileActive, setProfileActive] = useState(true);
   const fileRef                   = useRef<HTMLInputElement>(null);
   // Interests editing
   const [editingInterests, setEditingInterests] = useState(false);
@@ -1727,11 +1728,11 @@ function ProfileScreen({
           onClick={()=>{ setDraftInterests(currentUser.interests); setEditingInterests(true); }}>
           <div className="relative flex-shrink-0" onClick={e=>e.stopPropagation()}>
             <AvatarCircle user={currentUser} size={64} />
-            <button onClick={()=>fileRef.current?.click()} disabled={photoLoading}
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center cursor-pointer text-[10px]"
-              style={{ background:C.accent, color:"white" }}>
-              {photoLoading ? "⟳" : "🤳"}
-            </button>
+            {/* Green tick if photo taken today, red cross if not */}
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-bold"
+              style={{ background: photoIsToday ? C.green : "#dc2626", color:"white", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+              {photoIsToday ? "✓" : "✕"}
+            </div>
             {/* camera-only, no gallery */}
             <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
           </div>
@@ -1739,18 +1740,18 @@ function ProfileScreen({
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
-            {currentUser.languages?.length > 0 && (
+            {(currentUser.languages ?? []).length > 0 && (
               <div className="flex gap-1 mt-1.5 flex-wrap">
-                {currentUser.languages.map(l=>(
+                {(currentUser.languages ?? []).map(l=>(
                   <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
                 ))}
               </div>
             )}
-            {/* Daily selfie nudge */}
+            {/* Daily photo nudge */}
             <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
-              className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer border-0"
-              style={{ background: photoIsToday ? "rgba(74,124,89,0.12)" : "rgba(196,120,58,0.1)", color: photoIsToday ? C.green : C.accent, fontFamily:"'DM Sans',sans-serif" }}>
-              {photoIsToday ? "✓ Today's photo taken" : "Update today's photo"}
+              className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer border-0"
+              style={{ background: photoIsToday ? "rgba(74,124,89,0.1)" : "rgba(220,38,38,0.08)", color: photoIsToday ? C.green : "#dc2626", fontFamily:"'DM Sans',sans-serif" }}>
+              {photoLoading ? "Uploading…" : photoIsToday ? "Today's photo taken" : "Update today's photo"}
             </button>
             <div className="text-[11px] mt-1.5" style={{ color:C.accent }}>✎ Tap card to edit interests</div>
           </div>
@@ -1801,11 +1802,29 @@ function ProfileScreen({
 
         <div className="mx-[22px] mt-4 bg-white rounded-[18px] overflow-hidden" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
-            <span className="text-sm font-medium" style={{ color:C.ink }}>✓ Verified profile</span>
-            <span className="text-xs font-semibold" style={{ color:C.green }}>Active</span>
+            <div>
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Profile visibility</div>
+              <div className="text-[11px] mt-0.5" style={{ color: profileActive ? C.green : "#dc2626" }}>
+                {profileActive ? "Your profile is visible to others" : "Your profile is hidden"}
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                const next = !profileActive;
+                setProfileActive(next);
+                await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id);
+              }}
+              className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer border-0 transition-all"
+              style={{
+                background: profileActive ? "rgba(220,38,38,0.08)" : "rgba(74,124,89,0.1)",
+                color: profileActive ? "#dc2626" : C.green,
+                fontFamily:"'DM Sans',sans-serif",
+              }}>
+              {profileActive ? "Deactivate" : "Activate"}
+            </button>
           </div>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
-            <span className="text-sm font-medium" style={{ color:C.ink }}>⚡ here. Premium</span>
+            <span className="text-sm font-medium" style={{ color:C.ink }}>here. Premium</span>
             <span className="text-xs font-semibold cursor-pointer" style={{ color:C.accent }}>Upgrade →</span>
           </div>
 
@@ -1813,7 +1832,7 @@ function ProfileScreen({
           <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setAgeX(v=>!v)}>
             <div className="flex justify-between items-center">
               <div>
-                <span className="text-sm font-medium" style={{ color:C.ink }}>👁 Visible to age range</span>
+                <span className="text-sm font-medium" style={{ color:C.ink }}>Visible to age range</span>
                 <div className="text-xs font-semibold mt-0.5" style={{ color:C.accent }}>Ages {ageMin} – {ageMax>=50?"50+":ageMax}</div>
               </div>
               <span style={{ color:C.warmMid, transform:ageExpanded?"rotate(90deg)":"none", transition:"transform 0.2s", display:"inline-block" }}>›</span>
@@ -1839,7 +1858,7 @@ function ProfileScreen({
           {/* Privacy */}
           <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setPrivX(v=>!v)}>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium" style={{ color:C.ink }}>🔒 Privacy settings</span>
+              <span className="text-sm font-medium" style={{ color:C.ink }}>Privacy settings</span>
               <span style={{ color:C.warmMid, transform:privExpanded?"rotate(90deg)":"none", transition:"transform 0.2s", display:"inline-block" }}>›</span>
             </div>
             {privExpanded && (
