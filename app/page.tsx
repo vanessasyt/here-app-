@@ -74,37 +74,35 @@ const EVENTS: HereEvent[] = [
   { id:7, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"wine",      name:"Borough Market — After Dark",        venue:"Borough Market",       area:"Borough",       meta:"Saturday 6pm · Free",             members:46, time:"Sat",             section:"week", desc:"London's most iconic food market stays open late." },
 ];
 
-// 20 interests — each user picks up to 4
+// 18 interests — each user picks up to 3
 const INTERESTS: { id: string; emoji: string; label: string }[] = [
-  { id:"music",        emoji:"", label:"Music"        },
   { id:"art",          emoji:"", label:"Art"          },
-  { id:"travel",       emoji:"", label:"Travel"       },
-  { id:"food",         emoji:"", label:"Food"         },
-  { id:"fitness",      emoji:"", label:"Fitness"      },
-  { id:"sports",       emoji:"", label:"Sports"       },
-  { id:"film",         emoji:"", label:"Film"         },
-  { id:"wine",         emoji:"", label:"Wine"         },
-  { id:"dance",        emoji:"", label:"Dance"        },
-  { id:"reading",      emoji:"", label:"Reading"      },
-  { id:"photography",  emoji:"", label:"Photography"  },
-  { id:"cooking",      emoji:"", label:"Cooking"      },
-  { id:"theatre",      emoji:"", label:"Theatre"      },
-  { id:"gaming",       emoji:"", label:"Gaming"       },
-  { id:"tech",         emoji:"", label:"Tech"         },
-  { id:"fashion",      emoji:"", label:"Fashion"      },
-  { id:"architecture", emoji:"", label:"Architecture" },
   { id:"comedy",       emoji:"", label:"Comedy"       },
-  { id:"volunteering", emoji:"", label:"Volunteering" },
+  { id:"cooking",      emoji:"", label:"Cooking"      },
+  { id:"fashion",      emoji:"", label:"Fashion"      },
+  { id:"film",         emoji:"", label:"Film"         },
+  { id:"fitness",      emoji:"", label:"Fitness"      },
+  { id:"food",         emoji:"", label:"Food"         },
+  { id:"gaming",       emoji:"", label:"Gaming"       },
+  { id:"hiking",       emoji:"", label:"Hiking"       },
+  { id:"museums",      emoji:"", label:"Museums"      },
+  { id:"music",        emoji:"", label:"Music"        },
+  { id:"photography",  emoji:"", label:"Photography"  },
   { id:"podcasts",     emoji:"", label:"Podcasts"     },
+  { id:"reading",      emoji:"", label:"Reading"      },
+  { id:"tech",         emoji:"", label:"Tech"         },
+  { id:"theatre",      emoji:"", label:"Theatre"      },
+  { id:"travel",       emoji:"", label:"Travel"       },
+  { id:"wine",         emoji:"", label:"Wine"         },
 ];
 
-const MAX_INTERESTS = 4;
+const MAX_INTERESTS = 3;
 
 const LANGUAGES = [
-  "English","Mandarin","Spanish","Hindi","Arabic","French","Portuguese","Bengali",
-  "Russian","Urdu","Japanese","German","Korean","Turkish","Italian","Cantonese",
-  "Polish","Dutch","Swedish","Greek","Hebrew","Persian","Romanian","Czech",
-  "Hungarian","Finnish","Norwegian","Danish","Thai","Vietnamese","Malay","Swahili",
+  "Arabic","Bengali","Cantonese","Czech","Danish","Dutch","English","Finnish",
+  "French","German","Greek","Hebrew","Hindi","Hungarian","Italian","Japanese",
+  "Korean","Malay","Mandarin","Norwegian","Persian","Polish","Portuguese",
+  "Romanian","Russian","Spanish","Swahili","Swedish","Thai","Turkish","Urdu","Vietnamese",
 ];
 
 const BG_OPTIONS = [
@@ -117,29 +115,31 @@ const BG_OPTIONS = [
 ];
 
 const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
-  music:        { background:"rgba(100,80,160,0.1)",   color:"#6450A0" },
   art:          { background:"rgba(60,120,160,0.1)",    color:"#3C78A0" },
-  travel:       { background:"rgba(60,160,120,0.1)",    color:"#3CA078" },
-  food:         { background:"rgba(196,120,58,0.12)",   color:"#C4783A" },
-  fitness:      { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
-  sports:       { background:"rgba(58,100,196,0.12)",   color:"#3a60c4" },
-  film:         { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
-  wine:         { background:"rgba(160,60,80,0.1)",     color:"#A03C50" },
-  dance:        { background:"rgba(196,58,160,0.1)",    color:"#c43aa0" },
-  reading:      { background:"rgba(80,80,80,0.1)",      color:"#505050" },
-  photography:  { background:"rgba(40,100,160,0.1)",    color:"#2864A0" },
+  comedy:       { background:"rgba(220,160,40,0.12)",   color:"#b08010" },
   cooking:      { background:"rgba(196,140,40,0.12)",   color:"#c48c28" },
-  theatre:      { background:"rgba(120,40,120,0.1)",    color:"#782878" },
-  gaming:       { background:"rgba(40,140,180,0.1)",    color:"#288cb4" },
-  tech:         { background:"rgba(60,80,180,0.1)",     color:"#3c50b4" },
   fashion:      { background:"rgba(200,80,120,0.1)",    color:"#c85078" },
-  architecture: { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
-  comedy:       { background:"rgba(220,160,40,0.12)",   color:"#dca028" },
-  volunteering: { background:"rgba(60,160,100,0.1)",    color:"#3ca064" },
+  film:         { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
+  fitness:      { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
+  food:         { background:"rgba(196,120,58,0.12)",   color:"#C4783A" },
+  gaming:       { background:"rgba(40,140,180,0.1)",    color:"#288cb4" },
+  hiking:       { background:"rgba(60,160,80,0.1)",     color:"#3a9a50" },
+  museums:      { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
+  music:        { background:"rgba(100,80,160,0.1)",    color:"#6450A0" },
+  photography:  { background:"rgba(40,100,160,0.1)",    color:"#2864A0" },
   podcasts:     { background:"rgba(140,60,200,0.1)",    color:"#8c3cc8" },
+  reading:      { background:"rgba(80,80,80,0.1)",      color:"#505050" },
+  tech:         { background:"rgba(60,80,180,0.1)",     color:"#3c50b4" },
+  theatre:      { background:"rgba(120,40,120,0.1)",    color:"#782878" },
+  travel:       { background:"rgba(60,160,120,0.1)",    color:"#3CA078" },
+  wine:         { background:"rgba(160,60,80,0.1)",     color:"#A03C50" },
   // legacy aliases so old profiles still render
   gym:          { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
   movies:       { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
+  sports:       { background:"rgba(58,100,196,0.12)",   color:"#3a60c4" },
+  dance:        { background:"rgba(196,58,160,0.1)",    color:"#c43aa0" },
+  architecture: { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
+  volunteering: { background:"rgba(60,160,100,0.1)",    color:"#3ca064" },
 };
 
 // No dummy inbox — all requests come from Supabase
@@ -962,25 +962,17 @@ function NearbyScreen({
     const { data } = await q;
     let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
 
-    // Distance filter — strictly enforce RADIUS_M
-    // Also exclude profiles with GPS coords older than 30 min (stale location)
+    // Distance filter — only show users within RADIUS_M who are open_to_meet
+    // Rely on open_to_meet=false to remove people who have left, not on timestamp staleness
     const myLat = myLatRef.current;
     const myLng = myLngRef.current;
-    const STALE_MS = 30 * 60_000; // 30 minutes
-    const now = Date.now();
     if (myLat !== null && myLng !== null) {
       candidates = candidates.filter(u => {
         if (u.lat === null || u.lng === null) return false;
-        // Exclude if their GPS hasn't been updated in the last 30 min
-        const locUpdated = (u as any).location_updated_at;
-        if (locUpdated) {
-          const age = now - new Date(locUpdated).getTime();
-          if (age > STALE_MS) return false;
-        }
-        const dist = haversineMetres(myLat, myLng, u.lat, u.lng);
-        return dist <= RADIUS_M;
+        return haversineMetres(myLat, myLng, u.lat, u.lng) <= RADIUS_M;
       });
     } else {
+      // No coords yet — show nobody rather than everyone
       candidates = [];
     }
 
@@ -2167,11 +2159,38 @@ export default function App() {
     autoOffRef.current = setTimeout(() => {
       setLocationGranted(false);
       setIsLive(false);
-      // Also turn off Go live in NearbyScreen if it is active
       if (turnOffLiveRef.current) turnOffLiveRef.current();
     }, ms);
     return () => { if (autoOffRef.current) clearTimeout(autoOffRef.current); };
   }, [locationGranted, autoOffTimer]);
+
+  // GPS heartbeat — refresh our own coords in Supabase every 60 seconds while live.
+  // Uses low-accuracy (cell/WiFi) to preserve battery. This keeps our position current
+  // so the distance filter on other users' screens reflects our actual location.
+  // We don't use this to filter others out — open_to_meet=false is the exit signal.
+  const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  useEffect(() => {
+    if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
+    if (!isLive || !currentUser) return;
+    const refreshGps = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          await supabase.from("profiles").update({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            location_updated_at: new Date().toISOString(),
+          }).eq("id", currentUser.id);
+        },
+        () => {}, // silently ignore — next tick will retry
+        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 30_000 }
+      );
+    };
+    // Run once immediately on going live, then every 60 seconds
+    refreshGps();
+    gpsHeartbeatRef.current = setInterval(refreshGps, 60_000);
+    return () => { if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current); };
+  }, [isLive, currentUser]);
 
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
