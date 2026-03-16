@@ -474,9 +474,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const canStep1 = name.trim() && age && parseInt(age)>=18 && occ.trim();
 
   return (
-    <div className="flex-1 flex flex-col" style={{ background: C.cream }}>
+    <div className="flex flex-col" style={{ background: C.cream, height:"100vh", overflow:"hidden" }}>
       {/* Progress bar */}
-      <div className="px-6 pt-12">
+      <div className="px-6 pt-12 flex-shrink-0">
         <div className="flex gap-1.5 mb-6">
           {[1,2,3].map(s=>(
             <div key={s} className="h-1 flex-1 rounded-full transition-all duration-300"
@@ -487,9 +487,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
       {/* ─── Step 1: Photo + basic info ─── */}
       {step===1 && (
-        <div className="flex-1 flex flex-col px-6 pb-8" style={{ minHeight:0 }}>
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto" style={{ minHeight:0 }}>
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
+          {/* Scrollable content */}
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 
           {/* Today's photo */}
           <div className="mb-5">
@@ -533,10 +533,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             ))}
           </div>
 
-          {/* Languages — tap-to-toggle list, no onBlur issues */}
+          {/* Languages */}
           <div className="mb-4">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Languages spoken</div>
-            {/* Selected pills */}
             {languages.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {languages.map(l => (
@@ -548,7 +547,6 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                 ))}
               </div>
             )}
-            {/* Filter input */}
             <input
               value={langInput}
               onChange={e=>setLangInput(e.target.value)}
@@ -556,12 +554,11 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
               style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
             />
-            {/* Always-visible scrollable list */}
-            <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:140, overflowY:"auto" }}>
+            <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:160, overflowY:"auto" }}>
               {filteredLangs.slice(0, 20).map((l, idx) => (
                 <button key={l} onClick={()=>{ toggleLanguage(l); setLangInput(""); }}
                   className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0"
-                  style={{ background: idx%2===0 ? "white" : "rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}` }}>
+                  style={{ background: idx%2===0 ? "white" : "rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
                   {l}
                 </button>
               ))}
@@ -572,12 +569,13 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           </div>
 
           {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
+          <div style={{ height:8 }} />{/* bottom breathing room inside scroll */}
           </div>{/* end scrollable */}
 
-          {/* Next button — always pinned at bottom */}
+          {/* Next — always visible, never scrolls away */}
           <button onClick={()=>canStep1&&setStep(2)} disabled={!canStep1}
-            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mt-4 flex-shrink-0 transition-opacity"
-            style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'DM Sans',sans-serif" }}>
+            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity flex-shrink-0"
+            style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'DM Sans',sans-serif", marginTop:12 }}>
             Next →
           </button>
         </div>
@@ -585,7 +583,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
       {/* ─── Step 2: Interests ─── */}
       {step===2 && (
-        <div className="flex-1 flex flex-col px-6 pb-8" style={{ minHeight:0 }}>
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div className="mb-3 flex-shrink-0">
             <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
             <div className="text-sm mt-1" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters on your card</div>
@@ -648,7 +646,8 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
       {/* ─── Step 3: Preview ─── */}
       {step===3 && (
-        <div className="flex-1 flex flex-col px-6 pb-8 overflow-y-auto">
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
           <div className="mb-5">
             <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>You&apos;re all set</div>
             <div className="text-sm mt-1" style={{ color:C.warmMid }}>Here&apos;s how others will see your card</div>
@@ -663,7 +662,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                 : <div className="w-full h-full flex items-center justify-center font-bold text-white text-6xl" style={{ background:bg }}>{name[0]?.toUpperCase()}</div>}
               {/* (1) Open to meet */}
               <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>✦ Open</div>
-              <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>✓</div>
+              {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>}
               {/* (2) Time at event */}
               <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center"
                 style={{ background:"linear-gradient(to top,rgba(26,20,16,0.75),transparent)" }}>
@@ -682,7 +681,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           </div>
 
           {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
-          <div className="flex gap-3 mt-auto">
+          <div style={{ height:8 }} />
+          </div>{/* end scroll */}
+          <div className="flex gap-3 flex-shrink-0" style={{ marginTop:12 }}>
             <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>← Back</button>
             <button onClick={finish} disabled={loading}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
