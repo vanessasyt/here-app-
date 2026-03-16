@@ -1223,8 +1223,7 @@ function RequestScreen({
       .eq("from_id", currentUser.id)
       .eq("to_id", person.id)
       .gte("created_at", startOfDay.toISOString())
-      .limit(1)
-      .single();
+      .maybeSingle(); // maybeSingle() returns null if no row — .single() throws an error
     if (existing) {
       setError("You've already sent a request to this person today.");
       setSending(false);
@@ -1374,54 +1373,60 @@ function PendingScreen({
 function InboxScreen({
   requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch,
 }: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:number)=>void; onDismiss:(id:number)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
-  const newReqs = requests.filter(r=>r.isNew);
-  const oldReqs = requests.filter(r=>!r.isNew);
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
       <div className="px-[22px] pt-5 flex-shrink-0">
-        <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming</div>
         <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Meet Requests</div>
       </div>
 
-      {/* ── Flashy acceptance banner (sender sees this) ── */}
-      {acceptedSent && (
-        <div className="mx-[22px] mt-3 rounded-[18px] overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:"linear-gradient(135deg,#1a3a28,#2a5a3a)", border:"2px solid rgba(74,124,89,0.6)", boxShadow:"0 4px 24px rgba(74,124,89,0.25)" }}
-          onClick={onViewMatch}>
-          {/* Shimmer bar */}
-          <div style={{ height:3, background:"linear-gradient(to right,transparent,rgba(74,124,89,0.8),var(--c-green,#4A7C59),rgba(74,124,89,0.8),transparent)", animation:"shimmer 2s linear infinite", backgroundSize:"200% 100%" }} />
-          <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-          <div className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-shrink-0">
-                <AvatarCircle user={acceptedSent.person} size={44} />
-                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px]" style={{ background:C.green, border:"2px solid #1a3a28" }}>✓</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-0.5" style={{ color:"rgba(74,124,89,0.8)" }}>Match accepted ✦</div>
-                <div className="text-[15px] font-semibold" style={{ color:"#e8f5ee", fontFamily:"'DM Serif Display',Georgia,serif" }}>
-                  {acceptedSent.person.name.split(",")[0]} said yes! ✨
-                </div>
-                <div className="text-[12px] mt-0.5" style={{ color:"rgba(232,245,238,0.65)" }}>Tap to reveal their identifying hint →</div>
-              </div>
-              <div className="text-[22px]" style={{ animation:"float 2s ease-in-out infinite" }}>✨</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Incoming requests section ── */}
-      {newReqs.length>0 && (
-        <div className="mx-[22px] mt-3 px-4 py-3 rounded-[14px] flex items-center gap-2.5" style={{ background:"rgba(74,124,89,0.12)", border:"1px solid rgba(74,124,89,0.25)" }}>
-          <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
-          <div className="text-[13px] font-semibold" style={{ color:C.green }}>{newReqs.length} new meet request{newReqs.length>1?"s":""}</div>
-          <div className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-bold text-white" style={{ background:C.green }}>{newReqs.length}</div>
-        </div>
-      )}
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        <div className="pt-3.5">
-          {newReqs.map(r=>(
+        <div className="pt-3">
+
+          {/* ── They said yes (acceptance banner) ── */}
+          {acceptedSent && (<>
+            <div className="px-[22px] mb-2">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.green }}>They said yes</div>
+            </div>
+            <div className="mx-[22px] mb-4 rounded-[18px] overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+              style={{ background:"linear-gradient(135deg,#1a3a28,#2a5a3a)", border:"2px solid rgba(74,124,89,0.6)", boxShadow:"0 4px 24px rgba(74,124,89,0.25)" }}
+              onClick={onViewMatch}>
+              <div style={{ height:3, background:"linear-gradient(to right,transparent,rgba(74,124,89,0.8),#4A7C59,rgba(74,124,89,0.8),transparent)", animation:"shimmer 2s linear infinite", backgroundSize:"200% 100%" }} />
+              <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <AvatarCircle user={acceptedSent.person} size={44} />
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px]" style={{ background:C.green, border:"2px solid #1a3a28" }}>✓</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-semibold" style={{ color:"#e8f5ee", fontFamily:"'DM Serif Display',Georgia,serif" }}>
+                      {acceptedSent.person.name.split(",")[0]} said yes!
+                    </div>
+                    <div className="text-[12px] mt-0.5" style={{ color:"rgba(232,245,238,0.65)" }}>Tap to reveal their identifying hint →</div>
+                  </div>
+                  <div className="text-[22px]" style={{ animation:"float 2s ease-in-out infinite" }}>✨</div>
+                </div>
+              </div>
+            </div>
+          </>)}
+
+          {/* ── Incoming requests ── */}
+          <div className="px-[22px] mb-2 flex items-center justify-between">
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming requests</div>
+            {requests.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
+                <span className="text-[11px] font-semibold" style={{ color:C.green }}>{requests.length} new</span>
+              </div>
+            )}
+          </div>
+
+          {requests.length === 0 ? (
+            <div className="px-5 py-8 text-center text-[13px]" style={{ color:C.warmMid }}>
+              {acceptedSent ? "No other incoming requests" : "No requests yet"}
+            </div>
+          ) : requests.map(r=>(
             <div key={r.id} className="mx-5 mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
               style={{ background:"rgba(196,120,58,0.04)", border:`1.5px solid ${C.accent}`, boxShadow:"0 2px 14px rgba(26,20,16,0.07)" }}
               onClick={()=>onNavigate("incoming",r.id)}>
@@ -1441,34 +1446,14 @@ function InboxScreen({
               </div>
             </div>
           ))}
-          {oldReqs.length>0 && (<>
-            <div className="px-5 pb-2 text-[11px] uppercase tracking-[1.2px] font-semibold" style={{ color:C.warmMid }}>Earlier</div>
-            {oldReqs.map(r=>(
-              <div key={r.id} className="mx-5 mb-3 p-4 rounded-[18px]" style={{ background:"white", border:`1.5px solid ${C.border}`, boxShadow:"0 2px 14px rgba(26,20,16,0.07)", opacity:0.65 }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-2" />
-                  <AvatarCircle user={{ photo_url:r.photo_url, bg:r.bg, name:r.name }} size={44} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm" style={{ color:C.ink }}>{r.name}</div>
-                    <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{r.meta}</div>
-                    <div className="text-[11px] mt-1" style={{ color:C.warmMid }}>{r.reqLabel}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <div className="text-[11px]" style={{ color:C.warmMid }}>{r.time}</div>
-                    <button onClick={()=>onDismiss(r.id)} className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-xs cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"white", color:C.warmMid }}>×</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>)}
-          {!requests.length && <div className="px-5 py-8 text-center text-[13px]" style={{ color:C.warmMid }}>No requests yet</div>}
+
           <div className="mx-5 mt-2 p-3.5 rounded-[14px] text-xs leading-relaxed" style={{ background:"rgba(139,115,85,0.07)", color:C.warmMid }}>
             🔒 You&apos;re only notified when both parties are open to meet. Requests expire in 30 min.
           </div>
         </div>
         <div className="h-2" />
       </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={newReqs.length} />
+      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={requests.length} />
     </div>
   );
 }
@@ -2078,13 +2063,12 @@ export default function App() {
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
-    // Only fetch pending requests created in the last 30 min — older ones are expired
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data } = await supabase
       .from("meet_requests")
       .select("*, profiles!meet_requests_from_id_fkey(*)")
       .eq("to_id", userId)
-      .in("status", ["pending"])
+      .eq("status", "pending")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
 
@@ -2257,16 +2241,13 @@ export default function App() {
   function declineRequest(id: number) {
     // Track locally so poll doesn't restore it before DB confirms
     declinedIdsRef.current.add(id);
-    // Mark declined in DB — this overwrites any previous status (including accepted)
     supabase.from("meet_requests").update({ status: "declined" }).eq("id", id).then(() => {
-      // Safe to remove from ref now — DB is confirmed declined
       declinedIdsRef.current.delete(id);
       if (currentUser) fetchInbox(currentUser.id);
     });
+    // Remove immediately from state — declined requests disappear
     setInbox(prev => prev.filter(r => r.id !== id));
-    // Clear any accepted banner that might reference this request
     setAcceptedSent(prev => (prev && (prev as any).requestId === id ? null : prev));
-    // If currently viewing this request or on match/incoming screen for it, go back to inbox
     if (screen === "incoming" || screen === "match") {
       navigate("inbox");
     }
