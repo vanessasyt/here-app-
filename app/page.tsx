@@ -915,11 +915,12 @@ function NearbyScreen({
   const myLatRef = useRef<number|null>(currentUser.lat ?? null);
   const myLngRef = useRef<number|null>(currentUser.lng ?? null);
 
-  const RADIUS_M = 500; // only show users within this distance
+  const RADIUS_M = 500;
 
-  const fetchUsers = useCallback(async () => {
-    // Refresh our own GPS coords first so the distance calc stays accurate
-    if (navigator.geolocation) {
+  // Wrap geolocation in a promise so we can await it properly
+  function refreshMyCoords(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(); return; }
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const lat = pos.coords.latitude;
@@ -928,13 +929,18 @@ function NearbyScreen({
           myLngRef.current = lng;
           setMyLat(lat);
           setMyLng(lng);
-          // Keep our own DB row up to date
-          await supabase.from("profiles").update({ lat, lng }).eq("id", currentUser.id);
+          await supabase.from("profiles").update({ lat, lng, location_updated_at: new Date().toISOString() }).eq("id", currentUser.id);
+          resolve();
         },
-        () => {}, // silently ignore errors on background refresh
-        { enableHighAccuracy:false, timeout:5_000, maximumAge:30_000 }
+        () => resolve(), // on error just resolve so fetch continues
+        { enableHighAccuracy: true, timeout: 8_000, maximumAge: 10_000 }
       );
-    }
+    });
+  }
+
+  const fetchUsers = useCallback(async () => {
+    // Always refresh GPS first and WAIT for it before filtering
+    await refreshMyCoords();
 
     // Fetch all blocked relationships involving current user
     const { data: blocksData } = await supabase
@@ -956,15 +962,26 @@ function NearbyScreen({
     const { data } = await q;
     let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
 
-    // Distance filter — only show users within RADIUS_M metres
-    // Requires both parties to have GPS coords stored
+    // Distance filter — strictly enforce RADIUS_M
+    // Also exclude profiles with GPS coords older than 30 min (stale location)
     const myLat = myLatRef.current;
     const myLng = myLngRef.current;
+    const STALE_MS = 30 * 60_000; // 30 minutes
+    const now = Date.now();
     if (myLat !== null && myLng !== null) {
       candidates = candidates.filter(u => {
         if (u.lat === null || u.lng === null) return false;
-        return haversineMetres(myLat, myLng, u.lat, u.lng) <= RADIUS_M;
+        // Exclude if their GPS hasn't been updated in the last 30 min
+        const locUpdated = (u as any).location_updated_at;
+        if (locUpdated) {
+          const age = now - new Date(locUpdated).getTime();
+          if (age > STALE_MS) return false;
+        }
+        const dist = haversineMetres(myLat, myLng, u.lat, u.lng);
+        return dist <= RADIUS_M;
       });
+    } else {
+      candidates = [];
     }
 
     setRawUsers(candidates);
@@ -976,7 +993,7 @@ function NearbyScreen({
       setLocOn(false);
       setIsLive(false);
       localStorage.removeItem("here_is_live");
-      await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id",currentUser.id);
+      await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null, location_updated_at:null }).eq("id",currentUser.id);
       setRawUsers([]);
       if (pollRef.current)     clearInterval(pollRef.current);
       if (rotationRef.current) clearInterval(rotationRef.current);
@@ -1008,7 +1025,7 @@ function NearbyScreen({
         myLngRef.current = lng;
 
         await supabase.from("profiles")
-          .update({ open_to_meet:true, lat, lng })
+          .update({ open_to_meet:true, lat, lng, location_updated_at: new Date().toISOString() })
           .eq("id", currentUser.id);
 
         await fetchUsers();
@@ -1024,7 +1041,7 @@ function NearbyScreen({
           setLocOn(false);
           setIsLive(false);
           localStorage.removeItem("here_is_live");
-          await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
+          await supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null, location_updated_at:null }).eq("id", currentUser.id);
           setRawUsers([]);
           if (pollRef.current)     clearInterval(pollRef.current);
           if (rotationRef.current) clearInterval(rotationRef.current);
@@ -1051,7 +1068,7 @@ function NearbyScreen({
     if (!locationGranted && locOn) {
       setLocOn(false);
       setIsLive(false);
-      supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null }).eq("id", currentUser.id);
+      supabase.from("profiles").update({ open_to_meet:false, lat:null, lng:null, location_updated_at:null }).eq("id", currentUser.id);
       setRawUsers([]);
       if (pollRef.current)     clearInterval(pollRef.current);
       if (rotationRef.current) clearInterval(rotationRef.current);
