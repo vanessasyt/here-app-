@@ -310,10 +310,13 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
 // ── Login ──────────────────────────────────────────────────
 function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onLogin:(u:UserProfile)=>void }) {
-  const [email, setEmail]     = useState("");
-  const [password, setPass]   = useState("");
-  const [error, setError]     = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]       = useState("");
+  const [password, setPass]     = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handle() {
     if (!email || !password) { setError("Please fill in all fields"); return; }
@@ -325,6 +328,17 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
     setLoading(false);
   }
 
+  async function handleForgotPassword() {
+    if (!email) { setError("Enter your email address above first"); return; }
+    setResetLoading(true); setError("");
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    setResetLoading(false);
+    if (err) { setError(err.message); return; }
+    setResetSent(true);
+  }
+
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
   const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'DM Sans',sans-serif" };
 
@@ -334,14 +348,38 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
         <div className="text-[36px] mb-2" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>here.</div>
         <div className="text-sm mb-10" style={{ color:"rgba(245,240,232,0.45)" }}>Meet in the moment</div>
         <div className="w-full space-y-3">
-          <input value={email}    onChange={e=>setEmail(e.target.value)}    type="email"    placeholder="Email address" className={inp} style={inpStyle} />
-          <input value={password} onChange={e=>setPass(e.target.value)}     type="password" placeholder="Password"       className={inp} style={inpStyle} onKeyDown={e=>e.key==="Enter"&&handle()} />
+          <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="Email address" className={inp} style={inpStyle} />
+          {/* Password with show/hide */}
+          <div className="relative">
+            <input value={password} onChange={e=>setPass(e.target.value)}
+              type={showPass ? "text" : "password"} placeholder="Password"
+              className={inp} style={{ ...inpStyle, paddingRight:48 }}
+              onKeyDown={e=>e.key==="Enter"&&handle()} />
+            <button onClick={()=>setShowPass(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer text-xs font-medium"
+              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'DM Sans',sans-serif" }}>
+              {showPass ? "Hide" : "Show"}
+            </button>
+          </div>
+          {/* Show password checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color:"rgba(245,240,232,0.5)", fontSize:13 }}>
+            <input type="checkbox" checked={showPass} onChange={e=>setShowPass(e.target.checked)}
+              className="w-4 h-4 rounded cursor-pointer accent-[#C4783A]" />
+            Show password
+          </label>
           {error && <div className="text-xs text-center" style={{ color:"#f87171" }}>{error}</div>}
+          {resetSent && (
+            <div className="text-xs text-center leading-relaxed p-3 rounded-xl" style={{ background:"rgba(74,124,89,0.15)", color:"rgba(232,245,238,0.8)" }}>
+              Password reset email sent. Check your inbox and follow the link to set a new password.
+            </div>
+          )}
           <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
-            {loading ? "Signing in…" : "Sign in →"}
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+          <button onClick={handleForgotPassword} disabled={resetLoading} className="w-full text-center text-sm border-0 bg-transparent cursor-pointer py-1" style={{ color:"rgba(245,240,232,0.4)", fontFamily:"'DM Sans',sans-serif" }}>
+            {resetLoading ? "Sending…" : "Forgot password?"}
           </button>
         </div>
-        <div className="mt-6 text-sm" style={{ color:"rgba(245,240,232,0.45)" }}>
+        <div className="mt-4 text-sm" style={{ color:"rgba(245,240,232,0.45)" }}>
           New here?{" "}
           <button onClick={()=>onNavigate("signup")} className="border-0 bg-transparent cursor-pointer font-semibold" style={{ color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>Create account</button>
         </div>
@@ -352,27 +390,57 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
 
 // ── Sign-up ────────────────────────────────────────────────
 function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
-  const [email,   setEmail]   = useState("");
-  const [pass,    setPass]    = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error,   setError]   = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email,     setEmail]   = useState("");
+  const [pass,      setPass]    = useState("");
+  const [confirm,   setConfirm] = useState("");
+  const [showPass,  setShowPass]= useState(false);
+  const [error,     setError]   = useState("");
+  const [loading,   setLoading] = useState(false);
+  const [confirmed, setConfirmed] = useState(false); // shown after sign-up email sent
 
   async function handle() {
     if (!email||!pass)          { setError("Please fill in all fields"); return; }
     if (pass!==confirm)         { setError("Passwords don't match"); return; }
     if (pass.length<6)          { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
-    const { error:err } = await supabase.auth.signUp({ email, password:pass });
+    const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
     if (err) { setError(err.message); setLoading(false); return; }
-    // Sign in immediately so session is active before onboarding saves profile
-    const { error:signInErr } = await supabase.auth.signInWithPassword({ email, password:pass });
-    if (signInErr) { setError("Account created — please sign in."); setLoading(false); onNavigate("login"); return; }
-    setLoading(false); onNavigate("onboarding");
+    setLoading(false);
+    // If email confirmation is enabled, user.identities will be populated but
+    // session will be null — show the confirm-your-email screen.
+    // If confirmation is disabled, sign in immediately and proceed to onboarding.
+    if (!data.session) {
+      setConfirmed(true);
+      return;
+    }
+    onNavigate("onboarding");
   }
 
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
   const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'DM Sans',sans-serif" };
+
+  // ── Email confirmation sent screen ──
+  if (confirmed) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8" style={{ background:C.ink }}>
+        <div className="text-[48px] mb-5">📬</div>
+        <div className="text-[26px] text-center leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+          Check your inbox
+        </div>
+        <div className="text-sm text-center leading-relaxed mb-8" style={{ color:"rgba(245,240,232,0.55)" }}>
+          We sent a confirmation link to <strong style={{ color:C.cream }}>{email}</strong>. Open it to verify your account, then come back and sign in.
+        </div>
+        <button onClick={()=>onNavigate("login")}
+          className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+          style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+          Go to sign in
+        </button>
+        <div className="mt-4 text-xs text-center leading-relaxed" style={{ color:"rgba(245,240,232,0.3)" }}>
+          Didn&apos;t receive it? Check your spam folder or try signing up again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col" style={{ background: C.ink }}>
@@ -382,12 +450,33 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
           <div className="text-sm mt-1.5" style={{ color:"rgba(245,240,232,0.45)" }}>Join here. and meet people around you</div>
         </div>
         <div className="space-y-3">
-          <input value={email}   onChange={e=>setEmail(e.target.value)}   type="email"    placeholder="Email address"          className={inp} style={inpStyle} />
-          <input value={pass}    onChange={e=>setPass(e.target.value)}    type="password" placeholder="Password (min 6 chars)"  className={inp} style={inpStyle} />
-          <input value={confirm} onChange={e=>setConfirm(e.target.value)} type="password" placeholder="Confirm password"        className={inp} style={inpStyle} onKeyDown={e=>e.key==="Enter"&&handle()} />
+          <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="Email address" className={inp} style={inpStyle} />
+          {/* Password */}
+          <div className="relative">
+            <input value={pass} onChange={e=>setPass(e.target.value)}
+              type={showPass ? "text" : "password"} placeholder="Password (min 6 chars)"
+              className={inp} style={{ ...inpStyle, paddingRight:48 }} />
+            <button onClick={()=>setShowPass(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer text-xs font-medium"
+              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'DM Sans',sans-serif" }}>
+              {showPass ? "Hide" : "Show"}
+            </button>
+          </div>
+          {/* Confirm password */}
+          <div className="relative">
+            <input value={confirm} onChange={e=>setConfirm(e.target.value)}
+              type={showPass ? "text" : "password"} placeholder="Confirm password"
+              className={inp} style={{ ...inpStyle, paddingRight:48 }}
+              onKeyDown={e=>e.key==="Enter"&&handle()} />
+          </div>
+          {/* Show password checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color:"rgba(245,240,232,0.5)", fontSize:13 }}>
+            <input type="checkbox" checked={showPass} onChange={e=>setShowPass(e.target.checked)}
+              className="w-4 h-4 rounded cursor-pointer accent-[#C4783A]" />
+            Show password
+          </label>
           {error && <div className="text-xs text-center" style={{ color:"#f87171" }}>{error}</div>}
           <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
-            {loading ? "Creating account…" : "Create account →"}
+            {loading ? "Creating account…" : "Create account"}
           </button>
         </div>
         <div className="mt-6 text-sm text-center" style={{ color:"rgba(245,240,232,0.45)" }}>
@@ -399,7 +488,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
   );
 }
 
-// ── Onboarding — 3 steps with photo upload ─────────────────
+// ── Onboarding — 4 steps ───────────────────────────────────
 function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [step, setStep]           = useState(1);
   const [name, setName]           = useState("");
@@ -418,18 +507,14 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   function toggleLanguage(lang: string) {
     setLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
   }
-
   const filteredLangs = LANGUAGES.filter(l =>
     l.toLowerCase().includes(langInput.toLowerCase()) && !languages.includes(l)
   );
-
   function toggleInterest(id: string) {
     setInterests(prev => prev.includes(id) ? prev.filter(x=>x!==id) : prev.length<MAX_INTERESTS ? [...prev,id] : prev);
   }
-
   function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     if (file.size > 5*1024*1024) { setError("Photo must be under 5 MB"); return; }
     setPhotoFile(file);
     const reader = new FileReader();
@@ -437,29 +522,21 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
     reader.readAsDataURL(file);
     setError("");
   }
-
-  function todaySelfieKey(uid: string) { return `selfie_date_${uid}`; }
-
   async function finish() {
     if (!interests.length) { setError("Pick at least one interest"); return; }
     setLoading(true); setError("");
-
     const { data:{ user } } = await supabase.auth.getUser();
     if (!user) { setError("Not logged in"); setLoading(false); return; }
-
-    // Upload photo → get public URL
     let photo_url: string|null = null;
     if (photoFile) {
       const ext  = photoFile.name.split(".").pop() ?? "jpg";
       const path = `avatars/${user.id}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, photoFile, { upsert: true, contentType: photoFile.type });
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true, contentType: photoFile.type });
       if (upErr) { setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
       photo_url = urlData.publicUrl + `?v=${Date.now()}`;
+      localStorage.setItem(`selfie_date_${user.id}`, new Date().toDateString());
     }
-
     const profile: UserProfile = {
       id: user.id, email: user.email ?? "", name, age: parseInt(age),
       occupation: occ, interests, languages: languages ?? [], photo_url, bg,
@@ -470,113 +547,79 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
     setLoading(false);
     onDone(profile);
   }
-
   const canStep1 = name.trim() && age && parseInt(age)>=18 && occ.trim();
 
   return (
     <div className="flex flex-col" style={{ background: C.cream, height:"100vh", overflow:"hidden" }}>
-      {/* Progress bar */}
-      <div className="px-6 pt-12 flex-shrink-0">
-        <div className="flex gap-1.5 mb-6">
-          {[1,2,3].map(s=>(
+      {/* Progress bar — 4 steps */}
+      <div className="px-6 pt-10 flex-shrink-0">
+        <div className="flex gap-1.5 mb-1">
+          {[1,2,3,4].map(s=>(
             <div key={s} className="h-1 flex-1 rounded-full transition-all duration-300"
               style={{ background: s<=step ? C.accent : "rgba(139,115,85,0.2)" }} />
           ))}
         </div>
+        <div className="text-[11px] mt-2 mb-3" style={{ color:C.warmMid }}>Step {step} of 4</div>
       </div>
 
-      {/* ─── Step 1: Photo + basic info ─── */}
+      {/* ─── Step 1: Photo + basics ─── */}
       {step===1 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
-          {/* Scrollable content */}
-          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-
-          {/* Today's photo */}
-          <div className="mb-5">
-            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today&apos;s Photo</div>
-            <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
-              <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. Your profile photo must be taken daily to accurately represent how you look today. A green tick next to a profile photo indicates the photo has been updated today.
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
-                style={{ background: photoPreview ? "transparent" : "rgba(139,115,85,0.1)", border:`2px dashed ${photoPreview ? C.green : C.border}` }}>
-                {photoPreview
-                  ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-                  : <span className="text-2xl opacity-40">📷</span>}
+          <div className="mb-3 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>About you</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>This is what others will see</div>
+          </div>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
+            <div className="mb-4">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today's Photo</div>
+              <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
+                <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. Your profile photo must be taken daily to accurately represent how you look today. A green tick next to a profile photo indicates the photo has been updated today.
               </div>
-              <div className="flex-1">
-                <button onClick={()=>fileRef.current?.click()}
-                  className="w-full py-3 rounded-2xl text-sm font-semibold cursor-pointer border-0"
-                  style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'DM Sans',sans-serif" }}>
-                  {photoPreview ? "✓ Retake photo" : "Take photo now"}
-                </button>
-                <div className="text-[11px] mt-1.5 leading-relaxed" style={{ color:C.warmMid }}>
-                  {photoPreview ? "Looks great! Retake if needed." : "Opens your camera"}
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center relative"
+                  style={{ background: photoPreview ? "transparent" : "rgba(139,115,85,0.1)", border:`2px solid ${photoPreview ? C.green : C.border}` }}>
+                  {photoPreview
+                    ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
+                    : <span className="text-2xl opacity-30">📷</span>}
+                  {photoPreview && (
+                    <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                      style={{ background:C.green, color:"white", border:"2px solid white" }}>✓</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <button onClick={()=>fileRef.current?.click()}
+                    className="w-full py-3 rounded-2xl text-sm font-semibold cursor-pointer border-0"
+                    style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                    {photoPreview ? "Retake photo" : "Take photo now"}
+                  </button>
+                  <div className="text-[11px] mt-1.5" style={{ color:C.warmMid }}>
+                    {photoPreview ? "Looks good — retake if needed" : "Opens your camera"}
+                  </div>
                 </div>
               </div>
+              <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
             </div>
-            <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
-          </div>
-
-          <div className="space-y-3 mb-4">
-            {[
-              { label:"First name",  val:name, set:setName, placeholder:"e.g. Sophie", type:"text"   },
-              { label:"Age",         val:age,  set:setAge,  placeholder:"e.g. 26",     type:"number" },
-              { label:"Occupation",  val:occ,  set:setOcc,  placeholder:"e.g. Architect", type:"text" },
-            ].map(({ label,val,set,placeholder,type }) => (
-              <div key={label}>
-                <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>{label}</div>
-                <input value={val} onChange={e=>set(e.target.value)} type={type} placeholder={placeholder} min={type==="number"?"18":undefined}
-                  className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none"
-                  style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
-              </div>
-            ))}
-          </div>
-
-          {/* Languages */}
-          <div className="mb-4">
-            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Languages spoken</div>
-            {languages.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {languages.map(l => (
-                  <span key={l} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                    style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
-                    {l}
-                    <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer leading-none" style={{ color:"rgba(245,240,232,0.6)", fontSize:14, lineHeight:1 }}>×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input
-              value={langInput}
-              onChange={e=>setLangInput(e.target.value)}
-              placeholder="Search languages…"
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
-              style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
-            />
-            <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:160, overflowY:"auto" }}>
-              {filteredLangs.slice(0, 20).map((l, idx) => (
-                <button key={l} onClick={()=>{ toggleLanguage(l); setLangInput(""); }}
-                  className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0"
-                  style={{ background: idx%2===0 ? "white" : "rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
-                  {l}
-                </button>
+            <div className="space-y-3 mb-3">
+              {([
+                { label:"First name", val:name, set:setName, placeholder:"e.g. Sophie", type:"text" },
+                { label:"Age",        val:age,  set:setAge,  placeholder:"e.g. 26",     type:"number" },
+                { label:"Occupation", val:occ,  set:setOcc,  placeholder:"e.g. Architect", type:"text" },
+              ] as { label:string; val:string; set:(v:string)=>void; placeholder:string; type:string }[]).map(({ label,val,set,placeholder,type }) => (
+                <div key={label}>
+                  <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>{label}</div>
+                  <input value={val} onChange={e=>set(e.target.value)} type={type} placeholder={placeholder} min={type==="number"?"18":undefined}
+                    className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none"
+                    style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+                </div>
               ))}
-              {filteredLangs.length===0 && (
-                <div className="px-4 py-3 text-sm" style={{ color:C.warmMid }}>No matches</div>
-              )}
             </div>
+            {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
+            <div style={{ height:8 }} />
           </div>
-
-          {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
-          <div style={{ height:8 }} />{/* bottom breathing room inside scroll */}
-          </div>{/* end scrollable */}
-
-          {/* Next — always visible, never scrolls away */}
           <button onClick={()=>canStep1&&setStep(2)} disabled={!canStep1}
             className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity flex-shrink-0"
             style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'DM Sans',sans-serif", marginTop:12 }}>
-            Next →
+            Next
           </button>
         </div>
       )}
@@ -584,107 +627,133 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
       {/* ─── Step 2: Interests ─── */}
       {step===2 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
-          <div className="mb-3 flex-shrink-0">
-            <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
-            <div className="text-sm mt-1" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters on your card</div>
+          <div className="mb-2 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters</div>
           </div>
-
-          {/* Fairness notice */}
-          <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
-            These tags don&apos;t affect who sees you or in what order — purely for starting conversations.
+          <div className="mb-2 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
+            These tags don't affect who sees you or in what order — purely for starting conversations.
           </div>
-
-          {/* Counter + clear */}
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div className="text-xs font-semibold" style={{ color:C.inkSoft }}>
               {interests.length === MAX_INTERESTS
-                ? <span style={{ color:C.green }}>✓ {MAX_INTERESTS} selected</span>
-                : <span style={{ color:C.warmMid }}>{interests.length} / {MAX_INTERESTS} selected</span>}
+                ? <span style={{ color:C.green }}>{MAX_INTERESTS} selected</span>
+                : <span style={{ color:C.warmMid }}>{interests.length} / {MAX_INTERESTS}</span>}
             </div>
             {interests.length > 0 && (
-              <button onClick={()=>setInterests([])} className="text-xs border-0 bg-transparent cursor-pointer" style={{ color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>Clear all</button>
+              <button onClick={()=>setInterests([])} className="text-xs border-0 bg-transparent cursor-pointer" style={{ color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>Clear</button>
             )}
           </div>
-
-          {/* Interest pills — scrollable */}
-          <div className="flex flex-wrap gap-2 mb-4 overflow-y-auto flex-1" style={{ minHeight:0 }}>
+          <div className="flex flex-wrap gap-2 overflow-y-auto flex-1" style={{ minHeight:0 }}>
             {INTERESTS.map(item => {
-              const on     = interests.includes(item.id);
-              const maxed  = !on && interests.length >= MAX_INTERESTS;
+              const on = interests.includes(item.id);
+              const maxed = !on && interests.length >= MAX_INTERESTS;
               return (
-                <button key={item.id}
-                  onClick={()=>{ if (!maxed) toggleInterest(item.id); }}
-                  className="flex items-center gap-1.5 px-3 py-[7px] rounded-full text-sm font-medium transition-all duration-150 border"
-                  style={{
-                    background:  on ? C.ink : maxed ? "rgba(139,115,85,0.04)" : "white",
-                    borderColor: on ? C.ink : maxed ? "rgba(139,115,85,0.1)"  : C.border,
-                    color:       on ? C.cream : maxed ? "rgba(139,115,85,0.28)" : C.inkSoft,
-                    cursor:      maxed ? "not-allowed" : "pointer",
-                    fontFamily:  "'DM Sans',sans-serif",
-                    opacity:     maxed ? 0.55 : 1,
-                    alignSelf:   "flex-start",
-                  }}>
-                  <span style={{ fontSize:13, lineHeight:1 }}>{item.emoji}</span>
+                <button key={item.id} onClick={()=>{ if (!maxed) toggleInterest(item.id); }}
+                  className="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border"
+                  style={{ background:on?C.ink:maxed?"rgba(139,115,85,0.04)":"white", borderColor:on?C.ink:maxed?"rgba(139,115,85,0.1)":C.border, color:on?C.cream:maxed?"rgba(139,115,85,0.28)":C.inkSoft, cursor:maxed?"not-allowed":"pointer", fontFamily:"'DM Sans',sans-serif", opacity:maxed?0.55:1, alignSelf:"flex-start" }}>
                   {item.label}
                 </button>
               );
             })}
           </div>
-
-          {error && <div className="text-xs mb-2 text-center flex-shrink-0" style={{ color:"#ef4444" }}>{error}</div>}
-
-          <div className="flex gap-3 flex-shrink-0">
-            <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>← Back</button>
+          {error && <div className="text-xs mt-2 text-center flex-shrink-0" style={{ color:"#ef4444" }}>{error}</div>}
+          <div className="flex gap-3 flex-shrink-0 mt-3">
+            <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
             <button onClick={()=>interests.length>0&&setStep(3)} disabled={!interests.length}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
               style={{ background:C.accent, opacity:interests.length?1:0.4, fontFamily:"'DM Sans',sans-serif" }}>
-              Next →
+              Next
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── Step 3: Preview ─── */}
+      {/* ─── Step 3: Languages ─── */}
       {step===3 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
-          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-          <div className="mb-5">
-            <div className="text-[26px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>You&apos;re all set</div>
-            <div className="text-sm mt-1" style={{ color:C.warmMid }}>Here&apos;s how others will see your card</div>
+          <div className="mb-2 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Languages you speak</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Helps others know they can approach you</div>
           </div>
-
-          {/* Card preview — mirrors NearbyCard hierarchy */}
-          <div className="rounded-[20px] overflow-hidden mb-5" style={{ boxShadow:"0 4px 24px rgba(26,20,16,0.12)", border:`2px solid ${C.green}`, maxWidth:180, alignSelf:"center", width:"100%" }}>
-            {/* Photo / avatar */}
-            <div className="h-44 relative overflow-hidden">
-              {photoPreview
-                ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-                : <div className="w-full h-full flex items-center justify-center font-bold text-white text-6xl" style={{ background:bg }}>{name[0]?.toUpperCase()}</div>}
-              {/* (1) Open to meet */}
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>Active</div>
-              {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>}
-              {/* (2) Time at event */}
-              <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center"
-                style={{ background:"linear-gradient(to top,rgba(26,20,16,0.75),transparent)" }}>
-                Just arrived
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
+            {languages.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {languages.map(l => (
+                  <span key={l} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
+                    style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                    {l}
+                    <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer" style={{ color:"rgba(245,240,232,0.55)", fontSize:14, lineHeight:1 }}>×</button>
+                  </span>
+                ))}
               </div>
+            )}
+            <input value={langInput} onChange={e=>setLangInput(e.target.value)}
+              placeholder="Search languages…"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+            <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:300, overflowY:"auto" }}>
+              {filteredLangs.slice(0,25).map((l,idx) => (
+                <button key={l} onClick={()=>{ toggleLanguage(l); setLangInput(""); }}
+                  className="w-full px-4 py-3 text-left text-sm cursor-pointer border-0"
+                  style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
+                  {l}
+                </button>
+              ))}
+              {filteredLangs.length===0 && <div className="px-4 py-3 text-sm" style={{ color:C.warmMid }}>No matches</div>}
             </div>
-            {/* (3) Brief info */}
-            <div className="px-3 pt-2 pb-1 bg-white">
-              <div className="font-semibold text-sm" style={{ color:C.ink }}>{name||"Your name"}, {age||"??"}</div>
-              <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>{occ||"Occupation"}</div>
-            </div>
-            {/* (4) Interest tags */}
-            <div className="px-3 pb-3 bg-white flex flex-wrap gap-1">
-              {interests.map(i=><InterestTag key={i} interest={i} />)}
-            </div>
+            <div style={{ height:8 }} />
           </div>
+          <div className="flex gap-3 flex-shrink-0 mt-3">
+            <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(4)}
+              className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+              style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
-          {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
-          <div style={{ height:8 }} />
-          </div>{/* end scroll */}
-          <div className="flex gap-3 flex-shrink-0" style={{ marginTop:12 }}>
-            <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>← Back</button>
+      {/* ─── Step 4: Preview ─── */}
+      {step===4 && (
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
+            <div className="mb-4">
+              <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>You're all set</div>
+              <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Here's how others will see your card</div>
+            </div>
+            <div className="rounded-[20px] overflow-hidden mb-4" style={{ boxShadow:"0 4px 24px rgba(26,20,16,0.12)", border:`2px solid ${C.green}`, maxWidth:180, alignSelf:"center", width:"100%" }}>
+              <div className="h-44 relative overflow-hidden">
+                {photoPreview
+                  ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
+                  : <div className="w-full h-full flex items-center justify-center font-bold text-white text-6xl" style={{ background:bg }}>{name[0]?.toUpperCase()}</div>}
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>Active</div>
+                {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] font-bold" style={{ color:C.green, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>✓</div>}
+                <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center"
+                  style={{ background:"linear-gradient(to top,rgba(26,20,16,0.75),transparent)" }}>Just arrived</div>
+              </div>
+              <div className="px-3 pt-2 pb-1 bg-white">
+                <div className="font-semibold text-sm" style={{ color:C.ink }}>{name||"Your name"}, {age||"??"}</div>
+                <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>{occ||"Occupation"}</div>
+              </div>
+              <div className="px-3 pb-2 bg-white flex flex-wrap gap-1">
+                {interests.map(i=><InterestTag key={i} interest={i} />)}
+              </div>
+              {languages.length > 0 && (
+                <div className="px-3 pb-3 bg-white">
+                  <div className="text-[10px] font-semibold mb-1" style={{ color:C.warmMid }}>Speaks</div>
+                  <div className="flex flex-wrap gap-1">
+                    {languages.map(l=><span key={l} className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {error && <div className="text-xs mb-3 text-center" style={{ color:"#ef4444" }}>{error}</div>}
+            <div style={{ height:8 }} />
+          </div>
+          <div className="flex gap-3 flex-shrink-0 mt-3">
+            <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
             <button onClick={finish} disabled={loading}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
               style={{ background:C.green, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
@@ -846,7 +915,7 @@ function NearbyScreen({
   const myLatRef = useRef<number|null>(currentUser.lat ?? null);
   const myLngRef = useRef<number|null>(currentUser.lng ?? null);
 
-  const RADIUS_M = 250; // only show users within this distance
+  const RADIUS_M = 500; // only show users within this distance
 
   const fetchUsers = useCallback(async () => {
     // Refresh our own GPS coords first so the distance calc stays accurate
@@ -1026,7 +1095,7 @@ function NearbyScreen({
           <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
           {locOn && (
             <div className="text-[11px] mt-0.5 font-medium" style={{ color:C.warmMid }}>
-              Within <strong style={{ color:C.ink }}>250 m</strong> · open to meet only
+              Within <strong style={{ color:C.ink }}>500 m</strong> · open to meet only
             </div>
           )}
         </div>
@@ -1073,7 +1142,7 @@ function NearbyScreen({
         <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
           style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
           <span>📍</span>
-          <span>Showing only people <strong>within 250 m</strong> who are open to meet. List refreshes every 15 seconds — profiles outside range are removed automatically.</span>
+          <span>Showing only people <strong>within 500 m</strong> who are open to meet. List refreshes every 15 seconds — profiles outside range are removed automatically.</span>
         </div>
       )}
 
@@ -1669,6 +1738,25 @@ function ProfileScreen({
   const [editingInterests, setEditingInterests] = useState(false);
   const [draftInterests,   setDraftInterests]   = useState<string[]>(currentUser.interests);
   const [savingInterests,  setSavingInterests]  = useState(false);
+  // Languages editing
+  const [editingLanguages, setEditingLanguages] = useState(false);
+  const [draftLanguages,   setDraftLanguages]   = useState<string[]>(currentUser.languages ?? []);
+  const [langInput,        setLangInput]        = useState("");
+  const [savingLanguages,  setSavingLanguages]  = useState(false);
+
+  function toggleDraftLanguage(lang: string) {
+    setDraftLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
+  }
+  const filteredLangs = LANGUAGES.filter(l =>
+    l.toLowerCase().includes(langInput.toLowerCase()) && !draftLanguages.includes(l)
+  );
+  async function saveLanguages() {
+    setSavingLanguages(true);
+    await supabase.from("profiles").update({ languages: draftLanguages }).eq("id", currentUser.id);
+    currentUser.languages = draftLanguages;
+    setSavingLanguages(false);
+    setEditingLanguages(false);
+  }
 
   function toggleDraftInterest(id: string) {
     setDraftInterests(prev =>
@@ -1740,20 +1828,13 @@ function ProfileScreen({
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
-            {(currentUser.languages ?? []).length > 0 && (
-              <div className="flex gap-1 mt-1.5 flex-wrap">
-                {(currentUser.languages ?? []).map(l=>(
-                  <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
-                ))}
-              </div>
-            )}
             {/* Daily photo nudge */}
             <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
               className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer border-0"
               style={{ background: photoIsToday ? "rgba(74,124,89,0.1)" : "rgba(220,38,38,0.08)", color: photoIsToday ? C.green : "#dc2626", fontFamily:"'DM Sans',sans-serif" }}>
               {photoLoading ? "Uploading…" : photoIsToday ? "Today's photo taken" : "Update today's photo"}
             </button>
-            <div className="text-[11px] mt-1.5" style={{ color:C.accent }}>✎ Tap card to edit interests</div>
+            <div className="text-[11px] mt-1" style={{ color:C.warmMid }}>Tap card to edit interests</div>
           </div>
         </div>
 
@@ -1800,6 +1881,54 @@ function ProfileScreen({
           </div>
         )}
 
+        {/* Languages edit modal */}
+        {editingLanguages && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingLanguages(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Edit languages</div>
+              <div className="text-xs mb-3" style={{ color:C.warmMid }}>Select all languages you speak</div>
+              {draftLanguages.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {draftLanguages.map(l=>(
+                    <span key={l} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
+                      style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                      {l}
+                      <button onClick={()=>toggleDraftLanguage(l)} className="border-0 bg-transparent cursor-pointer" style={{ color:"rgba(245,240,232,0.55)", fontSize:14, lineHeight:1 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <input value={langInput} onChange={e=>setLangInput(e.target.value)}
+                placeholder="Search languages…"
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
+                style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+              <div className="rounded-2xl overflow-hidden mb-4" style={{ border:`1px solid ${C.border}`, maxHeight:200, overflowY:"auto" }}>
+                {filteredLangs.slice(0,20).map((l,idx)=>(
+                  <button key={l} onClick={()=>{ toggleDraftLanguage(l); setLangInput(""); }}
+                    className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0"
+                    style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
+                    {l}
+                  </button>
+                ))}
+                {filteredLangs.length===0 && <div className="px-4 py-3 text-sm" style={{ color:C.warmMid }}>No matches</div>}
+              </div>
+              <button onClick={saveLanguages} disabled={savingLanguages}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+                style={{ background:C.accent, opacity:savingLanguages?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                {savingLanguages ? "Saving…" : "Save languages"}
+              </button>
+              <button onClick={()=>setEditingLanguages(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mx-[22px] mt-4 bg-white rounded-[18px] overflow-hidden" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
             <div>
@@ -1828,7 +1957,17 @@ function ProfileScreen({
             <span className="text-xs font-semibold cursor-pointer" style={{ color:C.accent }}>Upgrade →</span>
           </div>
 
-          {/* Age range */}
+          {/* Languages row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftLanguages(currentUser.languages ?? []); setLangInput(""); setEditingLanguages(true); }}>
+            <div>
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Languages</div>
+              <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
+                {(currentUser.languages ?? []).length > 0 ? (currentUser.languages ?? []).join(", ") : "Not set — tap to add"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid }}>›</span>
+          </div>
           <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setAgeX(v=>!v)}>
             <div className="flex justify-between items-center">
               <div>
@@ -2020,14 +2159,36 @@ export default function App() {
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
-  // Restore session on mount
+  // Restore session on mount — also handles magic link / email confirmation redirects
+  // Supabase puts the session tokens in the URL hash after the user clicks a link
   useEffect(()=>{
+    // First let Supabase process any auth tokens in the URL hash (magic link, reset, confirm)
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        // User clicked password reset link — show a simple new-password prompt
+        // For now navigate to login; a full reset UI can be added later
+        navigate("login");
+        return;
+      }
+      if (event === "SIGNED_IN" && session?.user) {
+        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        if (p) {
+          setUser(p as UserProfile);
+          const wasLive = localStorage.getItem("here_is_live") === "true";
+          if (wasLive) await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
+          navigate("events");
+        } else {
+          navigate("onboarding");
+        }
+      }
+    });
+
+    // Also check for an existing session (normal app load / page refresh)
     supabase.auth.getSession().then(async({ data:{ session } })=>{
       if (session?.user) {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
         if (p) {
           setUser(p as UserProfile);
-          // If user was live before closing the page, re-assert open_to_meet in DB
           const wasLive = localStorage.getItem("here_is_live") === "true";
           if (wasLive) {
             await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
