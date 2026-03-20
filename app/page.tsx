@@ -530,7 +530,8 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const fileRef                   = useRef<HTMLInputElement>(null);
-  const bg = BG_OPTIONS[Math.floor(Math.random() * BG_OPTIONS.length)];
+  const bgRef = useRef(BG_OPTIONS[Math.floor(Math.random() * BG_OPTIONS.length)]);
+  const bg = bgRef.current;
 
   function toggleLanguage(lang: string) {
     setLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
@@ -2287,7 +2288,7 @@ export default function App() {
           setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
           if (wasLive) {
-            await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id).catch(()=>{});
+            try { await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id); } catch { /* ignore */ }
           }
           navigate("events");
         } else {
