@@ -33,6 +33,7 @@ interface UserProfile {
   checked_in_at: string | null;  // ISO timestamp – used for time-at-event
   lat: number | null;           // GPS latitude
   lng: number | null;           // GPS longitude
+  pronouns?: "he/him" | "she/her" | "they/them"; // optional — used in openers & match screen
 }
 
 // NearbyUser extends UserProfile with client-side display fields
@@ -525,7 +526,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
   );
 }
 
-// ── Onboarding — 4 steps ───────────────────────────────────
+// ── Onboarding — 5 steps ───────────────────────────────────
 function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [step, setStep]           = useState(1);
   const [name, setName]           = useState("");
@@ -534,6 +535,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [interests, setInterests] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>(["English"]);
   const [langInput,  setLangInput] = useState("");
+  const [pronouns,   setPronouns] = useState<"he/him"|"she/her"|"they/them">("she/her");
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [photoPreview, setPreview]= useState<string|null>(null);
   const [loading, setLoading]     = useState(false);
@@ -588,6 +590,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
       const profile: UserProfile = {
         id: user.id, email: user.email ?? "", name, age: parseInt(age),
         occupation: occ, interests, languages: languages ?? [], photo_url, bg,
+        pronouns,
         open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
       };
 
@@ -609,12 +612,12 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
       {/* Progress bar — 4 steps */}
       <div className="px-6 pt-10 flex-shrink-0">
         <div className="flex gap-1.5 mb-1">
-          {[1,2,3,4].map(s=>(
+          {[1,2,3,4,5].map(s=>(
             <div key={s} className="h-1 flex-1 rounded-full transition-all duration-300"
               style={{ background: s<=step ? C.accent : "rgba(139,115,85,0.2)" }} />
           ))}
         </div>
-        <div className="text-[11px] mt-2 mb-3" style={{ color:C.warmMid }}>Step {step} of 4</div>
+        <div className="text-[11px] mt-2 mb-3" style={{ color:C.warmMid }}>Step {step} of 5</div>
       </div>
 
       {/* ─── Step 1: Photo + basics ─── */}
@@ -770,8 +773,43 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
         </div>
       )}
 
-      {/* ─── Step 4: Preview ─── */}
+      {/* ─── Step 4: Pronouns ─── */}
       {step===4 && (
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
+          <div className="mb-4 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your pronouns</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Shown on your profile and used when others are matched with you</div>
+          </div>
+          <div className="flex flex-col gap-3 flex-shrink-0">
+            {(["she/her","he/him","they/them"] as const).map(p => (
+              <button key={p} onClick={()=>setPronouns(p)}
+                className="w-full py-4 rounded-2xl text-[15px] font-semibold cursor-pointer transition-all"
+                style={{
+                  border: `1.5px solid ${pronouns===p ? C.ink : C.border}`,
+                  background: pronouns===p ? C.ink : "white",
+                  color: pronouns===p ? C.cream : C.inkSoft,
+                  fontFamily:"'DM Sans',sans-serif",
+                }}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 text-[11px] leading-relaxed flex-shrink-0" style={{ color:C.warmMid }}>
+            This helps here. use the right language when showing your profile to others.
+          </div>
+          <div className="flex gap-3 flex-shrink-0 mt-auto pt-4">
+            <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(5)}
+              className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+              style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Step 5: Preview ─── */}
+      {step===5 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
             <div className="mb-4">
@@ -808,7 +846,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <div style={{ height:8 }} />
           </div>
           <div className="flex gap-3 flex-shrink-0 mt-3">
-            <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(4)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
             <button onClick={finish} disabled={loading}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
               style={{ background:C.green, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
@@ -1656,6 +1694,14 @@ function IncomingScreen({
   );
 }
 
+// ── Pronoun helper ────────────────────────────────────────
+function getPronouns(person?: UserProfile | null) {
+  const p = person?.pronouns ?? (person as any)?.gender === "m" ? "he/him" : "she/her";
+  if (p === "he/him")   return { sub: "He",   obj: "him",  goFind: "Go find him"  };
+  if (p === "they/them") return { sub: "They", obj: "them", goFind: "Go find them" };
+  return                        { sub: "She",  obj: "her",  goFind: "Go find her"  };
+}
+
 // ── Opener questions ──────────────────────────────────────
 const OPENER_QUESTIONS = [
   "If tonight was a film, what genre would it be?",
@@ -1683,60 +1729,45 @@ function pickOpenerQuestions(): string[] {
 function OpenerScreen({
   person, questions, onBack, onNavigate, inboxCount,
 }: { person: UserProfile; questions: string[]; onBack: () => void; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const [idx, setIdx] = useState(0);
   const firstName = person.name.split(",")[0];
+  const pr = getPronouns(person);
 
   return (
     <div className="flex flex-col h-full" style={{ background: C.ink }}>
       <div className="px-6 pt-6 flex items-center gap-3 flex-shrink-0">
         <BackBtn onClick={onBack} dark />
-        <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color: "rgba(245,240,232,0.45)" }}>Your openers</div>
       </div>
       <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
-        <div className="mt-4 mb-1">
-          <div className="text-[22px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>{firstName}, {person.age}</div>
-          <div className="text-[12px] mt-0.5" style={{ color: "rgba(245,240,232,0.45)" }}>{person.occupation}</div>
+        {/* Person header */}
+        <div className="mt-3 mb-1">
+          <div className="text-[24px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>{person.name}</div>
+          <div className="text-[12px] mt-0.5 mb-4" style={{ color: "rgba(245,240,232,0.45)" }}>{person.occupation}</div>
         </div>
-        <div className="mt-3 mb-5 px-3 py-2.5 rounded-xl text-[12px] leading-relaxed" style={{ background: "rgba(196,120,58,0.08)", border: "1px solid rgba(196,120,58,0.2)", color: "rgba(245,240,232,0.55)" }}>
-          4 random questions — just for you, to break the ice. Use them or don't. She has the same pool.
+        {/* Intro */}
+        <div className="mb-4">
+          <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-1.5" style={{ color: C.accent }}>Your openers</div>
+          <div className="text-[13px] leading-relaxed" style={{ color: "rgba(245,240,232,0.6)", fontStyle: "italic" }}>
+            Here are some openers for you to break the ice!
+          </div>
         </div>
-        {/* Dot progress */}
-        <div className="flex gap-2 justify-center mb-5">
-          {questions.map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full transition-all duration-200"
-              style={{ background: i === idx ? C.accent : "rgba(245,240,232,0.18)" }} />
+        {/* All 4 questions */}
+        <div className="flex flex-col gap-2.5 mb-5">
+          {questions.map((q, i) => (
+            <div key={i} className="flex gap-3 items-start px-4 py-3.5 rounded-2xl"
+              style={{ background: "rgba(245,240,232,0.05)", border: "1px solid rgba(245,240,232,0.1)" }}>
+              <span className="text-[13px] font-bold flex-shrink-0 mt-0.5" style={{ color: C.accent }}>{i + 1}</span>
+              <span className="text-[14px] leading-relaxed font-medium" style={{ color: C.cream }}>{q}</span>
+            </div>
           ))}
         </div>
-        {/* Question card */}
-        <div className="rounded-2xl p-5 mb-5" style={{ background: "rgba(245,240,232,0.05)", border: "1px solid rgba(245,240,232,0.1)" }}>
-          <div className="text-[10px] uppercase tracking-[1.2px] font-semibold mb-3" style={{ color: C.accent }}>
-            Question {idx + 1} of {questions.length}
-          </div>
-          <div className="text-[17px] leading-relaxed" style={{ color: C.cream, fontStyle: "italic" }}>
-            {questions[idx]}
-          </div>
-        </div>
-        {/* Nav */}
-        <div className="flex gap-2.5">
-          <button onClick={() => setIdx(i => Math.max(0, i - 1))}
-            className="flex-1 py-3 rounded-[14px] text-[13px] cursor-pointer"
-            style={{ border: "1px solid rgba(245,240,232,0.12)", background: "transparent", color: "rgba(245,240,232,0.5)", fontFamily: "'DM Sans',sans-serif", opacity: idx === 0 ? 0.35 : 1 }}>
-            ← Prev
-          </button>
-          <button onClick={() => { if (idx === questions.length - 1) onBack(); else setIdx(i => i + 1); }}
-            className="flex-1 py-3 rounded-[14px] text-[13px] cursor-pointer"
-            style={{ border: "1px solid rgba(245,240,232,0.12)", background: "transparent", color: "rgba(245,240,232,0.5)", fontFamily: "'DM Sans',sans-serif" }}>
-            {idx === questions.length - 1 ? "Go find them →" : "Next →"}
-          </button>
-        </div>
-        <div className="mt-4 text-[11px] text-center leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          Answers are hidden until you both tap "met them" and write them in.
+        <div className="text-[11px] text-center leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
+          Same pool for both of you — answers revealed after you both tap "met them".
         </div>
       </div>
       <div className="px-6 pb-7 flex flex-col gap-2 flex-shrink-0">
         <button onClick={onBack} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
           style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
-          Go find {firstName} →
+          {pr.goFind} →
         </button>
         <button onClick={onBack} className="w-full py-3 rounded-2xl text-[13px] border-0 cursor-pointer"
           style={{ background: "rgba(245,240,232,0.06)", color: "rgba(245,240,232,0.4)", fontFamily: "'DM Sans',sans-serif" }}>
@@ -1769,6 +1800,7 @@ function PostMeetScreen({
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [saved, setSaved]     = useState(false);
   const firstName = person.name.split(",")[0];
+  const pr = getPronouns(person);
 
   function updateAnswer(val: string) {
     const a = [...answers]; a[idx] = val; setAnswers(a);
@@ -1776,8 +1808,136 @@ function PostMeetScreen({
 
   function save() {
     setSaved(true);
-    setTimeout(() => onNavigate("followup", { person }), 400);
+    // No auto-navigate — user taps button when ready
   }
+
+  if (saved) {
+    return (
+      <div className="flex flex-col h-full" style={{ background: C.cream }}>
+        <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
+          <BackBtn onClick={() => onNavigate("inbox")} />
+          <div>
+            <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
+            <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
+          <div className="mt-3 mb-3 px-3 py-2.5 rounded-xl text-[11px] text-center font-medium" style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
+            Both answered — a keepsake of tonight
+          </div>
+          {questions.map((q, i) => (
+            <div key={i} className="bg-white rounded-[14px] px-3.5 py-3 mb-2.5" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
+              <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>Question {i + 1}</div>
+              <div className="text-[12px] mb-2.5 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{q}"</div>
+              <div className="flex flex-col gap-1.5">
+                {answers[i] && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>you said ·</span>
+                    <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: C.ink, color: C.cream }}>{answers[i]}</span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2">
+                  <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>{firstName} said ·</span>
+                  <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: "rgba(139,115,85,0.1)", color: C.inkSoft }}>{HER_DEMO_ANSWERS[i]}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="text-[10px] text-center mt-2 leading-relaxed" style={{ color: "rgba(139,115,85,0.5)" }}>
+            Read only. here. never stores conversations.
+          </div>
+          <div style={{ height: 8 }} />
+        </div>
+        {/* Explicit followup button — no auto-nav */}
+        <div className="px-[22px] pb-6 flex-shrink-0">
+          <button onClick={() => onNavigate("followup", { person })}
+            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+            style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
+            How did it go? →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.cream }}>
+      <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
+        <BackBtn onClick={() => onNavigate("inbox")} />
+        <div>
+          <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
+          <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
+        <div className="mt-3 mb-4 px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(196,120,58,0.07)", color: C.warmMid, fontStyle: "italic" }}>
+          Both marked as met — write what you actually said in person
+        </div>
+        {/* Dot progress */}
+        <div className="flex gap-1.5 justify-center mb-4">
+          {questions.map((_, i) => (
+            <div key={i} className="w-2 h-2 rounded-full transition-all"
+              style={{ background: i === idx ? C.accent : "rgba(139,115,85,0.2)" }} />
+          ))}
+        </div>
+        {/* Question card */}
+        <div className="bg-white rounded-[14px] px-3.5 py-3 mb-3" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
+          <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>
+            Question {idx + 1} of {questions.length}
+          </div>
+          <div className="text-[12px] mb-3 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{questions[idx]}"</div>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-start gap-2">
+              <span className="text-[10px] min-w-[52px] pt-2" style={{ color: C.warmMid }}>you said ·</span>
+              <textarea
+                value={answers[idx]}
+                onChange={e => updateAnswer(e.target.value)}
+                rows={2}
+                placeholder="what did you say? (optional — skip if you didn't use it)"
+                className="flex-1 px-2.5 py-2 rounded-lg text-[12px] outline-none resize-none"
+                style={{ border: "1px solid rgba(139,115,85,0.22)", background: "#faf8f4", fontFamily: "'DM Sans',sans-serif", color: C.ink }}
+              />
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-[10px] min-w-[52px] pt-2" style={{ color: C.warmMid }}>{firstName} ·</span>
+              <div className="flex-1 px-2.5 py-2 rounded-lg text-[11px]"
+                style={{ background: "rgba(139,115,85,0.05)", border: "1px solid rgba(139,115,85,0.1)", color: "rgba(139,115,85,0.45)", fontStyle: "italic" }}>
+                visible after you both save
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Nav */}
+        <div className="flex gap-2.5 mb-3">
+          <button onClick={() => setIdx(i => Math.max(0, i - 1))}
+            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer"
+            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === 0 ? 0.35 : 1 }}>
+            ← Back
+          </button>
+          <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))}
+            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer"
+            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === questions.length - 1 ? 0.35 : 1 }}>
+            Next →
+          </button>
+        </div>
+        {idx === questions.length - 1 && (
+          <div>
+            <button onClick={save}
+              className="w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white border-0 cursor-pointer"
+              style={{ background: C.ink, fontFamily: "'DM Sans',sans-serif" }}>
+              Save my answers
+            </button>
+            <div className="text-[11px] text-center mt-2 leading-relaxed" style={{ color: C.warmMid }}>
+              {pr.sub === "They" ? "Their" : `${pr.sub === "She" ? "Her" : "His"}`} answers appear once {pr.obj} saves. Neither sees the other's until both have saved.
+            </div>
+          </div>
+        )}
+        <div style={{ height: 16 }} />
+      </div>
+      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
+    </div>
+  );
+}
 
   if (saved) {
     return (
@@ -1906,12 +2066,13 @@ function FollowUpScreen({
 }: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
   const [choice, setChoice] = useState<string | null>(null);
   const firstName = person.name.split(",")[0];
+  const pr = getPronouns(person);
 
   const opts = [
-    { id: "yes",       label: "Would meet again",             sub: "If she says yes too, a chat opens",  yes: true  },
-    { id: "nice",      label: "It was nice, but no",          sub: "No chat, no notification to her",    yes: false },
-    { id: "numbers",   label: "We already exchanged numbers", sub: "No further action needed",           yes: false },
-    { id: "didntmeet", label: "Didn't end up meeting",        sub: "Closes the record quietly",          yes: false },
+    { id: "yes",       label: "Would meet again",             sub: `If ${pr.sub.toLowerCase()} says yes too, a chat opens`, yes: true  },
+    { id: "nice",      label: "It was nice, but no",          sub: `No chat, no notification to ${pr.obj}`,                 yes: false },
+    { id: "numbers",   label: "We already exchanged numbers", sub: "No further action needed",                               yes: false },
+    { id: "didntmeet", label: "Didn't end up meeting",        sub: "Closes the record quietly",                             yes: false },
   ];
 
   function confirm() {
@@ -1942,7 +2103,7 @@ function FollowUpScreen({
           </div>
         ))}
         <div className="text-[11px] text-center mt-3 leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          Only a mutual yes unlocks chat. She never knows if you said no.
+          Only a mutual yes unlocks chat. {pr.sub} never knows if you said no.
         </div>
       </div>
       <div className="px-6 pb-7 flex-shrink-0">
@@ -2009,6 +2170,7 @@ function MatchScreen({
 }: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void }) {
   const person    = matchData.person || matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
+  const pr        = getPronouns(person as UserProfile | null);
   const timerMins = matchData.response==="15min" ? 15 : 30;
   const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
   const fromIncoming = matchData.fromIncoming ?? false;
@@ -2034,7 +2196,7 @@ function MatchScreen({
         <div className="text-[52px] mb-3.5" style={{ animation:"float 3s ease-in-out infinite" }}>↑</div>
         <div className="text-[30px] text-center leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
           {fromIncoming ? "You accepted." : `${firstName} accepted.`}<br />
-          <em style={{ color:C.green }}>Go find them.</em>
+          <em style={{ color:C.green }}>{pr.goFind}.</em>
         </div>
         <div className="text-[13px] text-center mt-2.5 leading-relaxed px-2" style={{ color:"rgba(245,240,232,0.55)" }}>
           {fromIncoming
