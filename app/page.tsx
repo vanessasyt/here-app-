@@ -1722,8 +1722,26 @@ const OPENER_QUESTIONS = [
   "What's something you're looking forward to this month?",
 ];
 
-function pickOpenerQuestions(): string[] {
-  return [...OPENER_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 4);
+// Seeded deterministic picker — both people get the same 4 questions for the same
+// request, because the seed is derived from the requestId (a shared value).
+// Falls back to Math.random() only if no seed is available (shouldn't happen).
+function seededRandom(seed: number) {
+  // Simple mulberry32 PRNG — fast, deterministic, good distribution
+  let t = seed + 0x6D2B79F5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function pickOpenerQuestions(seed?: number): string[] {
+  const pool = [...OPENER_QUESTIONS];
+  if (!seed) return pool.sort(() => Math.random() - 0.5).slice(0, 4);
+  // Fisher-Yates with deterministic seed so both users get identical questions
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(seededRandom(seed + i) * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 4);
 }
 
 // ── Opener Screen ──────────────────────────────────────────
@@ -2045,11 +2063,13 @@ function ChatScreen({
 
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
-  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void }) {
-  const person    = matchData.person || matchData.request;
+  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem, matchPersonProfile,
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void; matchPersonProfile?:UserProfile|null }) {
+  // Use the full fetched profile when available — it has real name, photo, pronouns.
+  // Fall back to matchData.person (outgoing path) or matchData.request (incoming stub).
+  const person    = matchPersonProfile ?? matchData.person ?? matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
-  const pr        = getPronouns(person as UserProfile | null);
+  const pr        = getPronouns((matchPersonProfile ?? matchData.person) as UserProfile | null);
   const timerMins = matchData.response==="15min" ? 15 : 30;
   const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
   const fromIncoming = matchData.fromIncoming ?? false;
@@ -2133,7 +2153,7 @@ function MatchScreen({
         <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
         <button onClick={()=>{
           if(reportedId) onMetThem(reportedId);
-          const metPerson = matchData.person ?? (matchData.request ? {
+          const metPerson = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
             id: (matchData.request as any).from_id ?? "",
             email: "", name: matchData.request.name, age: 25,
             occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
@@ -2740,6 +2760,8 @@ export default function App() {
   }, [isLive, currentUser]);
 
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
+  // Full profile of the person on the match/openers/postmeet screens
+  const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
   // Restore session on mount — handles page refresh and link-based auth (magic link, confirm email)
@@ -2803,10 +2825,22 @@ export default function App() {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
     }
-    // Pick opener questions ONCE when match screen loads — stored and reused for
-    // both the openers screen AND the postmeet record, so both people see the same set
+    // When navigating to match, fetch the full profile of the other person so
+    // we have their real name, photo and pronouns (not just the InboxRequest stub)
     if (to === "match") {
-      setOpenerQuestions(pickOpenerQuestions());
+      const d = data as any;
+      // Use requestId as seed — both users share the same requestId so both
+      // devices will compute the exact same 4 questions deterministically
+      const reqId = d?.request?.id ?? d?.requestId ?? 0;
+      setOpenerQuestions(pickOpenerQuestions(reqId));
+      // person already has full profile (outgoing accept path)
+      if (d?.person?.id) {
+        setMatchPersonProfile(d.person as UserProfile);
+      // request path (incoming accept) — fetch by from_id
+      } else if (d?.request?.from_id) {
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", d.request.from_id).single();
+        if (profile) setMatchPersonProfile(profile as UserProfile);
+      }
     }
     // Set person state for post-meet flow screens
     if (to === "postmeet" && data && typeof data === "object") {
@@ -2914,14 +2948,14 @@ export default function App() {
             {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
-            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
 
             {/* ── New post-meet flow screens ── */}
             {screen==="openers" && currentUser && (() => {
-              // Resolve the person from matchData
-              const mp = matchData.person ?? (matchData.request ? {
+              // Use full fetched profile — has correct name, photo, pronouns
+              const mp = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
                 id: (matchData.request as any).from_id ?? "",
                 email: "", name: matchData.request.name, age: 25,
                 occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
@@ -2929,14 +2963,11 @@ export default function App() {
                 bg: matchData.request.bg, open_to_meet: true, pronouns: undefined,
                 checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
               } as UserProfile : blankUser);
-              // Always use the stored set — same questions for both people
               const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
               return <OpenerScreen person={mp} questions={qs} onBack={() => navigate("match")} onNavigate={navigate} inboxCount={newCount} />;
             })()}
             {screen==="postmeet" && (() => {
-              // Resolve person from stored state OR fall back to matchData so a null
-              // postMeetPerson never causes a blank/crash screen
-              const pm = postMeetPerson ?? matchData.person ?? (matchData.request ? {
+              const pm = matchPersonProfile ?? postMeetPerson ?? matchData.person ?? (matchData.request ? {
                 id: (matchData.request as any).from_id ?? "",
                 email: "", name: matchData.request.name, age: 25,
                 occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
@@ -2945,7 +2976,6 @@ export default function App() {
                 checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
               } as UserProfile : null);
               if (!pm) return <div className="flex-1 flex items-center justify-center" style={{ background: C.cream }} />;
-              // Always use the same stored question set so both sides match
               const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
               return <PostMeetScreen person={pm} questions={qs} onNavigate={navigate} inboxCount={newCount} />;
             })()}
