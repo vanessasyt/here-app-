@@ -1491,7 +1491,7 @@ function PendingScreen({
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
   requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch,
-}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:number)=>void; onDismiss:(id:number)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -1579,7 +1579,7 @@ function InboxScreen({
 // ── Incoming ───────────────────────────────────────────────
 function IncomingScreen({
   request, onNavigate, inboxCount, onDecline,
-}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:number)=>void }) {
+}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:string)=>void }) {
   const [response,  setResponse]  = useState<IncResponse>("accept");
   const [areaHint,  setAreaHint]  = useState("");
   const [sending,   setSending]   = useState(false);
@@ -2222,7 +2222,7 @@ function ChatScreen({
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
   matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem, matchPersonProfile,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void; matchPersonProfile?:UserProfile|null }) {
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:string)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void; matchPersonProfile?:UserProfile|null }) {
   // Use the full fetched profile when available — it has real name, photo, pronouns.
   // Fall back to matchData.person (outgoing path) or matchData.request (incoming stub).
   const person    = matchPersonProfile ?? matchData.person ?? matchData.request;
@@ -2778,7 +2778,7 @@ export default function App() {
   function setUserAndRef(u: UserProfile|null) { currentUserRef.current = u; setUser(u); }
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
   const [acceptedSent,    setAcceptedSent] = useState<{ requestId: string; person: UserProfile; recipientHint: string|null } | null>(null);
-  const declinedIdsRef = useRef<Set<number>>(new Set());
+  const declinedIdsRef = useRef<Set<string>>(new Set());
   const sentPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
   const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
@@ -2849,7 +2849,7 @@ export default function App() {
   }, [currentUser, fetchInbox]);
 
   // Poll for sender's own outgoing requests that got accepted
-  const seenAcceptedIdsRef = useRef<Set<number>>(new Set());
+  const seenAcceptedIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!currentUser) return;
     async function checkSentAccepted() {
