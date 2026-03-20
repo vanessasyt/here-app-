@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>here. — Meet in the moment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:#F5F0E8; --ink:#1A1410; --ink-soft:#3D3530; --warm-mid:#8B7355;
+  --accent:#C4783A; --green:#4A7C59; --border:rgba(139,115,85,0.2);
+  --ag:rgba(196,120,58,0.08); --gl:rgba(74,124,89,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:#1A1410;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;}
+::-webkit-scrollbar{display:none;}
+
+.phone{width:390px;min-height:100vh;background:var(--cream);position:relative;display:flex;flex-direction:column;overflow:hidden;}
+.phone.dark-bg{background:var(--ink);}
+
+/* STATUS BAR */
+.sb{height:50px;display:flex;justify-content:space-between;align-items:center;padding:16px 28px 0;font-size:12px;font-weight:600;color:var(--ink);flex-shrink:0;position:relative;z-index:20;}
+.sb .notch{width:120px;height:30px;background:var(--ink);border-radius:20px;position:absolute;top:8px;left:50%;transform:translateX(-50%);}
+.sb.dark{background:var(--ink);color:var(--cream);}
+.sb.dark .notch{background:rgba(245,240,232,0.15);}
+
+/* SCREENS */
+.screens{flex:1;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;
+  transition:opacity 0.3s cubic-bezier(0.4,0,0.2,1),transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  transform:translateX(24px);overflow:hidden;}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0);}
+.screen.exit{opacity:0;transform:translateX(-24px);}
+.screen-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;}
+
+/* NAV */
+.nav{height:80px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;
+  padding:0 8px 12px;flex-shrink:0;background:var(--cream);}
+.nav.dark{background:var(--ink);border-color:rgba(245,240,232,0.08);}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:5px 10px;
+  border-radius:12px;border:none;background:transparent;font-family:inherit;position:relative;}
+.ni .ic{font-size:20px;opacity:0.38;transition:opacity 0.2s;}
+.ni .lb{font-size:10px;color:var(--warm-mid);font-weight:500;opacity:0.55;transition:opacity 0.2s;}
+.ni.on .ic,.ni.on .lb{opacity:1;}
+.ni.on .lb{color:var(--ink);}
+.nav.dark .lb{color:rgba(245,240,232,0.4)!important;}
+.nav.dark .ni.on .lb{color:var(--cream)!important;}
+.nbadge{position:absolute;top:2px;right:4px;width:16px;height:16px;background:var(--accent);
+  border-radius:50%;font-size:9px;font-weight:700;color:white;display:flex;align-items:center;justify-content:center;}
+
+/* SHARED */
+.bbtn{width:36px;height:36px;border-radius:50%;background:rgba(139,115,85,0.14);border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ink);flex-shrink:0;}
+.bbtn.lt{background:rgba(245,240,232,0.1);color:var(--cream);}
+.slabel{font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:10px;}
+.chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap;
+  cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-family:inherit;transition:all 0.2s;}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--cream);}
+.sbtn{padding:15px 24px;border-radius:16px;font-size:15px;font-weight:600;cursor:pointer;border:none;
+  font-family:inherit;transition:transform 0.15s;color:var(--cream);background:var(--ink);display:block;}
+.sbtn.green{background:var(--green);}
+.sbtn.accent{background:var(--accent);}
+.sbtn:active{transform:scale(0.98);}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pring 2s infinite;display:inline-block;}
+@keyframes pring{0%{box-shadow:0 0 0 0 rgba(74,124,89,0.5)}70%{box-shadow:0 0 0 8px rgba(74,124,89,0)}100%{box-shadow:0 0 0 0 rgba(74,124,89,0)}}
+@keyframes sup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,124,89,0.5)}70%{box-shadow:0 0 0 8px rgba(74,124,89,0)}100%{box-shadow:0 0 0 0 rgba(74,124,89,0)}}
+.ai{animation:sup 0.35s ease both;}
+.d1{animation-delay:0.07s}.d2{animation-delay:0.14s}.d3{animation-delay:0.21s}.d4{animation-delay:0.28s}
+
+/* INTEREST TAGS */
+.itag{padding:2px 7px;border-radius:8px;font-size:10px;}
+.itag.art{background:rgba(60,120,160,0.1);color:#3C78A0}
+.itag.comedy{background:rgba(220,160,40,0.12);color:#b08010}
+.itag.cooking{background:rgba(196,140,40,0.12);color:#c48c28}
+.itag.fashion{background:rgba(200,80,120,0.1);color:#c85078}
+.itag.film{background:rgba(160,100,40,0.12);color:#a06428}
+.itag.fitness{background:rgba(80,140,80,0.12);color:#3a8a3a}
+.itag.food{background:rgba(196,120,58,0.12);color:#C4783A}
+.itag.gaming{background:rgba(40,140,180,0.1);color:#288cb4}
+.itag.hiking{background:rgba(60,160,80,0.1);color:#3a9a50}
+.itag.museums{background:rgba(100,80,60,0.1);color:#64503c}
+.itag.music{background:rgba(100,80,160,0.1);color:#6450A0}
+.itag.photography{background:rgba(40,100,160,0.1);color:#2864A0}
+.itag.podcasts{background:rgba(140,60,200,0.1);color:#8c3cc8}
+.itag.reading{background:rgba(80,80,80,0.1);color:#505050}
+.itag.tech{background:rgba(60,80,180,0.1);color:#3c50b4}
+.itag.theatre{background:rgba(120,40,120,0.1);color:#782878}
+.itag.travel{background:rgba(60,160,120,0.1);color:#3CA078}
+.itag.wine{background:rgba(160,60,80,0.1);color:#A03C50}
+.itag.racket_sports{background:rgba(58,140,196,0.12);color:#3a8cc4}
+.itag.team_sports{background:rgba(58,100,196,0.12);color:#3a60c4}
+/* legacy */
+.itag.gym{background:rgba(80,140,80,0.12);color:#3a8a3a}
+.itag.movies{background:rgba(160,100,40,0.12);color:#a06428}
+.itag.sports{background:rgba(58,100,196,0.12);color:#3a60c4}
+.itag.dance{background:rgba(196,58,160,0.1);color:#c43aa0}
+
+/* EVENTS */
+.erow{display:flex;align-items:center;gap:14px;padding:12px 20px;cursor:pointer;transition:background 0.15s;}
+.erow+.erow{border-top:1px solid var(--border);}
+.erow:hover{background:rgba(139,115,85,0.05);}
+.eicon{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+
+/* NEARBY CARDS */
+.pcard{border-radius:20px;overflow:hidden;background:white;border:2px solid var(--green);box-shadow:0 2px 16px rgba(26,20,16,0.07);}
+.pphoto{width:100%;height:152px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.pgrad1{background:linear-gradient(160deg,#d4a5a5,#c47a6b)}
+.pgrad2{background:linear-gradient(160deg,#a5b4d4,#6b8ac4)}
+.pgrad3{background:linear-gradient(160deg,#a5d4b4,#6bc48a)}
+.pgrad4{background:linear-gradient(160deg,#d4c4a5,#c4a06b)}
+.pgrad5{background:linear-gradient(160deg,#c4a5d4,#8f6bc4)}
+.active-badge{position:absolute;top:8px;left:8px;padding:2px 8px;background:var(--green);border-radius:20px;font-size:10px;color:white;font-weight:600;display:flex;align-items:center;gap:4px;}
+.active-dot{width:6px;height:6px;border-radius:50%;background:white;display:inline-block;animation:pulse 2s infinite;}
+.vbadge{position:absolute;top:8px;right:8px;width:20px;height:20px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,0.2);color:var(--green);}
+.time-strip{position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(to top,rgba(26,20,16,0.8) 0%,transparent 100%);font-size:10px;font-weight:600;color:white;text-align:center;}
+
+/* INBOX */
+.req-card{margin:0 20px 12px;padding:16px;background:white;border-radius:18px;box-shadow:0 2px 14px rgba(26,20,16,0.07);border:1.5px solid var(--accent);background:rgba(196,120,58,0.04);cursor:pointer;}
+
+/* MATCH */
+.match-person-card{width:100%;padding:16px;border-radius:20px;display:flex;align-items:center;gap:14px;background:rgba(245,240,232,0.05);border:1px solid rgba(245,240,232,0.1);}
+.tring{width:68px;height:68px;border-radius:50%;border:3px solid rgba(245,240,232,0.12);border-top-color:var(--green);animation:spin 30s linear infinite;margin:0 auto;position:relative;}
+.ttext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:var(--cream);}
+
+/* PROFILE */
+.settings-row{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+
+/* REPORT MODAL */
+.report-modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:flex-end;justify-content:center;}
+.report-modal-overlay.show{display:flex;}
+.report-sheet{background:var(--cream);border-radius:28px 28px 0 0;width:100%;padding:24px 24px 36px;}
+
+/* TOGGLE SWITCH */
+.tog-wrap{width:44px;height:26px;border-radius:13px;background:rgba(139,115,85,0.2);position:relative;cursor:pointer;transition:background 0.25s;flex-shrink:0;}
+.tog-wrap.on{background:var(--green);}
+.tog-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.2);transition:left 0.25s;}
+.tog-wrap.on .tog-knob{left:21px;}
+
+/* PENDING */
+.pending-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.4s ease-in-out infinite;}
+
+/* AGE SLIDER */
+input[type=range].age-thumb{position:absolute;width:100%;top:50%;transform:translateY(-50%);appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none;}
+input[type=range].age-thumb::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:white;border:2.5px solid var(--accent);box-shadow:0 2px 8px rgba(196,120,58,0.35);pointer-events:all;cursor:pointer;}
+input[type=range].age-thumb::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:white;border:2.5px solid var(--accent);box-shadow:0 2px 8px rgba(196,120,58,0.35);pointer-events:all;cursor:pointer;}
+
+/* ACCEPTED BANNER */
+.accepted-banner{background:linear-gradient(135deg,#1a3a28,#2a5a3a);border:2px solid rgba(74,124,89,0.6);box-shadow:0 4px 24px rgba(74,124,89,0.25);border-radius:18px;overflow:hidden;cursor:pointer;}
+.accepted-shimmer{height:3px;background:linear-gradient(to right,transparent,rgba(74,124,89,0.8),#4A7C59,rgba(74,124,89,0.8),transparent);background-size:200% 100%;animation:shimmer 2s linear infinite;}
+
+/* INTERESTS MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:50;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.45);}
+.modal-overlay.show{display:flex;}
+.modal-sheet{background:var(--cream);border-radius:28px 28px 0 0;width:100%;padding:20px 24px 36px;max-width:430px;max-height:85vh;overflow-y:auto;}
+
+/* ONBOARDING */
+.prog-bar{height:4px;border-radius:2px;transition:background 0.3s;}
+.photo-ring{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+
+/* SPLASH/LOGIN/SIGNUP */
+.dark-screen{background:var(--ink);flex:1;display:flex;flex-direction:column;}
+.dark-inp{width:100%;padding:14px 16px;border-radius:16px;font-size:14px;outline:none;font-family:'DM Sans',sans-serif;background:rgba(245,240,232,0.08);border:1px solid rgba(245,240,232,0.15);color:var(--cream);}
+.dark-inp::placeholder{color:rgba(245,240,232,0.35);}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <div class="sb" id="statusbar">
+    <span>9:41</span><div class="notch"></div><span>●●● WiFi</span>
+  </div>
+  <div class="screens" id="screens">
+
+    <!-- ══════════ SPLASH ══════════ -->
+    <div class="screen active" id="s-splash" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:64px;margin-bottom:16px;animation:flt 3s ease-in-out infinite;">✦</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:40px;font-weight:300;color:var(--cream);letter-spacing:-1px;">here.</div>
+        <div style="font-size:14px;color:rgba(245,240,232,0.45);margin-top:12px;">Meet in the moment</div>
+      </div>
+    </div>
+
+    <!-- ══════════ LOGIN ══════════ -->
+    <div class="screen" id="s-login" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px 32px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:36px;color:var(--cream);margin-bottom:4px;">here.</div>
+        <div style="font-size:14px;color:rgba(245,240,232,0.45);margin-bottom:40px;">Meet in the moment</div>
+        <div style="width:100%;display:flex;flex-direction:column;gap:12px;">
+          <input class="dark-inp" type="email" placeholder="Email address" id="login-email">
+          <div style="position:relative;">
+            <input class="dark-inp" type="password" placeholder="Password" id="login-pass" style="padding-right:48px;">
+            <button onclick="togglePassVis('login-pass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:transparent;color:rgba(245,240,232,0.45);font-size:12px;cursor:pointer;font-family:inherit;">Show</button>
+          </div>
+          <div id="login-error" style="font-size:12px;color:#f87171;text-align:center;display:none;"></div>
+          <button onclick="handleLogin()" class="sbtn accent" style="width:100%;margin:4px 0 0;">Sign in</button>
+          <button onclick="goTo('s-signup')" style="width:100%;background:transparent;border:none;color:rgba(245,240,232,0.4);font-size:13px;cursor:pointer;font-family:inherit;padding:8px;">Forgot password?</button>
+        </div>
+        <div style="margin-top:16px;font-size:14px;color:rgba(245,240,232,0.45);">
+          New here? <button onclick="goTo('s-signup')" style="border:none;background:transparent;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;">Create account</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SIGNUP ══════════ -->
+    <div class="screen" id="s-signup" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;padding:56px 32px 32px;">
+        <div style="margin-bottom:32px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--cream);">Create account</div>
+          <div style="font-size:14px;color:rgba(245,240,232,0.45);margin-top:4px;">Join here. and meet people around you</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <input class="dark-inp" type="email" placeholder="Email address">
+          <input class="dark-inp" type="password" placeholder="Password (min 6 chars)">
+          <input class="dark-inp" type="password" placeholder="Confirm password">
+          <button onclick="goTo('s-onboarding')" class="sbtn accent" style="width:100%;margin-top:4px;">Create account</button>
+        </div>
+        <div style="margin-top:24px;font-size:14px;color:rgba(245,240,232,0.45);text-align:center;">
+          Already have an account? <button onclick="goTo('s-login')" style="border:none;background:transparent;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;">Sign in</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ ONBOARDING ══════════ -->
+    <div class="screen" id="s-onboarding" style="background:var(--cream);">
+      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:40px 24px 0;flex-shrink:0;">
+          <div style="display:flex;gap:6px;margin-bottom:4px;">
+            <div class="prog-bar" style="flex:1;background:var(--accent);" id="ob-p1"></div>
+            <div class="prog-bar" style="flex:1;background:rgba(139,115,85,0.2);" id="ob-p2"></div>
+            <div class="prog-bar" style="flex:1;background:rgba(139,115,85,0.2);" id="ob-p3"></div>
+            <div class="prog-bar" style="flex:1;background:rgba(139,115,85,0.2);" id="ob-p4"></div>
+          </div>
+          <div style="font-size:11px;color:var(--warm-mid);margin-top:8px;" id="ob-step-label">Step 1 of 4</div>
+        </div>
+        <!-- Step 1: Basics -->
+        <div id="ob-s1" style="flex:1;overflow-y:auto;padding:16px 24px 24px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;">About you</div>
+          <div style="font-size:14px;color:var(--warm-mid);margin-bottom:20px;">This is what others will see</div>
+          <div style="margin-bottom:16px;">
+            <div class="slabel">Today's Photo</div>
+            <div style="padding:12px;border-radius:12px;font-size:12px;line-height:1.5;margin-bottom:12px;background:rgba(196,120,58,0.07);border:1px solid rgba(196,120,58,0.18);color:var(--ink-soft);">
+              <strong style="color:var(--ink);">here.</strong> is built for same-day connections. Your photo should be taken today.
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="photo-ring" style="background:rgba(139,115,85,0.1);border:2px solid var(--border);">
+                <span style="font-size:24px;opacity:0.3;">📷</span>
+              </div>
+              <div>
+                <button style="padding:10px 18px;border-radius:20px;border:1.5px solid var(--border);background:transparent;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink);">Take today's photo</button>
+                <div style="font-size:11px;color:var(--warm-mid);margin-top:6px;">Front camera recommended</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <div class="slabel">Full name</div>
+              <input style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;color:var(--ink);outline:none;background:white;" placeholder="e.g. Sophie" id="ob-name">
+            </div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;">
+                <div class="slabel">Age</div>
+                <input type="number" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;color:var(--ink);outline:none;background:white;" placeholder="22" id="ob-age">
+              </div>
+              <div style="flex:2;">
+                <div class="slabel">Occupation</div>
+                <input style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;color:var(--ink);outline:none;background:white;" placeholder="e.g. Architect" id="ob-occ">
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:24px;">
+            <button onclick="goTo('s-login')" style="flex:1;padding:14px;border-radius:16px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--ink-soft);">Back</button>
+            <button onclick="obNext(2)" style="flex:2;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Continue →</button>
+          </div>
+        </div>
+        <!-- Step 2: Interests -->
+        <div id="ob-s2" style="display:none;flex:1;overflow-y:auto;padding:16px 24px 24px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;">Your interests</div>
+          <div style="font-size:14px;color:var(--warm-mid);margin-bottom:20px;">Pick up to 3 — these help spark conversations</div>
+          <div id="ob-interests-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;"></div>
+          <div style="display:flex;gap:12px;margin-top:8px;">
+            <button onclick="obNext(1)" style="flex:1;padding:14px;border-radius:16px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--ink-soft);">Back</button>
+            <button onclick="obNext(3)" style="flex:2;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Continue →</button>
+          </div>
+        </div>
+        <!-- Step 3: Languages -->
+        <div id="ob-s3" style="display:none;flex:1;overflow-y:auto;padding:16px 24px 24px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;">Languages you speak</div>
+          <div style="font-size:14px;color:var(--warm-mid);margin-bottom:20px;">So people know they can approach you</div>
+          <div id="ob-langs-selected" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+          <input placeholder="Search languages…" oninput="obFilterLangs(this.value)" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;outline:none;background:white;margin-bottom:8px;">
+          <div id="ob-langs-list" style="border:1px solid var(--border);border-radius:14px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
+          <div style="display:flex;gap:12px;margin-top:20px;">
+            <button onclick="obNext(2)" style="flex:1;padding:14px;border-radius:16px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--ink-soft);">Back</button>
+            <button onclick="obNext(4)" style="flex:2;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Continue →</button>
+          </div>
+        </div>
+        <!-- Step 4: Preview -->
+        <div id="ob-s4" style="display:none;flex:1;overflow-y:auto;padding:16px 24px 24px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;">You're all set</div>
+          <div style="font-size:14px;color:var(--warm-mid);margin-bottom:20px;">Here's how others will see your card</div>
+          <!-- Preview card -->
+          <div style="max-width:180px;margin:0 auto 24px;border-radius:20px;overflow:hidden;border:2px solid var(--green);box-shadow:0 4px 24px rgba(26,20,16,0.12);">
+            <div style="height:176px;background:linear-gradient(160deg,#d4a5a5,#c47a6b);display:flex;align-items:center;justify-content:center;font-size:56px;position:relative;">
+              👩
+              <div style="position:absolute;top:8px;left:8px;padding:2px 8px;background:var(--green);border-radius:20px;font-size:10px;color:white;font-weight:600;">Active</div>
+              <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(to top,rgba(26,20,16,0.75),transparent);font-size:10px;font-weight:600;color:white;text-align:center;">Just arrived</div>
+            </div>
+            <div style="background:white;padding:10px 12px 4px;">
+              <div style="font-weight:600;font-size:14px;color:var(--ink);" id="ob-preview-name">Sophie, 22</div>
+              <div style="font-size:11px;color:var(--warm-mid);margin-top:2px;" id="ob-preview-occ">Architect</div>
+            </div>
+            <div style="background:white;padding:4px 12px 10px;display:flex;flex-wrap:wrap;gap:3px;" id="ob-preview-tags">
+              <span class="itag music">Music</span><span class="itag food">Food</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button onclick="obNext(3)" style="flex:1;padding:14px;border-radius:16px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--ink-soft);">Back</button>
+            <button onclick="goTo('s-events')" style="flex:2;padding:14px;border-radius:16px;background:var(--green);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Enter here. →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ EVENTS ══════════ -->
+    <div class="screen" id="s-events">
+      <div class="screen-scroll" id="events-scroll">
+        <div style="padding:16px 20px 0;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div>
+            <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">London</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:1px;">Discover Events</div>
+          </div>
+          <div style="font-size:22px;opacity:0.6;cursor:pointer;">🔍</div>
+        </div>
+        <div style="display:flex;gap:8px;padding:12px 20px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;" id="event-cats"></div>
+        <div id="events-tonight-head" style="padding:18px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Tonight near you</div>
+          <div style="font-size:12px;color:var(--accent);font-weight:500;cursor:pointer;">See all →</div>
+        </div>
+        <div id="events-tonight" style="margin-top:10px;"></div>
+        <div id="events-week-head" style="padding:18px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">This week</div>
+          <div style="font-size:12px;color:var(--accent);font-weight:500;cursor:pointer;">See all →</div>
+        </div>
+        <div id="events-week" style="margin-top:10px;"></div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav" id="nav-events">
+        <button class="ni on" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-events">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ EVENT DETAIL ══════════ -->
+    <div class="screen" id="s-eventdetail">
+      <div style="height:192px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;" id="ed-hero" style="background:linear-gradient(160deg,#1e1a30,#3d2060);">
+        <span style="font-size:70px;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.4));" id="ed-emoji">🎻</span>
+        <div style="position:absolute;top:16px;left:16px;"><button class="bbtn lt" onclick="goTo('s-events')">←</button></div>
+        <div id="ed-spon" style="position:absolute;top:16px;right:16px;padding:4px 10px;background:var(--accent);border-radius:20px;font-size:10px;color:white;font-weight:700;">⭐ Sponsored</div>
+        <div style="position:absolute;bottom:16px;right:16px;padding:5px 12px;background:rgba(74,124,89,0.88);border-radius:20px;font-size:11px;color:white;font-weight:600;" id="ed-members-badge">✦ 34 members here</div>
+      </div>
+      <div class="screen-scroll">
+        <div style="padding:18px 22px 0;">
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;" id="ed-cat">Classical Music · Barbican Centre</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:4px;line-height:1.25;" id="ed-title">LSO — An Evening of Brahms</div>
+          <div style="font-size:13px;color:var(--warm-mid);margin-top:6px;" id="ed-meta">📅 Tonight 7:30pm · from £35</div>
+          <div style="font-size:13px;color:var(--ink-soft);margin-top:10px;line-height:1.6;" id="ed-desc">The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1.</div>
+        </div>
+        <div id="ed-actions" style="padding:16px 22px 0;"></div>
+        <div style="height:24px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-ed">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ NEARBY ══════════ -->
+    <div class="screen" id="s-nearby">
+      <div style="padding:20px 20px 0;display:flex;justify-content:space-between;align-items:flex-end;flex-shrink:0;">
+        <div>
+          <div id="nearby-context" style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;"></div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:2px;">Nearby</div>
+          <div id="nearby-radius" style="font-size:11px;color:var(--warm-mid);margin-top:2px;display:none;">Within <strong style="color:var(--ink);">500 m</strong></div>
+        </div>
+        <!-- Go live button -->
+        <button id="go-live-btn" onclick="toggleLive()"
+          style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:rgba(139,115,85,0.1);cursor:pointer;font-family:inherit;transition:all 0.3s;">
+          <span id="live-dot" style="width:6px;height:6px;border-radius:50%;background:var(--warm-mid);display:inline-block;flex-shrink:0;"></span>
+          <span id="live-label" style="font-size:11px;font-weight:600;color:var(--warm-mid);">Go live</span>
+        </button>
+      </div>
+      <div class="screen-scroll" id="nearby-content">
+        <!-- empty state -->
+        <div id="nearby-empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center;">
+          <div style="font-size:48px;opacity:0.3;margin-bottom:16px;">📡</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px;">Discover people around you</div>
+          <div style="font-size:13px;color:var(--warm-mid);line-height:1.6;">Tap <strong>Go live</strong> in the top-right to become discoverable and see who else is open to meet right now.</div>
+        </div>
+        <!-- live state -->
+        <div id="nearby-live-content" style="display:none;">
+          <div style="padding:12px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:13px;font-weight:600;color:var(--ink);" id="nearby-count">6 members open to meet</div>
+            <div id="nearby-event-tag" style="font-size:11px;font-weight:500;color:var(--accent);display:none;">🎟 Same event</div>
+          </div>
+          <div id="nearby-grid" style="padding:12px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+          <div style="margin:14px 20px;padding:12px 14px;background:rgba(139,115,85,0.08);border-radius:12px;font-size:12px;color:var(--warm-mid);display:flex;gap:8px;line-height:1.5;">
+            <span>🔒</span><span>Your visibility ends when you turn off Go live. Location is never shared exactly.</span>
+          </div>
+        </div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni on" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-nearby">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ REQUEST (send) ══════════ -->
+    <div class="screen" id="s-request">
+      <div style="padding:20px 22px 0;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-nearby')">←</button>
+        <div id="req-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(160deg,#d4a5a5,#c47a6b);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👩</div>
+        <div>
+          <div id="req-name" style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--ink);">Sophie, 23</div>
+          <div id="req-meta" style="font-size:12px;color:var(--warm-mid);margin-top:2px;">Architect · Verified</div>
+        </div>
+      </div>
+      <div class="screen-scroll">
+        <!-- Profile detail card -->
+        <div style="background:white;margin:16px 22px 0;border-radius:18px;padding:16px;box-shadow:0 2px 14px rgba(26,20,16,0.06);">
+          <div class="slabel">Interests</div>
+          <div id="req-interests" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div id="req-conv-starter" style="margin-top:12px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.5;background:rgba(74,124,89,0.06);color:var(--ink-soft);"></div>
+          <div id="req-langs-wrap" style="display:none;margin-top:12px;">
+            <div class="slabel" style="margin-bottom:6px;">Languages</div>
+            <div id="req-langs" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+          </div>
+        </div>
+        <!-- Privacy note -->
+        <div style="margin:12px 22px 0;padding:12px 14px;border-radius:12px;font-size:12px;color:var(--warm-mid);background:rgba(139,115,85,0.07);line-height:1.5;">
+          You will only receive a notification if <strong id="req-fname-note" style="color:var(--ink-soft);">they</strong> are also open to meet. If they accept, that is your green light to find each other in person.
+        </div>
+        <button class="sbtn green" style="width:calc(100% - 44px);margin:16px 22px 0;" onclick="sendRequest()">Express interest →</button>
+        <div id="req-sent-banner" style="display:none;margin:16px 22px 0;padding:14px;border-radius:16px;text-align:center;font-size:14px;font-weight:600;background:rgba(74,124,89,0.1);color:var(--green);">
+          Interest sent — you'll hear back in Requests
+        </div>
+        <div style="height:16px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni on" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-req">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ PENDING ══════════ -->
+    <div class="screen" id="s-pending" style="background:var(--ink);">
+      <div style="padding:24px 24px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button onclick="goTo('s-inbox')" class="bbtn lt">✕</button>
+        <div style="font-size:12px;color:rgba(245,240,232,0.45);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Request sent</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;animation:flt 3s ease-in-out infinite;">⏳</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--cream);line-height:1.3;margin-bottom:12px;">
+          Request sent to<br><em style="color:var(--accent);" id="pend-name">Sophie</em>
+        </div>
+        <div style="font-size:13px;color:rgba(245,240,232,0.55);line-height:1.6;margin-bottom:28px;max-width:280px;">
+          Waiting for <strong id="pend-name2" style="color:rgba(245,240,232,0.8);">Sophie</strong> to respond.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:28px;">
+          <div class="pending-dot" style="animation-delay:0s;"></div>
+          <div class="pending-dot" style="animation-delay:0.2s;"></div>
+          <div class="pending-dot" style="animation-delay:0.4s;"></div>
+        </div>
+        <div style="width:100%;padding:16px;border-radius:18px;background:rgba(196,120,58,0.08);border:1px solid rgba(196,120,58,0.2);text-align:left;margin-bottom:16px;">
+          <div style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:8px;">What happens next</div>
+          <div style="font-size:13px;color:rgba(245,240,232,0.6);line-height:1.6;" id="pend-next">If Sophie accepts, you will see a notification in your Requests tab.</div>
+        </div>
+        <div style="font-size:12px;color:rgba(245,240,232,0.35);">Location is never shared. This is an in-person introduction only.</div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:10px;">
+        <button class="sbtn accent" style="width:100%;" onclick="goTo('s-nearby')">← Back to Nearby</button>
+        <button onclick="goTo('s-inbox')" style="width:100%;padding:14px;border-radius:16px;border:none;background:rgba(245,240,232,0.08);color:rgba(245,240,232,0.55);font-size:14px;font-family:inherit;cursor:pointer;">View Meet Requests</button>
+      </div>
+    </div>
+
+    <!-- ══════════ INBOX ══════════ -->
+    <div class="screen" id="s-inbox">
+      <div style="padding:20px 22px 0;flex-shrink:0;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);">Meet Requests</div>
+      </div>
+      <div class="screen-scroll">
+        <!-- accepted sent banner -->
+        <div id="accepted-banner-wrap" style="display:none;padding:14px 22px 0;">
+          <div style="font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:8px;">Green light</div>
+          <div class="accepted-banner" onclick="viewAcceptedMatch()">
+            <div class="accepted-shimmer"></div>
+            <div style="padding:16px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(160deg,#a5d4b4,#6bc48a);display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;flex-shrink:0;">
+                  👩
+                  <div style="position:absolute;top:-4px;right:-4px;width:20px;height:20px;background:var(--green);border-radius:50%;border:2px solid #1a3a28;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;">✓</div>
+                </div>
+                <div>
+                  <div style="font-family:'DM Serif Display',serif;font-size:15px;color:#e8f5ee;" id="accepted-name">Mia accepted</div>
+                  <div style="font-size:12px;color:rgba(232,245,238,0.65);margin-top:2px;">Tap to get the green light and go find them</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 22px 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Incoming</div>
+          <div style="display:flex;align-items:center;gap:6px;" id="inbox-live-indicator">
+            <span class="pdot"></span>
+            <span style="font-size:11px;font-weight:600;color:var(--green);" id="inbox-count-label">2 new</span>
+          </div>
+        </div>
+        <div id="inbox-list" style="padding:10px 0 0;"></div>
+        <div style="margin:8px 22px;padding:14px;border-radius:14px;font-size:12px;color:var(--warm-mid);background:rgba(139,115,85,0.07);line-height:1.6;">
+          🔒 You are only notified when both parties are open to meet. Requests expire after 30 minutes.
+        </div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ INCOMING ══════════ -->
+    <div class="screen" id="s-incoming">
+      <div style="padding:22px 22px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-inbox')">←</button>
+        <div style="font-size:12px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Incoming interest</div>
+      </div>
+      <div class="screen-scroll">
+        <div style="margin:16px 22px 0;display:flex;align-items:center;gap:16px;">
+          <div id="inc-avatar" style="width:58px;height:58px;border-radius:50%;background:linear-gradient(160deg,#a5b4d4,#6b8ac4);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">👨</div>
+          <div>
+            <div id="inc-name" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);">—</div>
+            <div id="inc-meta" style="font-size:13px;color:var(--warm-mid);margin-top:2px;">—</div>
+            <div id="inc-tags" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;"></div>
+          </div>
+        </div>
+        <div style="margin:14px 22px 0;padding:14px 18px;border-radius:16px;background:rgba(74,124,89,0.08);border:1px solid rgba(74,124,89,0.25);">
+          <div style="font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:6px;">Expressed interest in meeting you</div>
+          <div id="inc-req-text" style="font-size:14px;line-height:1.6;color:var(--ink-soft);">They would like to meet you in person.</div>
+        </div>
+        <!-- Response options -->
+        <div style="padding:14px 22px 0;">
+          <div class="slabel">Your response</div>
+          <div id="inc-accept" class="roption on" onclick="selectIncResp('accept')">
+            <div style="font-size:22px;width:34px;text-align:center;">✅</div>
+            <div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet now</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">Give them the green light to approach you</div></div>
+          </div>
+          <div id="inc-15min" class="roption" onclick="selectIncResp('15min')">
+            <div style="font-size:22px;width:34px;text-align:center;">⏱️</div>
+            <div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet in 15 min</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">I will be with you shortly</div></div>
+          </div>
+          <div id="inc-30min" class="roption" onclick="selectIncResp('30min')">
+            <div style="font-size:22px;width:34px;text-align:center;">🕐</div>
+            <div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet in 30 min</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">I will see you in a bit</div></div>
+          </div>
+        </div>
+        <!-- Area hint -->
+        <div id="inc-area-hint-wrap" style="display:none;padding:8px 22px 0;">
+          <div class="slabel">Where will you be? <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="inc-area-hint" maxlength="80" placeholder="e.g. near the tube exit, by the bar…"
+            style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:13px;color:var(--ink);outline:none;background:white;">
+          <div style="font-size:11px;color:var(--warm-mid);text-align:right;margin-top:4px;" id="inc-area-count">0 / 80</div>
+        </div>
+        <button class="sbtn green" style="width:calc(100% - 44px);margin:14px 22px 0;" onclick="confirmIncoming()">Accept</button>
+        <button onclick="declineIncoming()" style="width:calc(100% - 44px);margin:10px 22px 0;padding:13px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--warm-mid);font-size:14px;font-family:inherit;cursor:pointer;">Decline</button>
+        <div style="height:16px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ MATCH ══════════ -->
+    <div class="screen" id="s-match" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 24px 0;overflow-y:auto;">
+        <div style="font-size:52px;margin-bottom:14px;animation:flt 3s ease-in-out infinite;">↑</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:30px;color:var(--cream);text-align:center;line-height:1.25;" id="match-title">Sophie accepted.<br><em style="color:var(--green);">Go find them.</em></div>
+        <div style="font-size:13px;color:rgba(245,240,232,0.55);margin-top:10px;text-align:center;line-height:1.6;padding:0 8px;" id="match-sub">Sophie is expecting you. Go say hello in person.</div>
+        <!-- Person card -->
+        <div class="match-person-card" style="margin-top:20px;">
+          <div id="match-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(160deg,#a5d4b4,#6bc48a);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👩</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:15px;font-weight:600;color:var(--cream);" id="match-person-name">Sophie, 23</div>
+            <div style="font-size:12px;color:rgba(245,240,232,0.45);margin-top:2px;" id="match-person-occ">Architect</div>
+            <div id="match-person-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;"></div>
+            <div id="match-area-hint" style="display:none;margin-top:8px;font-size:12px;color:rgba(245,240,232,0.6);line-height:1.5;"></div>
+          </div>
+          <div style="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 10px var(--green);"></div>
+        </div>
+        <!-- Timer -->
+        <div style="margin-top:20px;text-align:center;">
+          <div class="tring" id="match-tring"><div class="ttext" id="match-timer">30:00</div></div>
+          <div style="font-size:12px;color:rgba(245,240,232,0.4);margin-top:8px;" id="match-timer-label">Green light expires in 30 min</div>
+        </div>
+        <div style="margin-top:16px;padding:14px;border-radius:14px;font-size:12px;color:rgba(245,240,232,0.35);text-align:center;background:rgba(245,240,232,0.04);border:1px solid rgba(245,240,232,0.08);">
+          Location is never shared. This is an in-person introduction only.
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding:16px 24px 0;">
+        <button onclick="openReportModal()" style="flex:1;padding:14px;border-radius:14px;border:1px solid rgba(184,80,66,0.3);background:transparent;color:rgba(245,240,232,0.6);font-size:13px;font-family:inherit;cursor:pointer;">Report</button>
+        <button onclick="metThem()" style="flex:2;padding:14px;border-radius:14px;background:var(--green);border:none;color:white;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Met them</button>
+      </div>
+      <div style="height:28px;"></div>
+      <!-- Report modal -->
+      <div class="report-modal-overlay" id="report-modal">
+        <div class="report-sheet">
+          <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Report this profile</div>
+          <div style="font-size:13px;color:var(--warm-mid);margin-bottom:20px;">What's the issue? Your report is anonymous.</div>
+          <div style="display:flex;flex-direction:column;gap:10px;" id="report-opts">
+            <button class="report-btn" onclick="selectReport(this)">Made me feel unsafe or uncomfortable</button>
+            <button class="report-btn" onclick="selectReport(this)">Inappropriate behaviour or messages</button>
+            <button class="report-btn" onclick="selectReport(this)">Fake or misleading profile</button>
+            <button class="report-btn" onclick="selectReport(this)">Other</button>
+          </div>
+          <button id="report-submit" style="display:none;margin-top:12px;width:100%;padding:14px;border-radius:14px;border:none;background:var(--ink);color:var(--cream);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;" onclick="submitReport()">Submit report</button>
+          <button onclick="closeReportModal()" style="margin-top:10px;width:100%;padding:14px;border-radius:14px;border:1px solid var(--border);background:transparent;color:var(--warm-mid);font-size:14px;font-family:inherit;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+      <!-- Toast -->
+      <div id="report-toast" style="display:none;position:absolute;bottom:40px;left:24px;right:24px;padding:16px 20px;border-radius:18px;background:var(--ink);border:1px solid rgba(245,240,232,0.1);color:var(--cream);text-align:center;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Thank you for your report</div>
+        <div style="font-size:13px;color:rgba(245,240,232,0.6);line-height:1.5;">We take safety seriously and will review within 24 hours. This person has been blocked.</div>
+      </div>
+    </div>
+
+    <!-- ══════════ PROFILE ══════════ -->
+    <div class="screen" id="s-profile">
+      <div style="padding:24px 22px 0;flex-shrink:0;">
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--ink);">Your Profile</div>
+      </div>
+      <div class="screen-scroll">
+        <!-- Profile card -->
+        <div style="margin:20px 22px 0;background:white;border-radius:20px;padding:20px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 16px rgba(26,20,16,0.07);cursor:pointer;" onclick="openInterestsEdit()">
+          <div style="position:relative;flex-shrink:0;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(160deg,#d4a5c4,#c46b9a);display:flex;align-items:center;justify-content:center;font-size:30px;">👩</div>
+            <div id="photo-tick" style="position:absolute;bottom:-4px;right:-4px;width:24px;height:24px;border-radius:50%;background:#dc2626;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;">✕</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:18px;color:var(--ink);">You, 22</div>
+            <div style="font-size:13px;color:var(--warm-mid);margin-top:2px;">Scientist</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;" id="profile-tags">
+              <span class="itag music">Music</span><span class="itag food">Food</span><span class="itag fitness">Fitness</span>
+            </div>
+            <button onclick="event.stopPropagation();" style="margin-top:8px;padding:5px 12px;border-radius:20px;border:none;background:rgba(220,38,38,0.08);color:#dc2626;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;">Update today's photo</button>
+            <div style="font-size:11px;color:var(--warm-mid);margin-top:4px;">Tap card to edit interests</div>
+          </div>
+        </div>
+
+        <!-- Settings card -->
+        <div style="margin:16px 22px 0;background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 16px rgba(26,20,16,0.07);">
+          <div class="settings-row">
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--ink);">Profile visibility</div>
+              <div style="font-size:11px;color:var(--green);margin-top:2px;">Your profile is visible to others</div>
+            </div>
+            <button style="padding:6px 14px;border-radius:20px;border:none;background:rgba(220,38,38,0.08);color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Deactivate</button>
+          </div>
+          <div class="settings-row">
+            <span style="font-size:14px;font-weight:500;color:var(--ink);">⚡ here. Premium</span>
+            <span style="font-size:12px;color:var(--accent);font-weight:600;">Upgrade →</span>
+          </div>
+          <!-- Age visibility -->
+          <div class="settings-row" onclick="toggleAgePanel()">
+            <div>
+              <div style="font-size:14px;font-weight:500;color:var(--ink);">👁 Visible to age range</div>
+              <div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;" id="age-summary-label">Ages 22 – 35</div>
+            </div>
+            <span id="age-chev" style="color:var(--warm-mid);font-size:13px;transition:transform 0.2s;">›</span>
+          </div>
+          <div id="age-panel" style="display:none;padding:16px 18px;border-bottom:1px solid var(--border);" onclick="event.stopPropagation()">
+            <div style="font-size:12px;color:var(--warm-mid);line-height:1.5;margin-bottom:14px;">Only people in this age range will see your profile in Nearby.</div>
+            <div style="position:relative;height:36px;margin:0 4px;" id="age-slider-wrap">
+              <div style="position:absolute;top:50%;left:0;right:0;height:4px;background:rgba(139,115,85,0.15);border-radius:2px;transform:translateY(-50%);"></div>
+              <div id="age-track-fill" style="position:absolute;top:50%;height:4px;background:var(--accent);border-radius:2px;transform:translateY(-50%);left:10.7%;right:47.1%;"></div>
+              <input type="range" id="age-min" min="18" max="50" value="22" class="age-thumb" oninput="updateAgeRange()">
+              <input type="range" id="age-max" min="18" max="50" value="35" class="age-thumb" oninput="updateAgeRange()">
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <span style="font-size:11px;color:var(--warm-mid);">18</span>
+              <div style="text-align:center;">
+                <span id="age-range-label" style="font-size:15px;font-weight:700;color:var(--ink);">22 – 35</span>
+                <div style="font-size:11px;color:var(--warm-mid);margin-top:1px;">your visibility window</div>
+              </div>
+              <span style="font-size:11px;color:var(--warm-mid);">50+</span>
+            </div>
+          </div>
+          <!-- Privacy -->
+          <div class="settings-row" onclick="togglePrivPanel()">
+            <span style="font-size:14px;font-weight:500;color:var(--ink);">🔒 Privacy settings</span>
+            <span id="priv-chev" style="color:var(--warm-mid);font-size:13px;transition:transform 0.2s;">›</span>
+          </div>
+          <div id="priv-panel" style="display:none;padding:16px 18px;border-bottom:1px solid var(--border);" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:rgba(139,115,85,0.06);margin-bottom:12px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink);">📍 Location Access</div>
+                <div style="font-size:11px;color:var(--warm-mid);margin-top:2px;">Only visible when discoverability is on</div>
+              </div>
+              <div class="tog-wrap" id="loc-tog" onclick="toggleLocAccess()"><div class="tog-knob"></div></div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">Discoverability auto-turns off after</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="chip on" id="ptimer-30" onclick="selectTimer(this,'30min')">30 min</button>
+              <button class="chip" id="ptimer-60" onclick="selectTimer(this,'60min')">1 hour</button>
+              <button class="chip" id="ptimer-120" onclick="selectTimer(this,'120min')">2 hours</button>
+              <button class="chip" id="ptimer-never" onclick="selectTimer(this,'never')">Never</button>
+            </div>
+            <div id="timer-note" style="font-size:11px;color:var(--warm-mid);margin-top:8px;line-height:1.5;">Auto-turns off after 30 min of discoverability being active.</div>
+          </div>
+          <!-- Languages -->
+          <div class="settings-row" onclick="openLangsEdit()">
+            <span style="font-size:14px;font-weight:500;color:var(--ink);">🌐 Languages spoken</span>
+            <span style="font-size:12px;color:var(--accent);">Edit →</span>
+          </div>
+          <!-- Sign out -->
+          <button onclick="goTo('s-login')" style="width:100%;padding:14px 18px;text-align:left;font-size:14px;font-weight:500;color:#B85042;border:none;background:transparent;cursor:pointer;font-family:inherit;">Sign out</button>
+        </div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-profile">2</span></button>
+        <button class="ni on" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+</div><!-- /phone -->
+
+<!-- ── Interests Edit Modal ── -->
+<div class="modal-overlay" id="interests-modal">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Edit your interests</div>
+    <div style="font-size:12px;color:var(--warm-mid);margin-bottom:16px;" id="interests-count-label">Pick up to 3 · 0/3 selected</div>
+    <div id="interests-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;"></div>
+    <button onclick="saveInterests()" style="width:100%;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Save interests</button>
+    <button onclick="closeInterestsEdit()" style="width:100%;margin-top:8px;padding:13px;border-radius:16px;border:none;background:transparent;color:var(--warm-mid);font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+  </div>
+</div>
+
+<!-- ── Languages Edit Modal ── -->
+<div class="modal-overlay" id="langs-modal">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Languages you speak</div>
+    <div style="font-size:12px;color:var(--warm-mid);margin-bottom:12px;">Select all languages you speak</div>
+    <div id="langs-selected-wrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+    <input placeholder="Search languages…" oninput="filterLangs(this.value)" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;outline:none;background:white;margin-bottom:8px;" id="langs-search">
+    <div id="langs-list" style="border:1px solid var(--border);border-radius:14px;overflow:hidden;max-height:200px;overflow-y:auto;margin-bottom:16px;"></div>
+    <button onclick="saveLangs()" style="width:100%;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Save languages</button>
+    <button onclick="closeLangsEdit()" style="width:100%;margin-top:8px;padding:13px;border-radius:16px;border:none;background:transparent;color:var(--warm-mid);font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+  </div>
+</div>
+
+<style>
+/* roption styles */
+.roption{padding:14px 16px;border:1.5px solid var(--border);border-radius:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+.roption.on{border-color:var(--green);background:rgba(74,124,89,0.08);}
+/* report button */
+.report-btn{width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:white;color:var(--ink);font-size:14px;font-family:inherit;cursor:pointer;text-align:left;transition:all 0.15s;}
+.report-btn.selected{background:var(--ink);border-color:var(--ink);color:white;}
+</style>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const INTERESTS_ALL = [
+  {id:"art",label:"Art"},{id:"comedy",label:"Comedy"},{id:"cooking",label:"Cooking"},
+  {id:"fashion",label:"Fashion"},{id:"film",label:"Film"},{id:"fitness",label:"Fitness"},
+  {id:"food",label:"Food"},{id:"gaming",label:"Gaming"},{id:"hiking",label:"Hiking"},
+  {id:"museums",label:"Museums"},{id:"music",label:"Music"},{id:"photography",label:"Photography"},
+  {id:"podcasts",label:"Podcasts"},{id:"reading",label:"Reading"},{id:"tech",label:"Tech"},
+  {id:"theatre",label:"Theatre"},{id:"travel",label:"Travel"},{id:"wine",label:"Wine"},
+  {id:"racket_sports",label:"Racket Sports"},{id:"team_sports",label:"Team Sports"},
+];
+const LANGUAGES_ALL = [
+  "Arabic","Bengali","Cantonese","Czech","Danish","Dutch","English","Finnish",
+  "French","German","Greek","Hebrew","Hindi","Hungarian","Italian","Japanese",
+  "Korean","Malay","Mandarin","Norwegian","Persian","Polish","Portuguese",
+  "Romanian","Russian","Spanish","Swahili","Swedish","Thai","Turkish","Urdu","Vietnamese",
+];
+const EVENTS = [
+  // tonight
+  {id:0,emoji:"🎻",gFrom:"#1e1a30",gTo:"#3d2060",cat:"music",name:"LSO — An Evening of Brahms",venue:"Barbican Centre",area:"Barbican",meta:"Tonight 7:30pm · from £35",members:34,time:"7:30pm",sponsored:true,buyTicket:true,section:"tonight",desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's finest concert series — a full house and an electric atmosphere."},
+  {id:1,emoji:"🍷",gFrom:"#1a2535",gTo:"#243045",cat:"food",name:"Terroirs Natural Wine Evening",venue:"Terroirs Wine Bar",area:"Strand",meta:"Tonight · until 11pm · Free",members:27,time:"Until 11pm",sponsored:false,buyTicket:false,section:"tonight",desc:"The best natural wine bar in London — an evening of exceptional low-intervention wines poured at the bar."},
+  {id:2,emoji:"🎨",gFrom:"#1e1a30",gTo:"#2d1e3a",cat:"art",name:"Tate Modern Late — After Hours",venue:"Tate Modern",area:"Bankside",meta:"Tonight until 10pm · £12",members:42,time:"Until 10pm",sponsored:false,buyTicket:true,section:"tonight",desc:"After-hours access to the Tate galleries with a live DJ set and the riverside bar open late."},
+  {id:3,emoji:"🎷",gFrom:"#182a1e",gTo:"#223828",cat:"music",name:"Jazz at Ronnie Scott's",venue:"Ronnie Scott's",area:"Soho",meta:"Tonight 9:30pm · from £30",members:38,time:"9:30pm",sponsored:true,buyTicket:true,section:"tonight",desc:"The world-famous jazz club. Tonight's late set features some of London's finest musicians."},
+  {id:4,emoji:"💃",gFrom:"#2a1035",gTo:"#4a1060",cat:"dance",name:"Bachata Social Night",venue:"Café Salsa",area:"Covent Garden",meta:"Tonight 9pm–2am · £10",members:31,time:"9pm",sponsored:false,buyTicket:true,section:"tonight",desc:"London's most popular bachata social. All levels welcome — the dance floor does the introducing."},
+  {id:5,emoji:"😂",gFrom:"#2a1a10",gTo:"#3a2810",cat:"comedy",name:"Comedy Store — Late Show",venue:"The Comedy Store",area:"Leicester Square",meta:"Tonight 9:45pm · from £16",members:29,time:"9:45pm",sponsored:true,buyTicket:true,section:"tonight",desc:"London's most iconic comedy club. Tonight's late show brings the UK's best stand-up talent to one stage."},
+  {id:6,emoji:"🍜",gFrom:"#2a1208",gTo:"#3a2010",cat:"food",name:"Maltby Street Market — Evening Edition",venue:"Maltby Street",area:"Bermondsey",meta:"Tonight 5pm–10pm · Free",members:37,time:"5pm–10pm",sponsored:false,buyTicket:false,section:"tonight",desc:"Over 30 of London's best street food traders in the arches under London Bridge."},
+  {id:7,emoji:"🎬",gFrom:"#10101a",gTo:"#1a1a2a",cat:"film",name:"Rooftop Cinema Club — Brief Encounter",venue:"Roof East",area:"Stratford",meta:"Tonight 8pm · £19",members:33,time:"8pm",sponsored:false,buyTicket:true,section:"tonight",desc:"Classic British romance under the stars on Roof East's open-air screen. Blankets provided."},
+  {id:8,emoji:"🏃",gFrom:"#1a2a1a",gTo:"#243824",cat:"fitness",name:"Run Dem Crew — Thursday Run",venue:"Regent's Park",area:"Regent's Park",meta:"Tonight 6:30pm · Free",members:22,time:"6:30pm",sponsored:false,buyTicket:false,section:"tonight",desc:"London's most sociable running crew. 5k through Regent's Park, all paces welcome."},
+  {id:9,emoji:"🎵",gFrom:"#1a1028",gTo:"#2a1838",cat:"music",name:"Electric Brixton — Club Night",venue:"Electric Brixton",area:"Brixton",meta:"Tonight 10pm · £15",members:51,time:"10pm",sponsored:true,buyTicket:true,section:"tonight",desc:"One of London's best live music venues. Tonight's resident DJs play disco, house, and soul until 4am."},
+  // this week
+  {id:11,emoji:"🎭",gFrom:"#1e1a30",gTo:"#3d2060",cat:"art",name:"ENO — La Traviata Opening Night",venue:"London Coliseum",area:"West End",meta:"Friday 8pm · from £25",members:25,time:"Fri 8pm",sponsored:true,buyTicket:true,section:"week",desc:"English National Opera's acclaimed new production of Verdi's La Traviata. Opening night."},
+  {id:12,emoji:"🖼️",gFrom:"#1a2535",gTo:"#243045",cat:"art",name:"National Portrait Gallery Members Evening",venue:"NPG",area:"St Martin's Place",meta:"Thursday 6:30pm · Members free",members:29,time:"Thu 6:30pm",sponsored:false,buyTicket:false,section:"week",desc:"Exclusive after-hours access to the galleries with wine and live music."},
+  {id:13,emoji:"🌿",gFrom:"#182a1e",gTo:"#223828",cat:"food",name:"Borough Market — After Dark",venue:"Borough Market",area:"Borough",meta:"Saturday 6pm · Free",members:46,time:"Sat 6pm",sponsored:false,buyTicket:false,section:"week",desc:"London's most celebrated food market stays open late with evening-only traders."},
+  {id:14,emoji:"🎸",gFrom:"#1a1020",gTo:"#281830",cat:"music",name:"Moth Club — Indie Night",venue:"Moth Club",area:"Hackney",meta:"Friday 9pm · £12",members:28,time:"Fri 9pm",sponsored:false,buyTicket:true,section:"week",desc:"Hackney's best-kept secret. Indie and alternative DJ sets in the most characterful venue in East London."},
+  {id:15,emoji:"🍳",gFrom:"#2a1808",gTo:"#3a2010",cat:"food",name:"Ottolenghi — Saturday Masterclass",venue:"Ottolenghi NOPI",area:"Soho",meta:"Saturday 11am · £95",members:12,time:"Sat 11am",sponsored:true,buyTicket:true,section:"week",desc:"A hands-on morning with Ottolenghi's chefs. Learn four signature dishes, then sit down together to eat them."},
+  {id:16,emoji:"🎤",gFrom:"#1a0a28",gTo:"#2a1038",cat:"comedy",name:"Soho Theatre — Stand-Up Night",venue:"Soho Theatre",area:"Soho",meta:"Wednesday 8pm · £15",members:21,time:"Wed 8pm",sponsored:false,buyTicket:true,section:"week",desc:"The most respected comedy venue in London. Tonight's bill features three rising stand-ups."},
+  {id:17,emoji:"🌅",gFrom:"#1a1410",gTo:"#2a2018",cat:"food",name:"Skylight Rooftop Bar — Sunset Session",venue:"Skylight Tobacco Dock",area:"Wapping",meta:"Saturday 5pm · Free entry",members:39,time:"Sat 5pm",sponsored:false,buyTicket:false,section:"week",desc:"London's most loved rooftop bar. Cocktails, croquet, and a view of the city at golden hour."},
+];
+
+const NEARBY_PEOPLE = [
+  {id:1,name:"Sophie",age:23,occ:"Architect",emoji:"👩",bg:"pgrad1",interests:["music","travel"],languages:["English","French"],gender:"f"},
+  {id:2,name:"James",age:24,occ:"Software Engineer",emoji:"👨",bg:"pgrad2",interests:["art","food"],languages:["English"],gender:"m"},
+  {id:3,name:"Mia",age:27,occ:"Journalist",emoji:"👩",bg:"pgrad3",interests:["music","food","travel"],languages:["English","German"],gender:"f"},
+  {id:4,name:"Lucas",age:29,occ:"Quant Researcher",emoji:"👨",bg:"pgrad4",interests:["fitness","tech","gaming"],languages:["English","Spanish"],gender:"m"},
+  {id:5,name:"Aisha",age:26,occ:"Doctor",emoji:"👩",bg:"pgrad5",interests:["art","film","music"],languages:["English","Arabic"],gender:"f"},
+  {id:6,name:"Ben",age:28,occ:"Consultant",emoji:"👨",bg:"pgrad2",interests:["team_sports","art"],languages:["English"],gender:"m"},
+];
+
+const INBOX_DATA = [
+  {id:1,name:"Sophie, 23",emoji:"👩",bg:"linear-gradient(160deg,#d4a5a5,#c47a6b)",meta:"Architect · Verified ✓",tags:["music","travel"],gender:"f",time:"2m ago",isNew:true},
+  {id:2,name:"Lucas, 29",emoji:"👨",bg:"linear-gradient(160deg,#a5b4d4,#6b8ac4)",meta:"Quant Researcher · Verified ✓",tags:["fitness","gaming"],gender:"m",time:"8m ago",isNew:true},
+  {id:3,name:"James, 24",emoji:"👨",bg:"linear-gradient(160deg,#b4d4a5,#7ac47b)",meta:"Software Engineer",tags:["art","food"],gender:"m",time:"1h ago",isNew:false},
+];
+
+const INTEREST_LABELS = {};
+INTERESTS_ALL.forEach(i => INTEREST_LABELS[i.id] = i.label);
+
+// ── State ──────────────────────────────────────────────────
+let currentEvent = null;
+let currentNearbyPerson = null;
+let currentRequest = null;
+let incResponseMode = 'accept';
+let isLive = false;
+let dismissedNearby = [];
+let timerInterval = null;
+let matchTimerSecs = 1800;
+let eventCatFilter = 'all';
+let draftInterests = ['music','food','fitness'];
+let draftLanguages = ['English'];
+let obStep = 1;
+let obInterests = [];
+let obLanguages = ['English'];
+let showAcceptedBanner = false;
+
+// ── Navigation ─────────────────────────────────────────────
+function goTo(id, data) {
+  const cur = document.querySelector('.screen.active');
+  const nxt = document.getElementById(id);
+  if (!nxt || cur === nxt) return;
+  if (data !== undefined) { currentData = data; }
+
+  // Screen-specific setup
+  if (id === 's-eventdetail') {
+    const ev = EVENTS.find(e => e.id === data) || EVENTS[0];
+    currentEvent = ev;
+    loadEventDetail(ev);
+  }
+  if (id === 's-inbox') renderInbox();
+  if (id === 's-incoming' && currentRequest) syncIncoming();
+  if (id === 's-request' && currentNearbyPerson) syncRequest(currentNearbyPerson);
+  if (id === 's-pending' && currentNearbyPerson) syncPending();
+  if (id === 's-match') syncMatch();
+  if (id === 's-nearby') syncNearby();
+
+  const darkScreens = ['s-splash','s-login','s-signup','s-match','s-pending'];
+  document.getElementById('statusbar').className = darkScreens.includes(id) ? 'sb dark' : 'sb';
+
+  cur.classList.add('exit');
+  cur.classList.remove('active');
+  setTimeout(() => cur.classList.remove('exit'), 350);
+  nxt.classList.add('active');
+}
+
+function togglePassVis(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const isText = inp.type === 'text';
+  inp.type = isText ? 'password' : 'text';
+  btn.textContent = isText ? 'Show' : 'Hide';
+}
+
+function handleLogin() {
+  const e = document.getElementById('login-email').value;
+  const p = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (!e || !p) { errEl.textContent = 'Please fill in all fields'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  goTo('s-events');
+}
+
+// ── Onboarding ─────────────────────────────────────────────
+const ALL_CAT_LABELS = {all:'All',music:'Live Music',art:'Art & Culture',food:'Food & Drink',comedy:'Comedy',fitness:'Fitness',dance:'Dance',film:'Film'};
+
+function obNext(step) {
+  obStep = step;
+  [1,2,3,4].forEach(s => {
+    const el = document.getElementById('ob-s'+s);
+    if (el) el.style.display = s === step ? 'flex' : 'none';
+    if (el && s === step) el.style.flexDirection = 'column';
+    const pb = document.getElementById('ob-p'+s);
+    if (pb) pb.style.background = s <= step ? 'var(--accent)' : 'rgba(139,115,85,0.2)';
+  });
+  document.getElementById('ob-step-label').textContent = 'Step '+step+' of 4';
+  if (step === 2) renderObInterests();
+  if (step === 3) { renderObLangsSelected(); renderObLangsList(''); }
+}
+
+function renderObInterests() {
+  const el = document.getElementById('ob-interests-grid');
+  if (!el) return;
+  el.innerHTML = INTERESTS_ALL.map(i => {
+    const on = obInterests.includes(i.id);
+    return `<button onclick="toggleObInterest('${i.id}',this)"
+      style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.15s;
+      border:1px solid ${on?'var(--ink)':'var(--border)'};background:${on?'var(--ink)':'transparent'};color:${on?'var(--cream)':'var(--ink-soft)'};">
+      ${i.label}</button>`;
+  }).join('');
+}
+
+function toggleObInterest(id) {
+  if (obInterests.includes(id)) { obInterests = obInterests.filter(x=>x!==id); }
+  else if (obInterests.length < 3) { obInterests.push(id); }
+  renderObInterests();
+}
+
+function renderObLangsSelected() {
+  const el = document.getElementById('ob-langs-selected');
+  if (!el) return;
+  el.innerHTML = obLanguages.map(l => `<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--ink);color:var(--cream);">${l}<button onclick="removeObLang('${l}')" style="border:none;background:transparent;color:rgba(245,240,232,0.55);font-size:14px;cursor:pointer;line-height:1;padding:0;">×</button></span>`).join('');
+}
+
+function renderObLangsList(q) {
+  const el = document.getElementById('ob-langs-list');
+  if (!el) return;
+  const filtered = LANGUAGES_ALL.filter(l => l.toLowerCase().includes(q.toLowerCase()) && !obLanguages.includes(l)).slice(0,20);
+  el.innerHTML = filtered.map((l,i) => `<button onclick="addObLang('${l}')" style="width:100%;padding:10px 14px;text-align:left;font-size:14px;border:none;background:${i%2===0?'white':'rgba(245,240,232,0.5)'};color:var(--ink);font-family:inherit;cursor:pointer;border-bottom:1px solid var(--border);display:block;">${l}</button>`).join('');
+  if (!filtered.length) el.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--warm-mid);">No matches</div>';
+}
+
+function obFilterLangs(q) { renderObLangsList(q); }
+function addObLang(l) { if (!obLanguages.includes(l)) obLanguages.push(l); renderObLangsSelected(); renderObLangsList(''); document.querySelector('#ob-s3 input').value = ''; }
+function removeObLang(l) { obLanguages = obLanguages.filter(x=>x!==l); renderObLangsSelected(); renderObLangsList(''); }
+
+// ── Events ─────────────────────────────────────────────────
+const EVENT_CATS = ['all','music','art','food','comedy','fitness','dance','film'];
+const CAT_LABELS = {all:'All',music:'Live Music',art:'Art & Culture',food:'Food & Drink',comedy:'Comedy',fitness:'Fitness',dance:'Dance',film:'Film'};
+
+function initEvents() {
+  const catsEl = document.getElementById('event-cats');
+  catsEl.innerHTML = EVENT_CATS.map(c =>
+    `<button class="chip${c==='all'?' on':''}" onclick="setCat('${c}',this)">${CAT_LABELS[c]}</button>`
+  ).join('');
+  renderEvents();
+}
+
+function setCat(cat, el) {
+  eventCatFilter = cat;
+  document.querySelectorAll('#event-cats .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  renderEvents();
+}
+
+function renderEvents() {
+  const tonight = EVENTS.filter(e => e.section==='tonight' && (eventCatFilter==='all' || e.cat===eventCatFilter));
+  const week = EVENTS.filter(e => e.section==='week' && (eventCatFilter==='all' || e.cat===eventCatFilter));
+
+  document.getElementById('events-tonight-head').style.display = tonight.length ? 'flex' : 'none';
+  document.getElementById('events-week-head').style.display = week.length ? 'flex' : 'none';
+
+  document.getElementById('events-tonight').innerHTML = tonight.map((e,i) => eventRowHTML(e,i)).join('');
+  document.getElementById('events-week').innerHTML = week.map((e,i) => eventRowHTML(e,i+tonight.length)).join('');
+}
+
+function eventRowHTML(e, i) {
+  const delay = (i*0.07) + 's';
+  return `<div class="erow ai" style="animation-delay:${delay};" onclick="goTo('s-eventdetail',${e.id})">
+    <div class="eicon" style="background:linear-gradient(135deg,${e.gFrom},${e.gTo});">${e.emoji}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:600;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.name}</div>
+      <div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">${e.venue} · ${e.area}</div>
+      ${e.buyTicket?`<div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;">Buy ticket here</div>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
+      <div style="font-size:11px;font-weight:600;color:var(--green);">${e.members} members</div>
+      <div style="font-size:11px;color:var(--warm-mid);">${e.time}</div>
+      ${e.sponsored?`<div style="font-size:10px;color:var(--accent);font-weight:600;">Sponsored</div>`:''}
+    </div>
+  </div>`;
+}
+
+function loadEventDetail(e) {
+  const hero = document.getElementById('ed-hero');
+  hero.style.background = `linear-gradient(160deg,${e.gFrom},${e.gTo})`;
+  document.getElementById('ed-emoji').textContent = e.emoji;
+  document.getElementById('ed-cat').textContent = e.cat.charAt(0).toUpperCase()+e.cat.slice(1)+' · '+e.venue;
+  document.getElementById('ed-title').textContent = e.name;
+  document.getElementById('ed-meta').textContent = '📅 '+e.meta;
+  document.getElementById('ed-desc').textContent = e.desc;
+  document.getElementById('ed-members-badge').textContent = '✦ '+e.members+' members here';
+  document.getElementById('ed-spon').style.display = e.sponsored ? 'block' : 'none';
+
+  let actionsHTML = '';
+  if (e.sponsored && e.buyTicket) {
+    actionsHTML = `<div style="display:flex;gap:10px;">
+      <button class="sbtn accent" style="flex:1;margin:0;padding:14px;" onclick="goTo('s-events')">🎟 Buy Ticket</button>
+      <button class="sbtn" style="flex:1;margin:0;padding:14px;background:rgba(139,115,85,0.12);color:var(--ink);">📷 Scan QR</button>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--warm-mid);text-align:center;line-height:1.5;">Already have a ticket? Scan the venue QR at the entrance to activate your presence.</div>`;
+  } else if (e.buyTicket) {
+    actionsHTML = `<button onclick="goTo('s-events')" style="width:100%;padding:14px;border-radius:16px;background:rgba(139,115,85,0.12);color:var(--ink);border:none;font-size:15px;font-family:inherit;cursor:pointer;">📷 Scan venue QR to check in</button>`;
+  } else {
+    actionsHTML = `<button onclick="goTo('s-nearby')" class="sbtn green" style="width:100%;margin:0;">See who's going →</button>`;
+  }
+  document.getElementById('ed-actions').innerHTML = actionsHTML;
+}
+
+// ── Nearby ─────────────────────────────────────────────────
+function syncNearby() {
+  if (isLive) {
+    renderNearbyLive();
+  }
+}
+
+function toggleLive() {
+  isLive = !isLive;
+  const btn = document.getElementById('go-live-btn');
+  const dot = document.getElementById('live-dot');
+  const lbl = document.getElementById('live-label');
+  const radius = document.getElementById('nearby-radius');
+  const empty = document.getElementById('nearby-empty');
+  const live = document.getElementById('nearby-live-content');
+  if (isLive) {
+    btn.style.background = 'rgba(74,124,89,0.12)';
+    btn.style.borderColor = 'rgba(74,124,89,0.35)';
+    dot.style.background = 'var(--green)';
+    dot.style.animation = 'pulse 2s infinite';
+    lbl.style.color = 'var(--green)';
+    lbl.textContent = 'Live';
+    radius.style.display = 'block';
+    empty.style.display = 'none';
+    live.style.display = 'block';
+    renderNearbyLive();
+  } else {
+    btn.style.background = 'rgba(139,115,85,0.1)';
+    btn.style.borderColor = 'var(--border)';
+    dot.style.background = 'var(--warm-mid)';
+    dot.style.animation = 'none';
+    lbl.style.color = 'var(--warm-mid)';
+    lbl.textContent = 'Go live';
+    radius.style.display = 'none';
+    empty.style.display = 'flex';
+    live.style.display = 'none';
+  }
+}
+
+function renderNearbyLive() {
+  const grid = document.getElementById('nearby-grid');
+  const countEl = document.getElementById('nearby-count');
+  const people = NEARBY_PEOPLE.filter(p => !dismissedNearby.includes(p.id));
+  if (countEl) countEl.textContent = people.length + ' members open to meet';
+  grid.innerHTML = people.map((p,i) => nearbyCardHTML(p,i)).join('');
+}
+
+function nearbyCardHTML(p, i) {
+  const delay = (i*0.06)+'s';
+  const tags = p.interests.slice(0,3).map(t => `<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+  const langs = (p.languages||[]).slice(0,2).map(l => `<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(139,115,85,0.1);color:var(--ink-soft);">${l}</span>`).join('');
+  return `<div class="pcard ai" style="animation-delay:${delay};">
+    <div class="pphoto ${p.bg}">
+      <span style="font-size:50px;">${p.emoji}</span>
+      <div class="active-badge"><span class="active-dot"></span>Active</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(to top,rgba(26,20,16,0.8) 0%,transparent 100%);font-size:10px;font-weight:600;color:white;text-align:center;">Just arrived</div>
+    </div>
+    <div style="padding:10px 10px 4px;">
+      <div style="font-weight:600;font-size:14px;color:var(--ink);">${p.name}, ${p.age}</div>
+      <div style="font-size:11px;color:var(--warm-mid);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.occ}</div>
+    </div>
+    <div style="padding:2px 10px 4px;display:flex;flex-wrap:wrap;gap:3px;">${tags}</div>
+    ${langs ? `<div style="padding:2px 10px 6px;display:flex;flex-wrap:wrap;gap:3px;">${langs}</div>` : ''}
+    <div style="display:flex;gap:6px;padding:0 10px 10px;">
+      <button onclick="openNearbyPerson(${p.id})" style="flex:1;padding:7px;border-radius:10px;border:none;background:var(--green);color:white;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">Express interest</button>
+      <button onclick="dismissNearby(${p.id})" style="width:32px;padding:7px;border-radius:10px;border:1px solid var(--border);background:transparent;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+  </div>`;
+}
+
+function dismissNearby(id) { dismissedNearby.push(id); renderNearbyLive(); }
+
+function openNearbyPerson(id) {
+  currentNearbyPerson = NEARBY_PEOPLE.find(p => p.id === id);
+  syncRequest(currentNearbyPerson);
+  goTo('s-request');
+}
+
+function syncRequest(p) {
+  if (!p) return;
+  const av = document.getElementById('req-avatar');
+  av.textContent = p.emoji;
+  av.style.background = bgToStyle(p.bg);
+  document.getElementById('req-name').textContent = p.name+', '+p.age;
+  document.getElementById('req-meta').textContent = p.occ+' · Verified';
+  document.getElementById('req-fname-note').textContent = p.name;
+
+  const tagsEl = document.getElementById('req-interests');
+  tagsEl.innerHTML = p.interests.map(t => `<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+
+  const starter = document.getElementById('req-conv-starter');
+  if (p.interests.length > 0) {
+    const top2 = p.interests.slice(0,2).map(id => `<strong style="color:var(--ink);">${INTEREST_LABELS[id]||id}</strong>`).join(' or ');
+    starter.innerHTML = 'Ask about '+top2+' to break the ice.';
+    starter.style.display = 'block';
+  } else { starter.style.display = 'none'; }
+
+  const langsWrap = document.getElementById('req-langs-wrap');
+  const langs = p.languages || [];
+  if (langs.length) {
+    document.getElementById('req-langs').innerHTML = langs.map(l => `<span style="font-size:11px;padding:3px 8px;border-radius:8px;background:rgba(139,115,85,0.1);color:var(--ink-soft);">${l}</span>`).join('');
+    langsWrap.style.display = 'block';
+  } else { langsWrap.style.display = 'none'; }
+
+  document.getElementById('req-sent-banner').style.display = 'none';
+}
+
+function sendRequest() {
+  document.getElementById('req-sent-banner').style.display = 'block';
+  setTimeout(() => {
+    syncPending();
+    goTo('s-pending');
+  }, 1200);
+}
+
+function syncPending() {
+  const p = currentNearbyPerson;
+  if (!p) return;
+  document.getElementById('pend-name').textContent = p.name;
+  document.getElementById('pend-name2').textContent = p.name;
+  document.getElementById('pend-next').textContent = `If ${p.name} accepts, you will see a notification in your Requests tab. Open it to get the green light and go find them.`;
+}
+
+function bgToStyle(bg) {
+  const map = { pgrad1:'linear-gradient(160deg,#d4a5a5,#c47a6b)', pgrad2:'linear-gradient(160deg,#a5b4d4,#6b8ac4)', pgrad3:'linear-gradient(160deg,#a5d4b4,#6bc48a)', pgrad4:'linear-gradient(160deg,#d4c4a5,#c4a06b)', pgrad5:'linear-gradient(160deg,#c4a5d4,#8f6bc4)' };
+  return map[bg] || 'linear-gradient(160deg,#d4a5a5,#c47a6b)';
+}
+
+// ── Inbox ──────────────────────────────────────────────────
+let inboxData = JSON.parse(JSON.stringify(INBOX_DATA));
+
+function renderInbox() {
+  const list = document.getElementById('inbox-list');
+  const newReqs = inboxData.filter(r => r.isNew);
+  const oldReqs = inboxData.filter(r => !r.isNew);
+
+  document.getElementById('inbox-live-indicator').style.display = newReqs.length ? 'flex' : 'none';
+  document.getElementById('inbox-count-label').textContent = newReqs.length+' new';
+
+  const bannerWrap = document.getElementById('accepted-banner-wrap');
+  bannerWrap.style.display = showAcceptedBanner ? 'block' : 'none';
+
+  let html = '';
+  newReqs.forEach(r => {
+    html += `<div class="req-card" onclick="openRequest(${r.id})">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;display:inline-block;"></span>
+        <div style="width:44px;height:44px;border-radius:50%;background:${r.bg};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${r.emoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--ink);">${r.name} <span style="font-size:10px;color:var(--green);font-weight:600;">✓ Verified</span></div>
+          <div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">${r.meta.replace(' · Verified ✓','')}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--accent);margin-top:3px;">👋 Spotted you — wants to say hi</div>
+        </div>
+        <div style="font-size:11px;color:var(--warm-mid);flex-shrink:0;">${r.time}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="event.stopPropagation();openRequest(${r.id})" style="flex:2;padding:10px;border-radius:12px;background:var(--green);border:none;color:white;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Respond →</button>
+        <button onclick="event.stopPropagation();declineReq(${r.id})" style="flex:1;padding:10px;border-radius:12px;border:1px solid var(--border);background:transparent;font-size:13px;color:var(--warm-mid);font-family:inherit;cursor:pointer;">Decline</button>
+      </div>
+    </div>`;
+  });
+
+  if (oldReqs.length) {
+    html += `<div style="padding:4px 22px 8px;font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;">Earlier</div>`;
+    oldReqs.forEach(r => {
+      html += `<div style="margin:0 20px 12px;padding:16px;background:white;border-radius:18px;border:1.5px solid var(--border);opacity:0.65;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:8px;"></div>
+          <div style="width:44px;height:44px;border-radius:50%;background:${r.bg};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${r.emoji}</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:14px;color:var(--ink);">${r.name}</div>
+            <div style="font-size:12px;color:var(--warm-mid);">${r.meta.replace(' · Verified ✓','')}</div>
+            <div style="font-size:11px;color:var(--warm-mid);margin-top:2px;">👋 Said hi · You declined</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <div style="font-size:11px;color:var(--warm-mid);">${r.time}</div>
+            <button onclick="dismissInboxReq(${r.id})" style="width:22px;height:22px;border-radius:50%;border:1px solid var(--border);background:white;color:var(--warm-mid);font-size:12px;cursor:pointer;">×</button>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (!newReqs.length && !oldReqs.length) {
+    html = `<div style="padding:24px 22px;text-align:center;color:var(--warm-mid);font-size:13px;">${showAcceptedBanner?'No other incoming requests':'No requests yet'}</div>`;
+  }
+
+  list.innerHTML = html;
+  // Update all badges
+  updateBadges(newReqs.length);
+}
+
+function updateBadges(count) {
+  ['nb-events','nb-ed','nb-nearby','nb-req','nb-profile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
+  });
+}
+
+function openRequest(id) {
+  currentRequest = inboxData.find(r => r.id === id);
+  incResponseMode = 'accept';
+  goTo('s-incoming');
+}
+
+function declineReq(id) {
+  const r = inboxData.find(x => x.id === id);
+  if (r) r.isNew = false;
+  renderInbox();
+}
+
+function dismissInboxReq(id) {
+  inboxData = inboxData.filter(x => x.id !== id);
+  renderInbox();
+}
+
+function viewAcceptedMatch() {
+  currentNearbyPerson = NEARBY_PEOPLE.find(p => p.name === 'Mia') || NEARBY_PEOPLE[0];
+  currentRequest = null;
+  incResponseMode = 'accept';
+  matchTimerSecs = 1800;
+  syncMatch();
+  goTo('s-match');
+}
+
+// ── Incoming ───────────────────────────────────────────────
+function syncIncoming() {
+  const r = currentRequest;
+  if (!r) return;
+  const av = document.getElementById('inc-avatar');
+  av.textContent = r.emoji;
+  av.style.background = r.bg;
+  document.getElementById('inc-name').textContent = r.name;
+  document.getElementById('inc-meta').textContent = r.meta;
+  document.getElementById('inc-req-text').textContent = r.name.split(',')[0]+' would like to meet you in person. Accept to give them the green light to approach you.';
+  document.getElementById('inc-tags').innerHTML = r.tags.map(t => `<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+  selectIncResp('accept');
+  const areaHint = document.getElementById('inc-area-hint');
+  if (areaHint) { areaHint.value = ''; document.getElementById('inc-area-count').textContent = '0 / 80'; }
+}
+
+function selectIncResp(mode) {
+  incResponseMode = mode;
+  ['accept','15min','30min'].forEach(m => {
+    const el = document.getElementById('inc-'+m);
+    if (el) el.classList.toggle('on', m === mode);
+  });
+  const hintWrap = document.getElementById('inc-area-hint-wrap');
+  hintWrap.style.display = (mode === '15min' || mode === '30min') ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hintInp = document.getElementById('inc-area-hint');
+  if (hintInp) hintInp.addEventListener('input', function() {
+    document.getElementById('inc-area-count').textContent = this.value.length+' / 80';
+  });
+});
+
+function confirmIncoming() {
+  const areaHint = document.getElementById('inc-area-hint');
+  if (areaHint) currentAreaHint = areaHint.value;
+  matchTimerSecs = incResponseMode === '15min' ? 900 : 1800;
+  showAcceptedBanner = false;
+  syncMatch();
+  goTo('s-match');
+}
+
+function declineIncoming() {
+  if (currentRequest) declineReq(currentRequest.id);
+  goTo('s-inbox');
+}
+
+// ── Match ──────────────────────────────────────────────────
+let currentAreaHint = '';
+
+function syncMatch() {
+  const person = currentRequest || (currentNearbyPerson ? {
+    name: currentNearbyPerson.name+', '+currentNearbyPerson.age,
+    occ: currentNearbyPerson.occ, emoji: currentNearbyPerson.emoji,
+    bg: bgToStyle(currentNearbyPerson.bg), interests: currentNearbyPerson.interests, gender: currentNearbyPerson.gender
+  } : null);
+
+  const isFromIncoming = !!currentRequest;
+  const firstName = person ? person.name.split(',')[0] : 'They';
+
+  document.getElementById('match-title').innerHTML = isFromIncoming
+    ? `You accepted.<br><em style="color:var(--green);">Go find them.</em>`
+    : `${firstName} accepted.<br><em style="color:var(--green);">Go find them.</em>`;
+
+  document.getElementById('match-sub').textContent = isFromIncoming
+    ? `${firstName} will be looking out for you. Head over and introduce yourself.`
+    : `${firstName} is expecting you. Go say hello in person.`;
+
+  const av = document.getElementById('match-avatar');
+  if (person) {
+    av.textContent = person.emoji || '';
+    av.style.background = person.bg || 'linear-gradient(160deg,#a5d4b4,#6bc48a)';
+  }
+  document.getElementById('match-person-name').textContent = person ? person.name : '—';
+  document.getElementById('match-person-occ').textContent = person ? (person.occupation||person.occ||'') : '';
+
+  const interests = person ? (person.interests || []) : [];
+  document.getElementById('match-person-tags').innerHTML = interests.slice(0,3).map(i =>
+    `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(74,124,89,0.2);color:rgba(232,245,238,0.8);">${INTEREST_LABELS[i]||i}</span>`
+  ).join('');
+
+  const areaEl = document.getElementById('match-area-hint');
+  if (currentAreaHint && currentAreaHint.trim()) {
+    areaEl.style.display = 'block';
+    areaEl.innerHTML = `Near: <strong style="color:var(--cream);">${currentAreaHint}</strong>`;
+  } else { areaEl.style.display = 'none'; }
+
+  const timerMins = incResponseMode === '15min' ? 15 : 30;
+  document.getElementById('match-timer').textContent = timerMins+':00';
+  document.getElementById('match-timer-label').textContent = `Green light expires in ${timerMins} min`;
+
+  startMatchTimer(matchTimerSecs);
+}
+
+function startMatchTimer(startSecs) {
+  clearInterval(timerInterval);
+  let secs = startSecs;
+  timerInterval = setInterval(() => {
+    if (--secs <= 0) {
+      clearInterval(timerInterval);
+      document.getElementById('match-timer').textContent = '—';
+      document.getElementById('match-timer-label').textContent = 'Green light expired';
+      const tring = document.getElementById('match-tring');
+      tring.style.borderTopColor = 'rgba(245,240,232,0.12)';
+      tring.style.animation = 'none';
+      return;
+    }
+    const m = Math.floor(secs/60), s = secs%60;
+    const el = document.getElementById('match-timer');
+    if (el) el.textContent = m+':'+String(s).padStart(2,'0');
+  }, 1000);
+}
+
+function metThem() { clearInterval(timerInterval); goTo('s-events'); }
+
+function openReportModal() {
+  document.getElementById('report-modal').classList.add('show');
+  document.querySelectorAll('.report-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('report-submit').style.display = 'none';
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal').classList.remove('show');
+}
+
+function selectReport(el) {
+  document.querySelectorAll('.report-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('report-submit').style.display = 'block';
+}
+
+function submitReport() {
+  closeReportModal();
+  const toast = document.getElementById('report-toast');
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; goTo('s-inbox'); }, 3000);
+}
+
+// ── Profile ────────────────────────────────────────────────
+function toggleAgePanel() {
+  const panel = document.getElementById('age-panel');
+  const chev = document.getElementById('age-chev');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(90deg)' : 'none';
+}
+
+function togglePrivPanel() {
+  const panel = document.getElementById('priv-panel');
+  const chev = document.getElementById('priv-chev');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(90deg)' : 'none';
+}
+
+function updateAgeRange() {
+  const minEl = document.getElementById('age-min');
+  const maxEl = document.getElementById('age-max');
+  let minVal = parseInt(minEl.value), maxVal = parseInt(maxEl.value);
+  if (minVal >= maxVal) {
+    if (document.activeElement === minEl) { minEl.value = maxVal-1; minVal = maxVal-1; }
+    else { maxEl.value = minVal+1; maxVal = minVal+1; }
+  }
+  const total = 50-18;
+  document.getElementById('age-track-fill').style.left = ((minVal-18)/total*100)+'%';
+  document.getElementById('age-track-fill').style.right = ((50-maxVal)/total*100)+'%';
+  const label = minVal+' – '+(maxVal>=50?'50+':maxVal);
+  document.getElementById('age-range-label').textContent = label;
+  document.getElementById('age-summary-label').textContent = 'Ages '+label;
+}
+
+let locAccessOn = false;
+function toggleLocAccess() {
+  locAccessOn = !locAccessOn;
+  const tog = document.getElementById('loc-tog');
+  tog.classList.toggle('on', locAccessOn);
+}
+
+function selectTimer(el, val) {
+  document.querySelectorAll('#priv-panel .chip').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  const notes = { '30min':'Auto-turns off after 30 min of discoverability being active.', '60min':'Auto-turns off after 1 hour of discoverability being active.', '120min':'Auto-turns off after 2 hours of discoverability being active.', 'never':'Open to Meet stays on until you turn it off manually.' };
+  document.getElementById('timer-note').textContent = notes[val] || '';
+}
+
+// ── Interests Modal ────────────────────────────────────────
+function openInterestsEdit() {
+  draftInterests = ['music','food','fitness'];
+  renderInterestsModal();
+  document.getElementById('interests-modal').classList.add('show');
+}
+
+function renderInterestsModal() {
+  const grid = document.getElementById('interests-grid');
+  grid.innerHTML = INTERESTS_ALL.map(i => {
+    const on = draftInterests.includes(i.id);
+    const disabled = !on && draftInterests.length >= 3;
+    return `<button onclick="${disabled?'':'toggleInterestDraft(\''+i.id+'\')'}"
+      style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:${disabled?'not-allowed':'pointer'};font-family:inherit;transition:all 0.15s;
+      border:1px solid ${on?'var(--ink)':'var(--border)'};background:${on?'var(--ink)':'white'};color:${on?'var(--cream)':disabled?'rgba(139,115,85,0.35)':'var(--ink-soft)'};">
+      ${i.label}</button>`;
+  }).join('');
+  document.getElementById('interests-count-label').textContent = `Pick up to 3 · ${draftInterests.length}/3 selected`;
+}
+
+function toggleInterestDraft(id) {
+  if (draftInterests.includes(id)) draftInterests = draftInterests.filter(x=>x!==id);
+  else if (draftInterests.length < 3) draftInterests.push(id);
+  renderInterestsModal();
+}
+
+function saveInterests() {
+  document.getElementById('profile-tags').innerHTML = draftInterests.map(i => `<span class="itag ${i}">${INTEREST_LABELS[i]||i}</span>`).join('');
+  closeInterestsEdit();
+}
+
+function closeInterestsEdit() {
+  document.getElementById('interests-modal').classList.remove('show');
+}
+
+// ── Languages Modal ────────────────────────────────────────
+function openLangsEdit() {
+  draftLanguages = ['English'];
+  document.getElementById('langs-search').value = '';
+  renderLangsSelected();
+  renderLangsList('');
+  document.getElementById('langs-modal').classList.add('show');
+}
+
+function renderLangsSelected() {
+  document.getElementById('langs-selected-wrap').innerHTML = draftLanguages.map(l =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--ink);color:var(--cream);">${l}<button onclick="removeLangDraft('${l}')" style="border:none;background:transparent;color:rgba(245,240,232,0.55);font-size:14px;cursor:pointer;line-height:1;padding:0;">×</button></span>`
+  ).join('');
+}
+
+function renderLangsList(q) {
+  const filtered = LANGUAGES_ALL.filter(l => l.toLowerCase().includes(q.toLowerCase()) && !draftLanguages.includes(l)).slice(0,20);
+  const el = document.getElementById('langs-list');
+  el.innerHTML = filtered.map((l,i) => `<button onclick="addLangDraft('${l}')" style="width:100%;padding:10px 14px;text-align:left;font-size:14px;border:none;background:${i%2===0?'white':'rgba(245,240,232,0.5)'};color:var(--ink);font-family:inherit;cursor:pointer;border-bottom:1px solid var(--border);display:block;">${l}</button>`).join('');
+  if (!filtered.length) el.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--warm-mid);">No matches</div>';
+}
+
+function filterLangs(q) { renderLangsList(q); }
+function addLangDraft(l) { if (!draftLanguages.includes(l)) { draftLanguages.push(l); renderLangsSelected(); renderLangsList(''); document.getElementById('langs-search').value=''; } }
+function removeLangDraft(l) { draftLanguages = draftLanguages.filter(x=>x!==l); renderLangsSelected(); renderLangsList(''); }
+
+function saveLangs() { closeLangsEdit(); }
+function closeLangsEdit() { document.getElementById('langs-modal').classList.remove('show'); }
+
+// ── Splash then Login ──────────────────────────────────────
+setTimeout(() => goTo('s-login'), 2000);
+
+// ── Init ───────────────────────────────────────────────────
+initEvents();
+renderInbox();
+
+// Show accepted banner demo after a bit (Mia accepted)
+setTimeout(() => {
+  showAcceptedBanner = true;
+  document.getElementById('accepted-banner-wrap').style.display = 'block';
+}, 500);
+</script>
+</body>
+</html>
