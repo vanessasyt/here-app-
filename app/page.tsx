@@ -1151,7 +1151,7 @@ function NearbyScreen({
           <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
           {locOn && (
             <div className="text-[11px] mt-0.5 font-medium" style={{ color:C.warmMid }}>
-              Within <strong style={{ color:C.ink }}>500 m</strong> · open to meet only
+              Within <strong style={{ color:C.ink }}>500 m</strong>
             </div>
           )}
         </div>
@@ -1193,21 +1193,12 @@ function NearbyScreen({
         </div>
       )}
 
-      {/* Fairness note — only when live */}
-      {locOn && (
-        <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
-          style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
-          <span>📍</span>
-          <span>Showing only people <strong>within 500 m</strong> who are open to meet.</span>
-        </div>
-      )}
-
       {/* Content */}
       {locOn ? (
         <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
           <div className="px-5 pt-3 flex justify-between items-center">
             <div className="text-[13px] font-semibold" style={{ color:C.ink }}>
-              {loading ? "Finding people…" : `${visible.length} open to meet nearby`}
+              {loading ? "Finding people…" : `(${visible.length}) members open to meet`}
             </div>
             {eventName && <div className="text-[11px] font-medium" style={{ color:C.accent }}>🎟 Same event</div>}
           </div>
@@ -1234,8 +1225,8 @@ function NearbyScreen({
             </div>
           )}
 
-          <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
-            <span>🔒</span><span>Others only see your approximate area, never your exact location. Your visibility ends when you turn off the Go live button or your location access.</span>
+          <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
+            Your visibility ends when you turn off the Go live button or your location access.
           </div>
         </div>
       ) : (
