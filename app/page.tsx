@@ -13,8 +13,7 @@ const supabase = createClient(
 type Screen =
   | "splash" | "login" | "signup" | "onboarding"
   | "events" | "eventdetail" | "nearby" | "request"
-  | "inbox"  | "incoming"    | "match" | "profile" | "pending"
-  | "openers" | "postmeet" | "followup" | "chat";
+  | "inbox"  | "incoming"    | "match" | "profile" | "pending";
 
 type IncResponse  = "accept" | "15min" | "30min";
 
@@ -167,26 +166,6 @@ const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
 };
 
 // No dummy inbox — all requests come from Supabase
-
-
-// ── Opener questions pool ──────────────────────────────────
-const OPENER_QUESTIONS = [
-  "If tonight was a film, what genre would it be?",
-  "What's one thing you'd recommend in London that most people miss?",
-  "What do you actually do when you're not working?",
-  "One place you want to go that you haven't been yet?",
-  "What's something you changed your mind about recently?",
-  "Best meal you've had this year — where was it?",
-  "What's the last thing you got genuinely excited about?",
-  "What did you want to be when you were ten?",
-  "What's something most people get wrong about your job?",
-  "What's the most interesting thing you've done in the last month?",
-];
-
-function pickOpenerQuestions(): string[] {
-  const shuffled = [...OPENER_QUESTIONS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 4);
-}
 
 // ── Round-robin rotation ───────────────────────────────────
 // Every ROTATION_MS we advance the top slot by 1, giving each person
@@ -366,8 +345,17 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
     try {
+      // Sign out any stale session first — prevents crash when refreshing
+      // while already logged in then trying to log in again
+      await supabase.auth.signOut();
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (err) {
+        setError(err.message === "Invalid login credentials"
+          ? "Incorrect email or password. Please try again."
+          : err.message);
+        setLoading(false);
+        return;
+      }
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
       setLoading(false);
       if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
@@ -1668,311 +1656,6 @@ function IncomingScreen({
   );
 }
 
-
-// ── Opener Screen ──────────────────────────────────────────
-function OpenerScreen({
-  person, questions, onBack, onNavigate, inboxCount,
-}: { person: UserProfile; questions: string[]; onBack: () => void; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const [idx, setIdx] = useState(0);
-  const firstName = person.name.split(",")[0];
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.ink }}>
-      <div className="px-6 pt-6 flex items-center gap-3 flex-shrink-0">
-        <BackBtn onClick={onBack} dark />
-        <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color: "rgba(245,240,232,0.45)" }}>Your openers</div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
-        <div className="mt-4 mb-1">
-          <div className="text-[22px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>{firstName}, {person.age}</div>
-          <div className="text-[12px] mt-0.5" style={{ color: "rgba(245,240,232,0.45)" }}>{person.occupation} · just arrived</div>
-        </div>
-        <div className="mt-3 mb-4 px-3 py-2.5 rounded-xl text-[12px] leading-relaxed" style={{ background: "rgba(196,120,58,0.08)", border: "1px solid rgba(196,120,58,0.2)", color: "rgba(245,240,232,0.55)" }}>
-          4 random questions — just for you, to break the ice. Use them or don't.
-        </div>
-        {/* Dot progress */}
-        <div className="flex gap-1.5 justify-center mb-4">
-          {questions.map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full transition-all duration-200"
-              style={{ background: i === idx ? C.accent : "rgba(245,240,232,0.18)" }} />
-          ))}
-        </div>
-        {/* Question card */}
-        <div className="rounded-2xl p-4 mb-4" style={{ background: "rgba(245,240,232,0.05)", border: "1px solid rgba(245,240,232,0.1)" }}>
-          <div className="text-[10px] uppercase tracking-[1.2px] font-semibold mb-2" style={{ color: C.accent }}>
-            Question {idx + 1} of {questions.length}
-          </div>
-          <div className="text-[16px] leading-relaxed" style={{ color: C.cream, fontStyle: "italic" }}>
-            {questions[idx]}
-          </div>
-        </div>
-        {/* Nav */}
-        <div className="flex gap-2.5">
-          <button onClick={() => setIdx(i => Math.max(0, i - 1))}
-            className="flex-1 py-3 rounded-[14px] text-[13px] cursor-pointer border"
-            style={{ borderColor: "rgba(245,240,232,0.12)", background: "transparent", color: "rgba(245,240,232,0.5)", fontFamily: "'DM Sans',sans-serif", opacity: idx === 0 ? 0.35 : 1 }}>
-            ← Prev
-          </button>
-          <button
-            onClick={() => { if (idx === questions.length - 1) onBack(); else setIdx(i => i + 1); }}
-            className="flex-1 py-3 rounded-[14px] text-[13px] cursor-pointer border"
-            style={{ borderColor: "rgba(245,240,232,0.12)", background: "transparent", color: "rgba(245,240,232,0.5)", fontFamily: "'DM Sans',sans-serif" }}>
-            {idx === questions.length - 1 ? "Go find them →" : "Next →"}
-          </button>
-        </div>
-        <div className="mt-4 text-[11px] text-center leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          She has the same 4 questions. Answers are hidden until you both tap "met them" and write them in.
-        </div>
-      </div>
-      <div className="px-6 pb-7 flex flex-col gap-2">
-        <button onClick={onBack} className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-          style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
-          Go find {firstName} →
-        </button>
-        <button onClick={onBack} className="w-full py-3 rounded-2xl text-[13px] border-0 cursor-pointer"
-          style={{ background: "rgba(245,240,232,0.06)", color: "rgba(245,240,232,0.4)", fontFamily: "'DM Sans',sans-serif" }}>
-          Skip openers
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Post-Meet Record Screen ────────────────────────────────
-const HER_DEMO_ANSWERS = [
-  "Heist thriller, obviously",
-  "Georgia (the country)",
-  "I make ceramics — badly",
-  "Tbilisi, actually",
-];
-
-function PostMeetScreen({
-  person, questions, onNavigate, inboxCount,
-}: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const [idx,        setIdx]    = useState(0);
-  const [answers,    setAnswers]= useState<string[]>(["", "", "", ""]);
-  const [saved,      setSaved]  = useState(false);
-  const firstName = person.name.split(",")[0];
-
-  function save() {
-    setSaved(true);
-    setTimeout(() => onNavigate("followup", { person }), 500);
-  }
-
-  if (saved) {
-    return (
-      <div className="flex flex-col h-full" style={{ background: C.cream }}>
-        <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
-          <BackBtn onClick={() => onNavigate("inbox")} />
-          <div>
-            <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
-            <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
-          <div className="mt-3 mb-3 px-3 py-2 rounded-xl text-[11px] text-center font-medium" style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
-            Both answered — a keepsake of tonight
-          </div>
-          {questions.map((q, i) => (
-            <div key={i} className="bg-white rounded-[14px] px-3.5 py-3 mb-2.5" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
-              <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>Question {i + 1}</div>
-              <div className="text-[12px] font-medium mb-2.5 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{q}"</div>
-              <div className="flex flex-col gap-1.5">
-                {answers[i] && (
-                  <div className="flex items-start gap-2">
-                    <span className="text-[10px] min-w-[52px]" style={{ color: C.warmMid, paddingTop: 3 }}>you said ·</span>
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: C.ink, color: C.cream }}>{answers[i]}</span>
-                  </div>
-                )}
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] min-w-[52px]" style={{ color: C.warmMid, paddingTop: 3 }}>{firstName} said ·</span>
-                  <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: "rgba(139,115,85,0.1)", color: C.inkSoft }}>{HER_DEMO_ANSWERS[i]}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="text-[10px] text-center mt-2 leading-relaxed" style={{ color: "rgba(139,115,85,0.5)" }}>
-            Read only. here. never stores conversations.
-          </div>
-        </div>
-        <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
-        <BackBtn onClick={() => onNavigate("inbox")} />
-        <div>
-          <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
-          <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
-        <div className="mt-3 mb-3 px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(196,120,58,0.07)", color: C.warmMid, fontStyle: "italic" }}>
-          Both marked as met — write what you actually said
-        </div>
-        {/* Dot progress */}
-        <div className="flex gap-1.5 justify-center mb-3">
-          {questions.map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full transition-all" style={{ background: i === idx ? C.accent : "rgba(139,115,85,0.2)" }} />
-          ))}
-        </div>
-        {/* Question card */}
-        <div className="bg-white rounded-[14px] px-3.5 py-3 mb-3" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
-          <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>Question {idx + 1} of {questions.length}</div>
-          <div className="text-[12px] font-medium mb-3 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{questions[idx]}"</div>
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-start gap-2">
-              <span className="text-[10px] min-w-[52px] pt-1.5" style={{ color: C.warmMid }}>you said ·</span>
-              <textarea
-                value={answers[idx]}
-                onChange={e => { const a = [...answers]; a[idx] = e.target.value; setAnswers(a); }}
-                rows={2}
-                placeholder="what did you say in person? (optional)"
-                className="flex-1 px-2.5 py-2 rounded-lg text-[12px] outline-none resize-none"
-                style={{ border: "1px solid rgba(139,115,85,0.22)", background: "#faf8f4", fontFamily: "'DM Sans',sans-serif", color: C.ink }}
-              />
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-[10px] min-w-[52px] pt-1.5" style={{ color: C.warmMid }}>{firstName} ·</span>
-              <div className="flex-1 px-2.5 py-2 rounded-lg text-[11px]" style={{ background: "rgba(139,115,85,0.05)", border: "1px solid rgba(139,115,85,0.1)", color: "rgba(139,115,85,0.45)", fontStyle: "italic" }}>
-                visible after you both save
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Nav */}
-        <div className="flex gap-2.5 mb-3">
-          <button onClick={() => setIdx(i => Math.max(0, i - 1))}
-            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer border"
-            style={{ borderColor: C.border, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === 0 ? 0.35 : 1 }}>
-            ← Back
-          </button>
-          <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))}
-            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer border"
-            style={{ borderColor: C.border, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === questions.length - 1 ? 0.35 : 1 }}>
-            Next →
-          </button>
-        </div>
-        {idx === questions.length - 1 && (
-          <div>
-            <button onClick={save}
-              className="w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white border-0 cursor-pointer"
-              style={{ background: C.ink, fontFamily: "'DM Sans',sans-serif" }}>
-              Save my answers
-            </button>
-            <div className="text-[11px] text-center mt-2 leading-relaxed" style={{ color: C.warmMid }}>
-              Her answers appear once she saves hers. Neither sees the other's until both have saved.
-            </div>
-          </div>
-        )}
-      </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
-    </div>
-  );
-}
-
-// ── Follow-up Screen ──────────────────────────────────────
-function FollowUpScreen({
-  person, onNavigate, inboxCount,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const [choice, setChoice] = useState<string | null>(null);
-  const firstName = person.name.split(",")[0];
-
-  const opts = [
-    { id: "yes",       label: "Would meet again",               sub: "If she says yes too, a chat opens",     yes: true },
-    { id: "nice",      label: "It was nice, but no",            sub: "No chat, no notification to her",       yes: false },
-    { id: "numbers",   label: "We already exchanged numbers",   sub: "No further action needed",              yes: false },
-    { id: "didntmeet", label: "Didn't end up meeting",          sub: "Closes the record quietly",             yes: false },
-  ];
-
-  function confirm() {
-    if (!choice) return;
-    if (choice === "yes") onNavigate("chat", { person });
-    else onNavigate("inbox");
-  }
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.ink }}>
-      <div className="px-6 pt-6 flex-shrink-0">
-        <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color: "rgba(245,240,232,0.4)" }}>3 hours later</div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
-        <div className="text-[24px] text-center mt-5 mb-2 leading-snug" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>
-          How did it go<br />with {firstName}?
-        </div>
-        <div className="text-[13px] text-center mb-6" style={{ color: "rgba(245,240,232,0.45)" }}>You met earlier tonight</div>
-        {opts.map(o => (
-          <div key={o.id} onClick={() => setChoice(o.id)}
-            className="p-3.5 rounded-2xl mb-2 cursor-pointer transition-all duration-200"
-            style={{
-              border: `1px solid ${choice === o.id ? (o.yes ? "rgba(74,124,89,0.5)" : "rgba(245,240,232,0.3)") : "rgba(245,240,232,0.1)"}`,
-              background: choice === o.id ? (o.yes ? "rgba(74,124,89,0.1)" : "rgba(245,240,232,0.05)") : "transparent",
-            }}>
-            <div className="text-[13px] font-semibold" style={{ color: choice === o.id && o.yes ? "#b8e8c8" : C.cream }}>{o.label}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: choice === o.id && o.yes ? "rgba(184,232,200,0.55)" : "rgba(245,240,232,0.4)" }}>{o.sub}</div>
-          </div>
-        ))}
-        <div className="text-[11px] text-center mt-3 leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          Only a mutual yes unlocks chat. She never knows if you said no.
-        </div>
-      </div>
-      <div className="px-6 pb-7">
-        <button onClick={confirm} disabled={!choice}
-          className="w-full py-4 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer transition-all"
-          style={{
-            background: choice === "yes" ? C.green : choice ? "rgba(245,240,232,0.12)" : "rgba(245,240,232,0.06)",
-            color: choice ? C.cream : "rgba(245,240,232,0.3)",
-            fontFamily: "'DM Sans',sans-serif",
-          }}>
-          Confirm
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Chat Screen ───────────────────────────────────────────
-function ChatScreen({
-  person, onNavigate, inboxCount,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const firstName = person.name.split(",")[0];
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <BackBtn onClick={() => onNavigate("inbox")} />
-        <AvatarCircle user={person} size={38} />
-        <div>
-          <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
-          <div className="text-[11px] font-semibold" style={{ color: C.green }}>Chat unlocked · mutual</div>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-[18px] py-3 flex flex-col gap-2" style={{ minHeight: 0 }}>
-        <div className="px-3 py-2 rounded-xl text-[11px] text-center font-medium" style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
-          You both said you'd meet again — chat unlocked
-        </div>
-        <div className="text-[10px] text-center" style={{ color: C.warmMid }}>tonight · 11:42pm</div>
-        <div className="px-3 py-2.5 rounded-[14px_14px_14px_4px] text-[13px] self-start max-w-[80%]" style={{ background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }}>
-          So Georgia the country — have you looked into it much?
-        </div>
-        <div className="px-3 py-2.5 rounded-[14px_14px_4px_14px] text-[13px] self-end max-w-[80%]" style={{ background: C.ink, color: C.cream }}>
-          Only that the wine is supposed to be incredible
-        </div>
-        <div className="px-3 py-2.5 rounded-[14px_14px_14px_4px] text-[13px] self-start max-w-[80%]" style={{ background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }}>
-          That's literally all the reason you need
-        </div>
-      </div>
-      <div className="px-[18px] pb-6 pt-2 flex-shrink-0" style={{ borderTop: `1px solid ${C.border}` }}>
-        <div className="px-4 py-3 rounded-3xl text-[13px]" style={{ background: "white", border: `1px solid ${C.border}`, color: "rgba(26,20,16,0.35)" }}>
-          Message {firstName}…
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
   matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem,
@@ -2051,34 +1734,9 @@ function MatchScreen({
         </div>
       </div>
 
-      <div className="px-6 pt-3 pb-2">
-        <button onClick={()=>onNavigate("openers")} className="w-full py-2.5 rounded-[14px] text-[12px] cursor-pointer"
-          style={{ border:"1px solid rgba(245,240,232,0.14)", background:"transparent", color:"rgba(245,240,232,0.55)", fontFamily:"'DM Sans',sans-serif" }}>
-          View your openers →
-        </button>
-      </div>
-      <div className="flex gap-3 px-6">
+      <div className="flex gap-3 px-6 pt-4">
         <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
-        <button onClick={()=>{
-              if(reportedId) onMetThem(reportedId);
-              const metPerson = matchData.person || (matchData.request ? {
-                id: (matchData.request as any).from_id ?? "",
-                name: matchData.request.name,
-                age: 25,
-                occupation: matchData.request.meta,
-                interests: matchData.request.tags ?? [],
-                languages: [],
-                photo_url: matchData.request.photo_url,
-                bg: matchData.request.bg,
-                email: "",
-                open_to_meet: true,
-                checked_in_event_id: null,
-                checked_in_at: null,
-                lat: null,
-                lng: null,
-              } as UserProfile : null);
-              onNavigate("postmeet", { person: metPerson });
-            }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>Met them</button>
+        <button onClick={()=>{ if(reportedId) onMetThem(reportedId); onNavigate("events"); }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>Met them</button>
       </div>
       <div className="h-7" />
 
@@ -2497,10 +2155,6 @@ export default function App() {
   }
   // Lifted so interacted profiles stay hidden after navigating away and back
   const [interactedIds,   setInteractedIds]    = useState<string[]>([]);
-  const [openerQuestions, setOpenerQuestions]   = useState<string[]>([]);
-  const [postMeetPerson,  setPostMeetPerson]    = useState<UserProfile|null>(null);
-  const [followUpPerson,  setFollowUpPerson]    = useState<UserProfile|null>(null);
-  const [chatPerson,      setChatPerson]        = useState<UserProfile|null>(null);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -2641,6 +2295,9 @@ export default function App() {
           navigate("onboarding");
         }
       } catch {
+        // Profile fetch failed — sign out the stale session so the login
+        // screen starts clean and signInWithPassword won't throw
+        await supabase.auth.signOut().catch(() => {});
         navigate("login");
       }
     }).catch(() => {
@@ -2678,23 +2335,6 @@ export default function App() {
     if (to === "request" && typeof data === "string") {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
-    }
-    // When navigating to openers, pick questions
-    if (to === "openers") {
-      setOpenerQuestions(pickOpenerQuestions());
-    }
-    // When navigating to postmeet, set person
-    if (to === "postmeet" && data && typeof data === "object") {
-      const pd = data as any;
-      if (pd.person) setPostMeetPerson(pd.person as UserProfile);
-    }
-    if (to === "followup" && data && typeof data === "object") {
-      const pd = data as any;
-      if (pd.person) setFollowUpPerson(pd.person as UserProfile);
-    }
-    if (to === "chat" && data && typeof data === "object") {
-      const pd = data as any;
-      if (pd.person) setChatPerson(pd.person as UserProfile);
     }
   }
 
@@ -2792,20 +2432,6 @@ export default function App() {
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
-            {screen==="openers"  && (() => {
-              const matchPerson = (() => {
-                if (matchData && (matchData as any).person) return (matchData as any).person as UserProfile;
-                if (matchData && (matchData as any).request) {
-                  const req = (matchData as any).request;
-                  return { name: req.name, age: 25, occupation: req.meta, interests: req.tags ?? [], languages: [], photo_url: req.photo_url, bg: req.bg, id: req.from_id ?? "", email: "", open_to_meet: true, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null } as UserProfile;
-                }
-                return blankUser;
-              })();
-              return <OpenerScreen person={matchPerson} questions={openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions()} onBack={() => navigate("match")} onNavigate={navigate} inboxCount={newCount} />;
-            })()}
-            {screen==="postmeet" && postMeetPerson && <PostMeetScreen person={postMeetPerson} questions={openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions()} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="followup" && followUpPerson  && <FollowUpScreen person={followUpPerson} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="chat"     && chatPerson       && <ChatScreen person={chatPerson} onNavigate={navigate} inboxCount={newCount} />}
           </div>
         </div>
       </div>
