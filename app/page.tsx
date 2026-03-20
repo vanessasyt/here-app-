@@ -325,11 +325,16 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
   async function handle() {
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) { setError(err.message); setLoading(false); return; }
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-    setLoading(false);
-    if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) { setError(err.message); setLoading(false); return; }
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+      setLoading(false);
+      if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
+    } catch {
+      setLoading(false);
+      setError("Something went wrong. Please try again.");
+    }
   }
 
   async function handleForgotPassword() {
@@ -529,27 +534,44 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   async function finish() {
     if (!interests.length) { setError("Pick at least one interest"); return; }
     setLoading(true); setError("");
-    const { data:{ user } } = await supabase.auth.getUser();
-    if (!user) { setError("Not logged in"); setLoading(false); return; }
-    let photo_url: string|null = null;
-    if (photoFile) {
-      const ext  = photoFile.name.split(".").pop() ?? "jpg";
-      const path = `avatars/${user.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true, contentType: photoFile.type });
-      if (upErr) { setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      photo_url = urlData.publicUrl + `?v=${Date.now()}`;
-      localStorage.setItem(`selfie_date_${user.id}`, new Date().toDateString());
+
+    // Safety timeout — if saving takes more than 12 seconds, show an error
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      setError("Saving is taking too long. Please check your connection and try again.");
+    }, 12_000);
+
+    try {
+      const { data:{ user } } = await supabase.auth.getUser();
+      if (!user) { clearTimeout(timeout); setError("Not logged in — please go back and sign in again."); setLoading(false); return; }
+
+      let photo_url: string|null = null;
+      if (photoFile) {
+        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const path = `avatars/${user.id}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true, contentType: photoFile.type });
+        if (upErr) { clearTimeout(timeout); setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        photo_url = urlData.publicUrl + `?v=${Date.now()}`;
+        localStorage.setItem(`selfie_date_${user.id}`, new Date().toDateString());
+      }
+
+      const profile: UserProfile = {
+        id: user.id, email: user.email ?? "", name, age: parseInt(age),
+        occupation: occ, interests, languages: languages ?? [], photo_url, bg,
+        open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
+      };
+
+      const { error: dbErr } = await supabase.from("profiles").upsert(profile);
+      clearTimeout(timeout);
+      if (dbErr) { setError("Could not save profile: " + dbErr.message); setLoading(false); return; }
+      setLoading(false);
+      onDone(profile);
+    } catch (e: any) {
+      clearTimeout(timeout);
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
-    const profile: UserProfile = {
-      id: user.id, email: user.email ?? "", name, age: parseInt(age),
-      occupation: occ, interests, languages: languages ?? [], photo_url, bg,
-      open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
-    };
-    const { error: dbErr } = await supabase.from("profiles").upsert(profile);
-    if (dbErr) { setError(dbErr.message); setLoading(false); return; }
-    setLoading(false);
-    onDone(profile);
   }
   const canStep1 = name.trim() && age && parseInt(age)>=18 && occ.trim();
 
@@ -2233,52 +2255,53 @@ export default function App() {
 
   // Restore session on mount — handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
-    // Check for an existing session first (normal page load / refresh)
-    supabase.auth.getSession().then(async({ data:{ session } })=>{
-      if (session?.user) {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
+    // Safety timeout — if getSession hangs (e.g. flaky network), fall through to login
+    const splashTimeout = setTimeout(() => navigate("login"), 6_000);
+
+    supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
+      clearTimeout(splashTimeout);
+      if (sessErr || !session?.user) { navigate("login"); return; }
+      try {
+        const { data:p, error: profErr } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
         if (p) {
           setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
           if (wasLive) {
-            await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
+            await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id).catch(()=>{});
           }
           navigate("events");
         } else {
           navigate("onboarding");
         }
-      } else {
+      } catch {
         navigate("login");
       }
+    }).catch(() => {
+      clearTimeout(splashTimeout);
+      navigate("login");
     });
 
     // Listen for auth events triggered by link clicks only
     // (magic link, email confirmation, password reset)
-    // We do NOT handle SIGNED_IN here for normal password login —
-    // that is handled directly in the LoginScreen handle() function
-    // to avoid a race condition that freezes the button.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         navigate("login");
         return;
       }
-      // Only handle SIGNED_IN for link-based flows (magic link / email confirm).
-      // The currentUser guard prevents this from firing during normal password
-      // login — LoginScreen's handle() already calls setUser + navigate, and if
-      // this listener also fires it creates a race condition that freezes the
-      // sign-in button mid-flight.
+      // Only handle SIGNED_IN for link-based flows — not password logins
+      // which are handled directly in LoginScreen to avoid a race condition
       if (event === "SIGNED_IN" && session?.user && !currentUserRef.current) {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-        if (p) {
-          setUserAndRef(p as UserProfile);
-          navigate("events");
-        } else {
-          navigate("onboarding");
+        try {
+          const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+          if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
+          else navigate("onboarding");
+        } catch {
+          navigate("login");
         }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(splashTimeout); subscription.unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
