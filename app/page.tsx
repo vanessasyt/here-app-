@@ -51,7 +51,7 @@ interface HereEvent {
 }
 
 interface InboxRequest {
-  id: number; name: string; photo_url: string | null; bg: string;
+  id: string; name: string; photo_url: string | null; bg: string;
   gender: "m" | "f"; meta: string; tags: string[];
   reqLabel: string; time: string; isNew: boolean;
   from_id?: string; hint?: string | null;
@@ -1799,8 +1799,8 @@ function OpenerScreen({
 
 // ── Post-Meet Record Screen ────────────────────────────────
 function PostMeetScreen({
-  person, questions, onNavigate, inboxCount,
-}: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
+  person, questions, onNavigate, inboxCount, requestId,
+}: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; requestId?: string | null }) {
   const [idx, setIdx]         = useState(0);
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [saved, setSaved]     = useState(false);
@@ -1860,7 +1860,7 @@ function PostMeetScreen({
         </div>
         {/* Explicit followup button — no auto-nav */}
         <div className="px-[22px] pb-6 flex-shrink-0">
-          <button onClick={() => onNavigate("followup", { person })}
+          <button onClick={() => onNavigate("followup", { person, requestId })}
             className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
             style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
             How did it go? →
@@ -1950,8 +1950,8 @@ function PostMeetScreen({
 }
 // ── Follow-up Screen (3 hours after met) ──────────────────
 function FollowUpScreen({
-  person, onNavigate, inboxCount,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
+  person, onNavigate, inboxCount, requestId,
+}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; requestId?: string | null }) {
   const [choice, setChoice] = useState<string | null>(null);
   const firstName = person.name.split(",")[0];
   const pr = getPronouns(person);
@@ -1965,7 +1965,7 @@ function FollowUpScreen({
 
   function confirm() {
     if (!choice) return;
-    if (choice === "yes") onNavigate("chat", { person });
+    if (choice === "yes") onNavigate("chat", { person, requestId });
     else onNavigate("inbox");
   }
 
@@ -2010,13 +2010,115 @@ function FollowUpScreen({
 }
 
 // ── Chat Screen (mutual yes unlock) ───────────────────────
+// ── Chat message type ─────────────────────────────────────
+interface ChatMessage {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+// ── Real-time Chat Screen ─────────────────────────────────
 function ChatScreen({
-  person, onNavigate, inboxCount,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
+  person, requestId, currentUser, onNavigate, inboxCount,
+}: {
+  person: UserProfile;
+  requestId: string | null;
+  currentUser: UserProfile;
+  onNavigate: (s: Screen, d?: unknown) => void;
+  inboxCount: number;
+}) {
   const firstName = person.name.split(",")[0];
+  const [messages,  setMessages]  = useState<ChatMessage[]>([]);
+  const [draft,     setDraft]     = useState("");
+  const [sending,   setSending]   = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!requestId) { setLoading(false); return; }
+
+    // Fetch existing messages
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("request_id", requestId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) setMessages(data as ChatMessage[]);
+        setLoading(false);
+      });
+
+    // Subscribe to new messages in real-time
+    const channel = supabase
+      .channel(`chat:${requestId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `request_id=eq.${requestId}` },
+        (payload) => {
+          setMessages(prev => {
+            // Deduplicate — optimistic insert may already have added it
+            if (prev.some(m => m.id === (payload.new as ChatMessage).id)) return prev;
+            return [...prev, payload.new as ChatMessage];
+          });
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [requestId]);
+
+  async function sendMessage() {
+    const text = draft.trim();
+    if (!text || !requestId || sending) return;
+    setSending(true);
+    setDraft("");
+
+    // Optimistic insert — show immediately without waiting for realtime echo
+    const optimistic: ChatMessage = {
+      id: Date.now(), // temp id
+      request_id: requestId,
+      sender_id: currentUser.id,
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    const { error } = await supabase.from("messages").insert({
+      request_id: requestId,
+      sender_id:  currentUser.id,
+      content:    text,
+    });
+
+    if (error) {
+      // Roll back optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      setDraft(text);
+    }
+    setSending(false);
+  }
+
+  function formatTime(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
   return (
     <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
+      {/* Header */}
+      <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0"
+        style={{ borderBottom: `1px solid ${C.border}` }}>
         <BackBtn onClick={() => onNavigate("inbox")} />
         <AvatarCircle user={person} size={38} />
         <div>
@@ -2024,29 +2126,94 @@ function ChatScreen({
           <div className="text-[11px] font-semibold" style={{ color: C.green }}>Chat unlocked · mutual</div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-[18px] py-3 flex flex-col gap-2" style={{ minHeight: 0 }}>
-        <div className="px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-[18px] py-3 flex flex-col gap-1.5" style={{ minHeight: 0 }}>
+        {/* Unlocked banner */}
+        <div className="px-3 py-2 rounded-xl text-[11px] text-center mb-1"
+          style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
           You both said you'd meet again — chat unlocked
         </div>
-        <div className="text-[10px] text-center" style={{ color: C.warmMid }}>tonight · 11:42pm</div>
-        <div className="px-3 py-2.5 text-[13px] self-start max-w-[80%] rounded-[14px_14px_14px_4px]"
-          style={{ background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }}>
-          So Georgia the country — have you looked into it much?
-        </div>
-        <div className="px-3 py-2.5 text-[13px] self-end max-w-[80%] rounded-[14px_14px_4px_14px]"
-          style={{ background: C.ink, color: C.cream }}>
-          Only that the wine is supposed to be incredible
-        </div>
-        <div className="px-3 py-2.5 text-[13px] self-start max-w-[80%] rounded-[14px_14px_14px_4px]"
-          style={{ background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }}>
-          That's literally all the reason you need
-        </div>
+
+        {loading && (
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-[24px]" style={{ animation: "spin 1s linear infinite" }}>⟳</div>
+          </div>
+        )}
+
+        {!loading && messages.length === 0 && (
+          <div className="py-6 text-center text-[12px]" style={{ color: C.warmMid }}>
+            Say hello to {firstName} 👋
+          </div>
+        )}
+
+        {!loading && messages.map((msg, i) => {
+          const isMine = msg.sender_id === currentUser.id;
+          const prevMsg = messages[i - 1];
+          const showTime = !prevMsg || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime()) > 5 * 60_000;
+          return (
+            <div key={msg.id}>
+              {showTime && (
+                <div className="text-[10px] text-center py-1.5" style={{ color: C.warmMid }}>
+                  {formatTime(msg.created_at)}
+                </div>
+              )}
+              <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`px-3 py-2.5 text-[13px] max-w-[80%] leading-relaxed ${
+                    isMine
+                      ? "rounded-[14px_14px_4px_14px]"
+                      : "rounded-[14px_14px_14px_4px]"
+                  }`}
+                  style={isMine
+                    ? { background: C.ink, color: C.cream }
+                    : { background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }
+                  }
+                >
+                  {msg.content}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
       </div>
-      <div className="px-[18px] pb-6 pt-2 flex-shrink-0" style={{ borderTop: `1px solid ${C.border}` }}>
-        <div className="px-4 py-3 rounded-3xl text-[13px]"
-          style={{ background: "white", border: `1px solid ${C.border}`, color: "rgba(26,20,16,0.35)" }}>
-          Message {firstName}…
-        </div>
+
+      {/* Input */}
+      <div className="px-[18px] pb-6 pt-2 flex-shrink-0 flex gap-2 items-end"
+        style={{ borderTop: `1px solid ${C.border}` }}>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
+          placeholder={`Message ${firstName}…`}
+          rows={1}
+          className="flex-1 px-4 py-3 rounded-3xl text-[13px] outline-none resize-none"
+          style={{
+            background: "white",
+            border: `1px solid ${C.border}`,
+            color: C.ink,
+            fontFamily: "'DM Sans',sans-serif",
+            maxHeight: 100,
+            overflowY: "auto",
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          disabled={!draft.trim() || sending}
+          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-0 cursor-pointer transition-opacity"
+          style={{
+            background: draft.trim() ? C.green : "rgba(139,115,85,0.15)",
+            opacity: sending ? 0.5 : 1,
+          }}
+        >
+          <span style={{ color: draft.trim() ? "white" : C.warmMid, fontSize: 16 }}>↑</span>
+        </button>
       </div>
     </div>
   );
@@ -2610,7 +2777,7 @@ export default function App() {
   const currentUserRef = useRef<UserProfile|null>(null);
   function setUserAndRef(u: UserProfile|null) { currentUserRef.current = u; setUser(u); }
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
-  const [acceptedSent,    setAcceptedSent] = useState<{ requestId: number; person: UserProfile; recipientHint: string|null } | null>(null);
+  const [acceptedSent,    setAcceptedSent] = useState<{ requestId: string; person: UserProfile; recipientHint: string|null } | null>(null);
   const declinedIdsRef = useRef<Set<number>>(new Set());
   const sentPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
@@ -2631,9 +2798,12 @@ export default function App() {
   const [interactedIds,   setInteractedIds]  = useState<string[]>([]);
   // Opener / post-meet state
   const [openerQuestions, setOpenerQuestions] = useState<string[]>([]);
+  const [matchRequestId,  setMatchRequestId]  = useState<string|null>(null);
   const [postMeetPerson,  setPostMeetPerson]  = useState<UserProfile|null>(null);
   const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
+  const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
   const [chatPerson,      setChatPerson]      = useState<UserProfile|null>(null);
+  const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -2822,8 +2992,11 @@ export default function App() {
       const d = data as any;
       // Use requestId as seed — both users share the same requestId so both
       // devices will compute the exact same 4 questions deterministically
-      const reqId = d?.request?.id ?? d?.requestId ?? 0;
-      setOpenerQuestions(pickOpenerQuestions(reqId));
+      const reqId: string = String(d?.request?.id ?? d?.requestId ?? "");
+      // Hash uuid string into a numeric seed for the deterministic shuffle
+      const reqSeed = reqId ? reqId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) : 0;
+      setOpenerQuestions(pickOpenerQuestions(reqSeed));
+      if (reqId) setMatchRequestId(reqId);
       // person already has full profile (outgoing accept path)
       if (d?.person?.id) {
         setMatchPersonProfile(d.person as UserProfile);
@@ -2841,14 +3014,16 @@ export default function App() {
     if (to === "followup" && data && typeof data === "object") {
       const pd = data as any;
       if (pd.person) setFollowUpPerson(pd.person as UserProfile);
+      if (pd.requestId) setFollowUpRequestId(pd.requestId as string);
     }
     if (to === "chat" && data && typeof data === "object") {
       const pd = data as any;
       if (pd.person) setChatPerson(pd.person as UserProfile);
+      if (pd.requestId) setChatRequestId(pd.requestId as string);
     }
   }
 
-  function declineRequest(id: number) {
+  function declineRequest(id: string) {
     // Track locally so poll doesn't restore it before DB confirms
     declinedIdsRef.current.add(id);
     supabase.from("meet_requests").update({ status: "declined" }).eq("id", id).then(() => {
@@ -2862,7 +3037,7 @@ export default function App() {
       navigate("inbox");
     }
   }
-  function dismissRequest(id: number) {
+  function dismissRequest(id: string) {
     setInbox(prev=>prev.filter(r=>r.id!==id));
   }
 
@@ -2968,13 +3143,13 @@ export default function App() {
               } as UserProfile : null);
               if (!pm) return <div className="flex-1 flex items-center justify-center" style={{ background: C.cream }} />;
               const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
-              return <PostMeetScreen person={pm} questions={qs} onNavigate={navigate} inboxCount={newCount} />;
+              return <PostMeetScreen person={pm} questions={qs} requestId={matchRequestId} onNavigate={navigate} inboxCount={newCount} />;
             })()}
             {screen==="followup" && followUpPerson && (
-              <FollowUpScreen person={followUpPerson} onNavigate={navigate} inboxCount={newCount} />
+              <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} />
             )}
-            {screen==="chat" && chatPerson && (
-              <ChatScreen person={chatPerson} onNavigate={navigate} inboxCount={newCount} />
+            {screen==="chat" && chatPerson && currentUser && (
+              <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />
             )}
           </div>
         </div>
