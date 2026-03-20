@@ -5,8 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 
 // ── Supabase ──────────────────────────────────────────────
 const supabase = createClient(
-  "https://rxpqlfxdsoduncihomta.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cHFsZnhkc29kdW5jaWhvbXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzcxMDcsImV4cCI6MjA4ODkxMzEwN30.NAhwFU4ydOML0MEaySHn4So20FjnMwPgQC4LUZwzYi8"
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // ── Types ──────────────────────────────────────────────────
@@ -859,6 +859,30 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   );
 }
 
+// ── EventRow — defined outside EventsScreen to prevent remounts ──────────────
+function EventRow({ e, onNavigate }: { e:HereEvent; onNavigate:(s:Screen,d?:unknown)=>void }) {
+  return (
+    <div className="flex items-center gap-3.5 px-5 py-3 cursor-pointer"
+      style={{ borderTop:`1px solid ${C.border}` }}
+      onClick={()=>onNavigate("eventdetail",e.id)}
+      onMouseEnter={ev=>((ev.currentTarget as HTMLDivElement).style.background="rgba(139,115,85,0.05)")}
+      onMouseLeave={ev=>((ev.currentTarget as HTMLDivElement).style.background="transparent")}>
+      <div className="w-[50px] h-[50px] rounded-[14px] flex items-center justify-center text-[22px] flex-shrink-0"
+        style={{ background:`linear-gradient(135deg,${e.gradientFrom},${e.gradientTo})` }}>{e.emoji}</div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm truncate" style={{ color:C.ink }}>{e.name}</div>
+        <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{e.venue} · {e.area}</div>
+        {e.buyTicket && <div className="text-xs mt-0.5 font-semibold" style={{ color:C.accent }}>Buy ticket here</div>}
+      </div>
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <div className="text-[11px] font-semibold" style={{ color:C.green }}>{e.members} members</div>
+        <div className="text-[11px]" style={{ color:C.warmMid }}>{e.time}</div>
+        {e.sponsored && <div className="text-[10px] font-semibold" style={{ color:C.accent }}>Sponsored</div>}
+      </div>
+    </div>
+  );
+}
+
 // ── Events ─────────────────────────────────────────────────
 function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
   const [cat, setCat] = useState("all");
@@ -868,29 +892,6 @@ function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unkn
   const heroVis = cat==="all" || hero.category===cat;
   const tonight = EVENTS.filter(e=>e.section==="tonight"&&(cat==="all"||e.category===cat));
   const week    = EVENTS.filter(e=>e.section==="week"   &&(cat==="all"||e.category===cat));
-
-  function EventRow({ e }: { e:HereEvent }) {
-    return (
-      <div className="flex items-center gap-3.5 px-5 py-3 cursor-pointer"
-        style={{ borderTop:`1px solid ${C.border}` }}
-        onClick={()=>onNavigate("eventdetail",e.id)}
-        onMouseEnter={ev=>((ev.currentTarget as HTMLDivElement).style.background="rgba(139,115,85,0.05)")}
-        onMouseLeave={ev=>((ev.currentTarget as HTMLDivElement).style.background="transparent")}>
-        <div className="w-[50px] h-[50px] rounded-[14px] flex items-center justify-center text-[22px] flex-shrink-0"
-          style={{ background:`linear-gradient(135deg,${e.gradientFrom},${e.gradientTo})` }}>{e.emoji}</div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm truncate" style={{ color:C.ink }}>{e.name}</div>
-          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{e.venue} · {e.area}</div>
-          {e.buyTicket && <div className="text-xs mt-0.5 font-semibold" style={{ color:C.accent }}>Buy ticket here</div>}
-        </div>
-        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <div className="text-[11px] font-semibold" style={{ color:C.green }}>{e.members} members</div>
-          <div className="text-[11px]" style={{ color:C.warmMid }}>{e.time}</div>
-          {e.sponsored && <div className="text-[10px] font-semibold" style={{ color:C.accent }}>Sponsored</div>}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -913,14 +914,14 @@ function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unkn
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Tonight near you</div>
             <div className="text-xs font-medium cursor-pointer" style={{ color:C.accent }}>See all →</div>
           </div>
-          <div className="mt-2.5">{tonight.map(e=><EventRow key={e.id} e={e} />)}</div>
+          <div className="mt-2.5">{tonight.map(e=><EventRow key={e.id} e={e} onNavigate={onNavigate} />)}</div>
         </>)}
         {week.length>0 && (<>
           <div className="px-5 pt-[18px] flex justify-between items-center">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>This week</div>
             <div className="text-xs font-medium cursor-pointer" style={{ color:C.accent }}>See all →</div>
           </div>
-          <div className="mt-2.5">{week.map(e=><EventRow key={e.id} e={e} />)}</div>
+          <div className="mt-2.5">{week.map(e=><EventRow key={e.id} e={e} onNavigate={onNavigate} />)}</div>
         </>)}
         <div className="h-2" />
       </div>
@@ -1423,7 +1424,7 @@ function PendingScreen({
         .gte("created_at", sentAt)
         .in("status", ["accepted", "declined"])
         .limit(1)
-        .single();
+        .maybeSingle();
       if (data) {
         // Stop polling — but don't navigate. User taps the button themselves.
         clearInterval(pollRef.current!);
@@ -1802,7 +1803,7 @@ function PostMeetScreen({
   person, questions, onNavigate, inboxCount, requestId,
 }: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; requestId?: string | null }) {
   const [idx, setIdx]         = useState(0);
-  const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
+  const [answers, setAnswers] = useState<string[]>(() => Array(questions.length).fill(""));
   const [saved, setSaved]     = useState(false);
   const firstName = person.name.split(",")[0];
   const pr = getPronouns(person);
@@ -2087,7 +2088,7 @@ function ChatScreen({
 
     // Optimistic insert — show immediately without waiting for realtime echo
     const optimistic: ChatMessage = {
-      id: Date.now(), // temp id
+      id: `optimistic-${Date.now()}`, // temp id
       request_id: requestId,
       sender_id: currentUser.id,
       content: text,
@@ -2394,10 +2395,11 @@ function MatchScreen({
 // ── Profile ────────────────────────────────────────────────
 function ProfileScreen({
   currentUser, onNavigate, onSignOut, inboxCount,
-  locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer,
+  locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer, onUpdateUser,
 }: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number;
      locationGranted:boolean; setLocationGranted:(v:boolean)=>void;
-     autoOffTimer:string; setAutoOffTimer:(v:string)=>void }) {
+     autoOffTimer:string; setAutoOffTimer:(v:string)=>void;
+     onUpdateUser:(u:UserProfile)=>void }) {
   const [ageExpanded,  setAgeX]   = useState(false);
   const [privExpanded, setPrivX]  = useState(false);
   const [ageMin, setAgeMin]       = useState(18);
@@ -2422,7 +2424,7 @@ function ProfileScreen({
   async function savePronouns() {
     setSavingPronouns(true);
     await supabase.from("profiles").update({ pronouns: draftPronouns }).eq("id", currentUser.id);
-    currentUser.pronouns = draftPronouns;
+    onUpdateUser({ ...currentUser, pronouns: draftPronouns });
     setSavingPronouns(false);
     setEditingPronouns(false);
   }
@@ -2436,7 +2438,7 @@ function ProfileScreen({
   async function saveLanguages() {
     setSavingLanguages(true);
     await supabase.from("profiles").update({ languages: draftLanguages }).eq("id", currentUser.id);
-    currentUser.languages = draftLanguages;
+    onUpdateUser({ ...currentUser, languages: draftLanguages });
     setSavingLanguages(false);
     setEditingLanguages(false);
   }
@@ -2450,7 +2452,7 @@ function ProfileScreen({
   async function saveInterests() {
     setSavingInterests(true);
     await supabase.from("profiles").update({ interests: draftInterests }).eq("id", currentUser.id);
-    currentUser.interests = draftInterests;
+    onUpdateUser({ ...currentUser, interests: draftInterests });
     setSavingInterests(false);
     setEditingInterests(false);
   }
@@ -2470,7 +2472,7 @@ function ProfileScreen({
     const { data:urlData } = supabase.storage.from("avatars").getPublicUrl(path);
     const url = urlData.publicUrl+`?v=${Date.now()}`;
     await supabase.from("profiles").update({ photo_url:url }).eq("id",currentUser.id);
-    currentUser.photo_url = url;
+    onUpdateUser({ ...currentUser, photo_url: url });
     // Store today's date so we can show "selfie taken today" badge
     localStorage.setItem(`selfie_date_${currentUser.id}`, new Date().toDateString());
     setPhotoL(false);
@@ -2661,7 +2663,8 @@ function ProfileScreen({
               onClick={async () => {
                 const next = !profileActive;
                 setProfileActive(next);
-                await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id);
+                // Only update open_to_meet when deactivating; going live is controlled by the Nearby toggle
+                if (!next) await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id);
               }}
               className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer border-0 transition-all"
               style={{
@@ -2863,7 +2866,7 @@ export default function App() {
         .gte("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (
         data &&
         !declinedIdsRef.current.has(data.id) &&
@@ -3045,7 +3048,7 @@ export default function App() {
   const selectedEvent    = EVENTS.find(e=>e.id===screenData) ?? EVENTS[0];
   const blankUser: UserProfile = { id:"", email:"", name:"User", age:25, occupation:"Professional", interests:[], languages:[], photo_url:null, bg:BG_OPTIONS[0], open_to_meet:true, checked_in_event_id:null, checked_in_at:null, lat:null, lng:null };
   const selectedPerson = selectedPersonProfile ?? blankUser;
-  const selectedRequest  = inbox.find(r=>r.id===screenData) ?? inbox[0];
+  const selectedRequest  = inbox.find(r=>r.id===screenData) ?? null;
   const matchData        = (screen==="match" && screenData && typeof screenData==="object")
     ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }
     : {};
@@ -3116,7 +3119,7 @@ export default function App() {
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
-            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
+            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
 
             {/* ── New post-meet flow screens ── */}
             {screen==="openers" && currentUser && (() => {
