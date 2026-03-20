@@ -1696,10 +1696,11 @@ function IncomingScreen({
 
 // ── Pronoun helper ────────────────────────────────────────
 function getPronouns(person?: UserProfile | null) {
-  const p = person?.pronouns ?? (person as any)?.gender === "m" ? "he/him" : "she/her";
-  if (p === "he/him")   return { sub: "He",   obj: "him",  goFind: "Go find him"  };
+  // Explicit string type prevents TypeScript narrowing "they/them" comparison to never
+  const p: string = person?.pronouns ?? ((person as any)?.gender === "m" ? "he/him" : "she/her");
+  if (p === "he/him")    return { sub: "He",   obj: "him",  goFind: "Go find him"  };
   if (p === "they/them") return { sub: "They", obj: "them", goFind: "Go find them" };
-  return                        { sub: "She",  obj: "her",  goFind: "Go find her"  };
+  return                         { sub: "She",  obj: "her",  goFind: "Go find her"  };
 }
 
 // ── Opener questions ──────────────────────────────────────
@@ -2235,6 +2236,18 @@ function ProfileScreen({
   const [draftLanguages,   setDraftLanguages]   = useState<string[]>(currentUser.languages ?? []);
   const [langInput,        setLangInput]        = useState("");
   const [savingLanguages,  setSavingLanguages]  = useState(false);
+  // Pronouns editing
+  const [editingPronouns, setEditingPronouns]   = useState(false);
+  const [draftPronouns,   setDraftPronouns]     = useState<"he/him"|"she/her"|"they/them">(currentUser.pronouns ?? "she/her");
+  const [savingPronouns,  setSavingPronouns]    = useState(false);
+
+  async function savePronouns() {
+    setSavingPronouns(true);
+    await supabase.from("profiles").update({ pronouns: draftPronouns }).eq("id", currentUser.id);
+    currentUser.pronouns = draftPronouns;
+    setSavingPronouns(false);
+    setEditingPronouns(false);
+  }
 
   function toggleDraftLanguage(lang: string) {
     setDraftLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
@@ -2421,6 +2434,43 @@ function ProfileScreen({
           </div>
         )}
 
+        {/* Pronouns edit modal */}
+        {editingPronouns && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingPronouns(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your pronouns</div>
+              <div className="text-xs mb-5" style={{ color:C.warmMid }}>Used when others are matched with you</div>
+              <div className="flex flex-col gap-3 mb-5">
+                {(["she/her", "he/him", "they/them"] as const).map(p => (
+                  <button key={p} onClick={()=>setDraftPronouns(p)}
+                    className="w-full py-4 rounded-2xl text-[15px] font-semibold cursor-pointer transition-all"
+                    style={{
+                      border: `1.5px solid ${draftPronouns===p ? C.ink : C.border}`,
+                      background: draftPronouns===p ? C.ink : "white",
+                      color: draftPronouns===p ? C.cream : C.inkSoft,
+                      fontFamily:"'DM Sans',sans-serif",
+                    }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <button onClick={savePronouns} disabled={savingPronouns}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+                style={{ background:C.accent, opacity:savingPronouns?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                {savingPronouns ? "Saving…" : "Save pronouns"}
+              </button>
+              <button onClick={()=>setEditingPronouns(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mx-[22px] mt-4 bg-white rounded-[18px] overflow-hidden" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
             <div>
@@ -2456,6 +2506,18 @@ function ProfileScreen({
               <div className="text-sm font-medium" style={{ color:C.ink }}>Languages</div>
               <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
                 {(currentUser.languages ?? []).length > 0 ? (currentUser.languages ?? []).join(", ") : "Not set — tap to add"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid }}>›</span>
+          </div>
+
+          {/* Pronouns row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftPronouns(currentUser.pronouns ?? "she/her"); setEditingPronouns(true); }}>
+            <div>
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Pronouns</div>
+              <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
+                {currentUser.pronouns ?? "Not set — tap to choose"}
               </div>
             </div>
             <span style={{ color:C.warmMid }}>›</span>
