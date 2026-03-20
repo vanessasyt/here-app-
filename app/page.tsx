@@ -1474,33 +1474,40 @@ function InboxScreen({
 function IncomingScreen({
   request, onNavigate, inboxCount, onDecline,
 }: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:number)=>void }) {
-  const [response, setResponse] = useState<IncResponse>("accept");
-  const [sending, setSending]   = useState(false);
+  const [response,  setResponse]  = useState<IncResponse>("accept");
+  const [areaHint,  setAreaHint]  = useState("");
+  const [sending,   setSending]   = useState(false);
   const [declining, setDeclining] = useState(false);
-  const [error, setError]       = useState("");
-  const firstName               = request.name.split(",")[0];
-  const options: { id:IncResponse; icon:string; label:string; sub:string }[] = [
-    { id:"accept", icon:"", label:"Accept — meet now",  sub:"Give them the green light to approach you" },
-    { id:"15min",  icon:"", label:"Accept — meet in 15 min", sub:"I will be with you shortly"           },
-    { id:"30min",  icon:"", label:"Accept — meet in 30 min", sub:"I will see you in a bit"              },
+  const [error,     setError]     = useState("");
+  const firstName                 = request.name.split(",")[0];
+
+  const options: { id:IncResponse; label:string; sub:string }[] = [
+    { id:"accept", label:"Accept — meet now",        sub:"Give them the green light to approach you" },
+    { id:"15min",  label:"Accept — meet in 15 min",  sub:"I will be with you shortly"                },
+    { id:"30min",  label:"Accept — meet in 30 min",  sub:"I will see you in a bit"                   },
   ];
+
+  const showAreaHint = response === "15min" || response === "30min";
 
   async function confirm() {
     setSending(true); setError("");
     const { error: err } = await supabase
       .from("meet_requests")
-      .update({ status: "accepted", recipient_hint: null, response_timing: response })
+      .update({
+        status:           "accepted",
+        recipient_hint:   areaHint.trim() || null,
+        response_timing:  response,
+      })
       .eq("id", request.id);
     setSending(false);
     if (err) { setError("Failed: " + err.message); return; }
-    onNavigate("match", { request, response, fromIncoming: true, recipientHint: null });
+    onNavigate("match", { request, response, fromIncoming: true, recipientHint: areaHint.trim() || null });
   }
 
   async function handleDecline() {
     setDeclining(true);
     await supabase.from("meet_requests").update({ status: "declined" }).eq("id", request.id);
     onDecline(request.id);
-    // onDecline already navigates away to inbox, so no need to set local declined state
     setDeclining(false);
   }
 
@@ -1519,11 +1526,14 @@ function IncomingScreen({
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{request.tags.map(t=><InterestTag key={t} interest={t} />)}</div>
           </div>
         </div>
+
         {/* Interest notification */}
         <div className="mx-[22px] mt-3.5 p-[14px_18px] rounded-2xl" style={{ background:"rgba(74,124,89,0.08)", border:"1px solid rgba(74,124,89,0.25)" }}>
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.green }}>Expressed interest in meeting you</div>
           <div className="text-[14px] leading-relaxed" style={{ color:C.inkSoft }}>{firstName} would like to meet you in person. Accept to give them the green light to approach you.</div>
         </div>
+
+        {/* Response options */}
         <div className="px-[22px] pt-3.5">
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2.5" style={{ color:C.warmMid }}>Your response</div>
           {options.map(opt=>(
@@ -1531,7 +1541,7 @@ function IncomingScreen({
               className="flex items-center gap-3.5 p-3.5 rounded-2xl mb-2.5 cursor-pointer transition-all duration-200"
               style={{ border:`1.5px solid ${response===opt.id?C.green:C.border}`, background:response===opt.id?"rgba(74,124,89,0.08)":"transparent" }}>
               <div className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
-                style={{ borderColor: response===opt.id ? C.green : C.border, background: response===opt.id ? C.green : "transparent" }}>
+                style={{ borderColor:response===opt.id?C.green:C.border, background:response===opt.id?C.green:"transparent" }}>
                 {response===opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
               </div>
               <div>
@@ -1541,13 +1551,31 @@ function IncomingScreen({
             </div>
           ))}
         </div>
+
+        {/* Area hint — only shown for 15min / 30min */}
+        {showAreaHint && (
+          <div className="px-[22px] pt-1 pb-1">
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
+              Where will you be? <span className="normal-case font-normal" style={{ textTransform:"none", letterSpacing:0 }}>(optional)</span>
+            </div>
+            <input
+              value={areaHint}
+              onChange={e=>setAreaHint(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. near the tube exit, by the bar…"
+              className="w-full px-4 py-3 rounded-[14px] text-[13px] outline-none"
+              style={{ border:`1.5px solid ${C.border}`, fontFamily:"'DM Sans',sans-serif", color:C.ink, background:"white" }}
+            />
+            <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{areaHint.length} / 80</div>
+          </div>
+        )}
+
         {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
         <button onClick={confirm} disabled={sending}
           className="mx-[22px] mt-3 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
           style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
-          {sending ? "Confirming…" : "Accept — give green light →"}
+          {sending ? "Confirming…" : "Accept"}
         </button>
-        {/* Decline button */}
         <button onClick={handleDecline} disabled={declining}
           className="mx-[22px] mt-2.5 py-[13px] rounded-2xl text-[14px] cursor-pointer active:scale-[0.98] transition-transform"
           style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.warmMid, width:"calc(100% - 44px)", fontFamily:"'DM Sans',sans-serif", opacity:declining?0.5:1 }}>
@@ -1610,6 +1638,12 @@ function MatchScreen({
                 <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(74,124,89,0.2)", color:"rgba(232,245,238,0.8)" }}>{i}</span>
               ))}
             </div>
+            {/* Area hint — shown if recipient provided one */}
+            {matchData.recipientHint && (
+              <div className="mt-2 text-[12px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
+                Near: <strong style={{ color:C.cream }}>{matchData.recipientHint}</strong>
+              </div>
+            )}
           </div>
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background:C.green, boxShadow:`0 0 10px ${C.green}` }} />
         </div>
