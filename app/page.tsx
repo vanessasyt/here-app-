@@ -1198,7 +1198,7 @@ function NearbyScreen({
         <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
           <div className="px-5 pt-3 flex justify-between items-center">
             <div className="text-[13px] font-semibold" style={{ color:C.ink }}>
-              {loading ? "Finding people…" : `${visible.length} members open to meet`}
+              {loading ? "Finding people…" : `(${visible.length}) members open to meet`}
             </div>
             {eventName && <div className="text-[11px] font-medium" style={{ color:C.accent }}>🎟 Same event</div>}
           </div>
@@ -1405,7 +1405,7 @@ function PendingScreen({
           Request sent to<br /><em style={{ color:C.accent }}>{firstName}</em>
         </div>
         <div className="text-[13px] leading-relaxed mb-6 max-w-[280px]" style={{ color:"rgba(245,240,232,0.55)" }}>
-          Waiting for <strong style={{ color:"rgba(245,240,232,0.8)" }}>{firstName}</strong> to respond. You will be notified in your <strong style={{ color:"rgba(245,240,232,0.8)" }}>Requests</strong> tab if they accept.
+          Waiting for <strong style={{ color:"rgba(245,240,232,0.8)" }}>{firstName}</strong> to respond.
         </div>
 
         {/* Animated waiting indicator */}
@@ -1418,7 +1418,7 @@ function PendingScreen({
         <div className="w-full p-4 rounded-[18px] mb-4 text-left" style={{ background:"rgba(196,120,58,0.08)", border:"1px solid rgba(196,120,58,0.2)" }}>
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.accent }}>What happens next</div>
           <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
-            When {firstName} accepts, you will see a notification in your <strong style={{ color:"rgba(245,240,232,0.75)" }}>Requests</strong> tab. Open it to get the green light and go find them.
+            If {firstName} accepts, you will see a notification in your <strong style={{ color:"rgba(245,240,232,0.75)" }}>Requests</strong> tab. Open it to get the green light and go find them.
           </div>
         </div>
 
