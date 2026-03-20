@@ -328,8 +328,8 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err) { setError(err.message); setLoading(false); return; }
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-    if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
     setLoading(false);
+    if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
   }
 
   async function handleForgotPassword() {
@@ -1248,47 +1248,72 @@ function RequestScreen({
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
+      {/* Header */}
       <div className="px-[22px] pt-5 flex items-center gap-3.5 flex-shrink-0">
         <BackBtn onClick={()=>onNavigate("nearby")} />
         <AvatarCircle user={person} size={52} />
         <div>
           <div className="text-[19px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{person.name}, {person.age}</div>
-          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation} · Verified · Open to meet</div>
+          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation} · Verified</div>
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        {/* Interest tags */}
-        <div className="px-[22px] pt-5 pb-4 bg-white mx-[22px] mt-4 rounded-[18px]" style={{ boxShadow:"0 2px 14px rgba(26,20,16,0.06)" }}>
-          <div className="flex flex-wrap gap-1.5 mb-3">
+        {/* Profile card */}
+        <div className="bg-white mx-[22px] mt-4 rounded-[18px] px-4 pt-4 pb-4" style={{ boxShadow:"0 2px 14px rgba(26,20,16,0.06)" }}>
+
+          {/* Interests */}
+          <div className="text-[10px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Interests</div>
+          <div className="flex flex-wrap gap-1.5">
             {person.interests.map(i=><InterestTag key={i} interest={i} />)}
           </div>
-          <div className="text-[12px] leading-relaxed" style={{ color:C.warmMid }}>
-            {firstName} is open to meet at this venue. If they accept, you will both get the green light to find each other in person.
-          </div>
-        </div>
 
-        {/* CTA */}
-        <div className="mx-[22px] mt-4 p-5 rounded-[18px] text-center" style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.18)" }}>
-          <div className="text-[28px] mb-2">{sent ? "✓" : "↑"}</div>
-          <div className="text-[16px] font-semibold mb-1" style={{ color:C.ink }}>
-            {sent ? "Interest sent" : `Express interest in meeting ${firstName}`}
-          </div>
-          <div className="text-[12px] leading-relaxed" style={{ color:C.warmMid }}>
-            {sent ? `${firstName} will be notified. You will hear back in your Requests tab.` : "One tap. No messages. Just a real introduction if both of you are up for it."}
-          </div>
+          {/* Conversation starter */}
+          {person.interests.length > 0 && (
+            <div className="mt-3 px-3 py-2.5 rounded-xl text-[12px] leading-relaxed" style={{ background:"rgba(74,124,89,0.06)", color:C.inkSoft }}>
+              Ask about{" "}
+              {person.interests.slice(0,2).map((id, idx, arr) => {
+                const meta = INTERESTS.find(x => x.id === id);
+                return (
+                  <span key={id}>
+                    <strong style={{ color:C.ink }}>{meta?.label ?? id}</strong>
+                    {idx < arr.length - 1 ? " or " : ""}
+                  </span>
+                );
+              })}
+              {" "}to break the ice.
+            </div>
+          )}
+
+          {/* Languages */}
+          {(person.languages ?? []).length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-[1.5px] font-semibold mt-3 mb-2" style={{ color:C.warmMid }}>Languages</div>
+              <div className="flex flex-wrap gap-1.5">
+                {(person.languages ?? []).map(l => (
+                  <span key={l} className="text-[11px] px-2 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Privacy note */}
-        <div className="mx-[22px] mt-3 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.07)", color:C.warmMid }}>
-          <span>↺</span><span>Two-step consent — {firstName} is only notified if they are also open to meet. You cannot message each other; this is an in-person introduction only.</span>
+        <div className="mx-[22px] mt-3 px-4 py-3 rounded-xl text-[12px] leading-relaxed" style={{ background:"rgba(139,115,85,0.07)", color:C.warmMid }}>
+          You will only receive a notification if <strong style={{ color:C.inkSoft }}>{firstName}</strong> is also open to meet. If they accept, that is your green light to find each other in person.
         </div>
 
-        {!sent && (
+        {/* Button */}
+        {!sent ? (
           <button onClick={sendRequest} disabled={sending}
             className="mx-[22px] mt-4 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
             style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
             {sending ? "Sending…" : "Express interest →"}
           </button>
+        ) : (
+          <div className="mx-[22px] mt-4 py-4 rounded-2xl text-center text-[14px] font-semibold" style={{ background:"rgba(74,124,89,0.1)", color:C.green }}>
+            Interest sent — you will hear back in Requests
+          </div>
         )}
         {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
         <div className="h-4" />
