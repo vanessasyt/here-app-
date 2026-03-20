@@ -2124,8 +2124,8 @@ function MatchScreen({
 
       <div className="px-6 pt-3 pb-2 flex-shrink-0">
         <button onClick={()=>onNavigate("openers")}
-          className="w-full py-2.5 rounded-[14px] text-[12px] cursor-pointer"
-          style={{ border:"1px solid rgba(245,240,232,0.14)", background:"transparent", color:"rgba(245,240,232,0.55)", fontFamily:"'DM Sans',sans-serif" }}>
+          className="w-full py-2.5 rounded-[14px] text-[12px] font-semibold cursor-pointer"
+          style={{ border:`1.5px solid ${C.accent}`, background:"rgba(196,120,58,0.12)", color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
           View your openers →
         </button>
       </div>
@@ -2803,7 +2803,8 @@ export default function App() {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
     }
-    // Pick fresh opener questions every time we enter the match screen
+    // Pick opener questions ONCE when match screen loads — stored and reused for
+    // both the openers screen AND the postmeet record, so both people see the same set
     if (to === "match") {
       setOpenerQuestions(pickOpenerQuestions());
     }
@@ -2925,20 +2926,29 @@ export default function App() {
                 email: "", name: matchData.request.name, age: 25,
                 occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
                 languages: [], photo_url: matchData.request.photo_url,
-                bg: matchData.request.bg, open_to_meet: true,
+                bg: matchData.request.bg, open_to_meet: true, pronouns: undefined,
                 checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
               } as UserProfile : blankUser);
+              // Always use the stored set — same questions for both people
               const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
               return <OpenerScreen person={mp} questions={qs} onBack={() => navigate("match")} onNavigate={navigate} inboxCount={newCount} />;
             })()}
-            {screen==="postmeet" && postMeetPerson && (
-              <PostMeetScreen
-                person={postMeetPerson}
-                questions={openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions()}
-                onNavigate={navigate}
-                inboxCount={newCount}
-              />
-            )}
+            {screen==="postmeet" && (() => {
+              // Resolve person from stored state OR fall back to matchData so a null
+              // postMeetPerson never causes a blank/crash screen
+              const pm = postMeetPerson ?? matchData.person ?? (matchData.request ? {
+                id: (matchData.request as any).from_id ?? "",
+                email: "", name: matchData.request.name, age: 25,
+                occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
+                languages: [], photo_url: matchData.request.photo_url,
+                bg: matchData.request.bg, open_to_meet: true, pronouns: undefined,
+                checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
+              } as UserProfile : null);
+              if (!pm) return <div className="flex-1 flex items-center justify-center" style={{ background: C.cream }} />;
+              // Always use the same stored question set so both sides match
+              const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
+              return <PostMeetScreen person={pm} questions={qs} onNavigate={navigate} inboxCount={newCount} />;
+            })()}
             {screen==="followup" && followUpPerson && (
               <FollowUpScreen person={followUpPerson} onNavigate={navigate} inboxCount={newCount} />
             )}
