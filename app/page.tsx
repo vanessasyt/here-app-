@@ -1198,7 +1198,7 @@ function NearbyScreen({
         <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
           <div className="px-5 pt-3 flex justify-between items-center">
             <div className="text-[13px] font-semibold" style={{ color:C.ink }}>
-              {loading ? "Finding people…" : `(${visible.length}) members open to meet`}
+              {loading ? "Finding people…" : `${visible.length} members open to meet`}
             </div>
             {eventName && <div className="text-[11px] font-medium" style={{ color:C.accent }}>🎟 Same event</div>}
           </div>
