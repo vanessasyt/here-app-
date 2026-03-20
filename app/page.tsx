@@ -1607,7 +1607,7 @@ function IncomingScreen({
       .eq("id", request.id);
     setSending(false);
     if (err) { setError("Failed: " + err.message); return; }
-    onNavigate("match", { request, response, fromIncoming: true, recipientHint: areaHint.trim() || null });
+    onNavigate("match", { request, response, fromIncoming: true, recipientHint: areaHint.trim() || null, requestId: request.id });
   }
 
   async function handleDecline() {
@@ -1780,7 +1780,7 @@ function OpenerScreen({
           ))}
         </div>
         <div className="text-[11px] text-center leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          Same pool for both of you — answers revealed after you both tap "met them".
+          After you meet, tap "met them" to record what you actually said. Your answers stay private until you both save.
         </div>
       </div>
       <div className="px-6 pb-7 flex flex-col gap-2 flex-shrink-0">
@@ -1798,20 +1798,6 @@ function OpenerScreen({
 }
 
 // ── Post-Meet Record Screen ────────────────────────────────
-// Simulated partner answers shown after both save (demo only — real version needs DB)
-const HER_DEMO_ANSWERS = [
-  "Heist thriller, obviously",
-  "Georgia (the country)",
-  "I make ceramics — badly",
-  "Tbilisi, actually",
-  "Yes, I stopped eating meat",
-  "A tiny place in Shoreditch, can't remember the name",
-  "Getting into cold water swimming",
-  "A marine biologist",
-  "That it's boring",
-  "Booked a trip to Japan",
-];
-
 function PostMeetScreen({
   person, questions, onNavigate, inboxCount,
 }: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
@@ -1841,29 +1827,34 @@ function PostMeetScreen({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
-          <div className="mt-3 mb-3 px-3 py-2.5 rounded-xl text-[11px] text-center font-medium" style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
-            Both answered — a keepsake of tonight
+          <div className="mt-3 mb-3 px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(196,120,58,0.07)", color: C.warmMid, fontStyle: "italic" }}>
+            Your answers saved — {firstName}&apos;s answers will appear here once they save theirs
           </div>
           {questions.map((q, i) => (
             <div key={i} className="bg-white rounded-[14px] px-3.5 py-3 mb-2.5" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
               <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>Question {i + 1}</div>
               <div className="text-[12px] mb-2.5 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{q}"</div>
               <div className="flex flex-col gap-1.5">
-                {answers[i] && (
+                {answers[i] ? (
                   <div className="flex items-start gap-2">
                     <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>you said ·</span>
                     <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: C.ink, color: C.cream }}>{answers[i]}</span>
                   </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>you said ·</span>
+                    <span className="text-[11px] px-2 py-1 rounded-lg" style={{ color: "rgba(139,115,85,0.4)", fontStyle: "italic" }}>skipped</span>
+                  </div>
                 )}
                 <div className="flex items-start gap-2">
-                  <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>{firstName} said ·</span>
-                  <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: "rgba(139,115,85,0.1)", color: C.inkSoft }}>{HER_DEMO_ANSWERS[i]}</span>
+                  <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>{firstName} ·</span>
+                  <span className="text-[11px] px-2 py-1 rounded-lg" style={{ background: "rgba(139,115,85,0.07)", color: "rgba(139,115,85,0.5)", fontStyle: "italic" }}>waiting for their answer…</span>
                 </div>
               </div>
             </div>
           ))}
-          <div className="text-[10px] text-center mt-2 leading-relaxed" style={{ color: "rgba(139,115,85,0.5)" }}>
-            Read only. here. never stores conversations.
+          <div className="text-[10px] text-center mt-2 leading-relaxed" style={{ color: "rgba(139,115,85,0.4)" }}>
+            here. never stores conversations — this is just a record of tonight.
           </div>
           <div style={{ height: 8 }} />
         </div>
@@ -2945,7 +2936,7 @@ export default function App() {
 
             {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
+            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
