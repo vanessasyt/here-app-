@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>here. — Meet in the moment</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#F5F0E8;--ink:#1A1410;--ink-soft:#3D3530;--warm-mid:#8B7355;--accent:#C4783A;--green:#4A7C59;--border:rgba(139,115,85,0.2);}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:#111;display:flex;justify-content:center;min-height:100vh;}
+::-webkit-scrollbar{display:none;}
+.phone{width:390px;min-height:100vh;background:var(--cream);position:relative;display:flex;flex-direction:column;overflow:hidden;}
+.sb{height:50px;display:flex;justify-content:space-between;align-items:center;padding:16px 28px 0;font-size:12px;font-weight:600;color:var(--ink);flex-shrink:0;position:relative;z-index:20;}
+.sb .notch{width:120px;height:30px;background:var(--ink);border-radius:20px;position:absolute;top:8px;left:50%;transform:translateX(-50%);}
+.sb.dark{background:var(--ink);color:var(--cream);}
+.sb.dark .notch{background:rgba(245,240,232,0.15);}
+.screens{flex:1;position:relative;overflow:hidden;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .28s cubic-bezier(.4,0,.2,1),transform .28s cubic-bezier(.4,0,.2,1);transform:translateX(24px);overflow:hidden;}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0);}
+.screen.exit{opacity:0;transform:translateX(-24px);}
+.ss{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;}
+.nav{height:80px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;padding:0 8px 12px;flex-shrink:0;background:var(--cream);}
+.nav.dark{background:var(--ink);border-color:rgba(245,240,232,0.08);}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:5px 10px;border-radius:12px;border:none;background:transparent;font-family:inherit;position:relative;}
+.ni .ic{font-size:20px;opacity:0.38;transition:opacity .2s;}
+.ni .lb{font-size:10px;color:var(--warm-mid);font-weight:500;opacity:0.55;}
+.ni.on .ic,.ni.on .lb{opacity:1;}
+.ni.on .lb{color:var(--ink);}
+.nav.dark .lb{color:rgba(245,240,232,0.4)!important;}
+.nav.dark .ni.on .lb{color:var(--cream)!important;}
+.nbadge{position:absolute;top:2px;right:4px;width:16px;height:16px;background:var(--accent);border-radius:50%;font-size:9px;font-weight:700;color:white;display:flex;align-items:center;justify-content:center;}
+.bbtn{width:36px;height:36px;border-radius:50%;background:rgba(139,115,85,0.14);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ink);flex-shrink:0;}
+.bbtn.lt{background:rgba(245,240,232,0.1);color:var(--cream);}
+.slabel{font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:10px;}
+.chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-family:inherit;transition:all .2s;}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--cream);}
+.sbtn{padding:15px 24px;border-radius:16px;font-size:15px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:transform .15s;color:var(--cream);background:var(--ink);display:block;}
+.sbtn.green{background:var(--green);}
+.sbtn.accent{background:var(--accent);}
+.sbtn:active{transform:scale(.98);}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pring 2s infinite;display:inline-block;}
+@keyframes pring{0%{box-shadow:0 0 0 0 rgba(74,124,89,.5)}70%{box-shadow:0 0 0 8px rgba(74,124,89,0)}100%{box-shadow:0 0 0 0 rgba(74,124,89,0)}}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,124,89,.5)}70%{box-shadow:0 0 0 8px rgba(74,124,89,0)}100%{box-shadow:0 0 0 0 rgba(74,124,89,0)}}
+@keyframes sup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.ai{animation:sup .35s ease both;}
+/* interest tags */
+.itag{padding:2px 7px;border-radius:8px;font-size:10px;}
+.itag.art{background:rgba(60,120,160,.1);color:#3C78A0}.itag.comedy{background:rgba(220,160,40,.12);color:#b08010}.itag.cooking{background:rgba(196,140,40,.12);color:#c48c28}.itag.fashion{background:rgba(200,80,120,.1);color:#c85078}.itag.film{background:rgba(160,100,40,.12);color:#a06428}.itag.fitness{background:rgba(80,140,80,.12);color:#3a8a3a}.itag.food{background:rgba(196,120,58,.12);color:#C4783A}.itag.gaming{background:rgba(40,140,180,.1);color:#288cb4}.itag.hiking{background:rgba(60,160,80,.1);color:#3a9a50}.itag.museums{background:rgba(100,80,60,.1);color:#64503c}.itag.music{background:rgba(100,80,160,.1);color:#6450A0}.itag.photography{background:rgba(40,100,160,.1);color:#2864A0}.itag.podcasts{background:rgba(140,60,200,.1);color:#8c3cc8}.itag.reading{background:rgba(80,80,80,.1);color:#505050}.itag.tech{background:rgba(60,80,180,.1);color:#3c50b4}.itag.theatre{background:rgba(120,40,120,.1);color:#782878}.itag.travel{background:rgba(60,160,120,.1);color:#3CA078}.itag.wine{background:rgba(160,60,80,.1);color:#A03C50}.itag.racket_sports{background:rgba(58,140,196,.12);color:#3a8cc4}.itag.team_sports{background:rgba(58,100,196,.12);color:#3a60c4}
+/* events */
+.erow{display:flex;align-items:center;gap:14px;padding:12px 20px;cursor:pointer;transition:background .15s;}
+.erow+.erow{border-top:1px solid var(--border);}
+.erow:hover{background:rgba(139,115,85,.05);}
+.eicon{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+/* nearby */
+.pcard{border-radius:20px;overflow:hidden;background:white;border:2px solid var(--green);box-shadow:0 2px 16px rgba(26,20,16,.07);}
+.pphoto{width:100%;height:152px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.pgrad1{background:linear-gradient(160deg,#d4a5a5,#c47a6b)}.pgrad2{background:linear-gradient(160deg,#a5b4d4,#6b8ac4)}.pgrad3{background:linear-gradient(160deg,#a5d4b4,#6bc48a)}.pgrad4{background:linear-gradient(160deg,#d4c4a5,#c4a06b)}.pgrad5{background:linear-gradient(160deg,#c4a5d4,#8f6bc4)}
+.active-badge{position:absolute;top:8px;left:8px;padding:2px 8px;background:var(--green);border-radius:20px;font-size:10px;color:white;font-weight:600;display:flex;align-items:center;gap:4px;}
+.active-dot{width:6px;height:6px;border-radius:50%;background:white;display:inline-block;animation:pulse 2s infinite;}
+/* match */
+.match-pcard{width:100%;padding:16px;border-radius:20px;display:flex;align-items:center;gap:14px;background:rgba(245,240,232,.05);border:1px solid rgba(245,240,232,.1);}
+.tring{width:68px;height:68px;border-radius:50%;border:3px solid rgba(245,240,232,.12);border-top-color:var(--green);animation:spin 30s linear infinite;margin:0 auto;position:relative;}
+.ttext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:var(--cream);}
+/* inbox */
+.req-card{margin:0 20px 8px;padding:12px 14px;border-radius:16px;box-shadow:0 2px 10px rgba(26,20,16,.06);border:1.5px solid var(--accent);background:rgba(196,120,58,.04);cursor:pointer;}
+/* accepted banner */
+.abanner{background:linear-gradient(135deg,#1a3a28,#2a5a3a);border:2px solid rgba(74,124,89,.6);box-shadow:0 4px 24px rgba(74,124,89,.25);border-radius:18px;overflow:hidden;cursor:pointer;}
+.ashimmer{height:3px;background:linear-gradient(to right,transparent,rgba(74,124,89,.8),#4A7C59,rgba(74,124,89,.8),transparent);background-size:200% 100%;animation:shimmer 2s linear infinite;}
+/* report */
+.report-modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:flex-end;justify-content:center;}
+.report-modal-overlay.show{display:flex;}
+.report-sheet{background:var(--cream);border-radius:28px 28px 0 0;width:100%;padding:24px 24px 36px;}
+.report-btn{width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:white;color:var(--ink);font-size:14px;font-family:inherit;cursor:pointer;text-align:left;transition:all .15s;}
+.report-btn.selected{background:var(--ink);border-color:var(--ink);color:white;}
+/* modal */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:50;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45);}
+.modal-overlay.show{display:flex;}
+.modal-sheet{background:var(--cream);border-radius:28px 28px 0 0;width:100%;padding:20px 24px 36px;max-width:430px;max-height:85vh;overflow-y:auto;}
+/* settings */
+.srow{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.tog-wrap{width:44px;height:26px;border-radius:13px;background:rgba(139,115,85,.2);position:relative;cursor:pointer;transition:background .25s;flex-shrink:0;}
+.tog-wrap.on{background:var(--green);}
+.tog-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:left .25s;}
+.tog-wrap.on .tog-knob{left:21px;}
+/* dark inputs */
+.dark-inp{width:100%;padding:14px 16px;border-radius:16px;font-size:14px;outline:none;font-family:'DM Sans',sans-serif;background:rgba(245,240,232,.08);border:1px solid rgba(245,240,232,.15);color:var(--cream);}
+.dark-inp::placeholder{color:rgba(245,240,232,.35);}
+/* incoming response options */
+.roption{padding:14px 16px;border:1.5px solid var(--border);border-radius:16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+.roption.on{border-color:var(--green);background:rgba(74,124,89,.08);}
+/* onboarding */
+.prog-bar{height:4px;border-radius:2px;transition:background .3s;}
+input[type=range].age-thumb{position:absolute;width:100%;top:50%;transform:translateY(-50%);appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none;}
+input[type=range].age-thumb::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:white;border:2.5px solid var(--accent);box-shadow:0 2px 8px rgba(196,120,58,.35);pointer-events:all;cursor:pointer;}
+/* post-meet */
+.pm-q-card{background:white;border-radius:16px;padding:16px;border:1px solid var(--border);margin-bottom:12px;}
+.pm-answer-box{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ink);font-family:inherit;resize:none;outline:none;background:#faf8f4;line-height:1.5;}
+/* chat bubbles */
+.bubble-them{background:white;border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:13px;color:var(--ink);max-width:78%;border:0.5px solid var(--border);line-height:1.45;}
+.bubble-me{background:var(--ink);border-radius:14px 14px 4px 14px;padding:10px 12px;font-size:13px;color:var(--cream);max-width:78%;align-self:flex-end;line-height:1.45;}
+/* how-did-it-go options */
+.hdig-opt{padding:14px 16px;border-radius:16px;border:1.5px solid rgba(245,240,232,.1);cursor:pointer;text-align:left;transition:all .2s;}
+.hdig-opt.on{border-color:rgba(74,124,89,.5);background:rgba(74,124,89,.1);}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <div class="sb" id="statusbar"><span>9:41</span><div class="notch"></div><span>●●● WiFi</span></div>
+  <div class="screens" id="screens">
+
+    <!-- SPLASH -->
+    <div class="screen active" id="s-splash" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:64px;margin-bottom:16px;animation:flt 3s ease-in-out infinite;">✦</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:40px;color:var(--cream);letter-spacing:-1px;">here.</div>
+        <div style="font-size:14px;color:rgba(245,240,232,.45);margin-top:12px;">Meet in the moment</div>
+      </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="screen" id="s-login" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 32px 32px;">
+        <div style="font-family:'DM Serif Display',serif;font-size:36px;color:var(--cream);margin-bottom:4px;">here.</div>
+        <div style="font-size:14px;color:rgba(245,240,232,.45);margin-bottom:40px;">Meet in the moment</div>
+        <div style="width:100%;display:flex;flex-direction:column;gap:12px;">
+          <input class="dark-inp" type="email" placeholder="Email address">
+          <input class="dark-inp" type="password" placeholder="Password">
+          <button onclick="goTo('s-events')" class="sbtn accent" style="width:100%;margin-top:4px;">Sign in</button>
+          <button onclick="goTo('s-signup')" style="width:100%;background:transparent;border:none;color:rgba(245,240,232,.4);font-size:13px;cursor:pointer;font-family:inherit;padding:8px;">Forgot password?</button>
+        </div>
+        <div style="margin-top:16px;font-size:14px;color:rgba(245,240,232,.45);">New here? <button onclick="goTo('s-signup')" style="border:none;background:transparent;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;">Create account</button></div>
+      </div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="screen" id="s-signup" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;padding:56px 32px 32px;">
+        <div style="margin-bottom:32px;">
+          <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--cream);">Create account</div>
+          <div style="font-size:14px;color:rgba(245,240,232,.45);margin-top:4px;">Join here. and meet people around you</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <input class="dark-inp" type="email" placeholder="Email address">
+          <input class="dark-inp" type="password" placeholder="Password (min 6 chars)">
+          <input class="dark-inp" type="password" placeholder="Confirm password">
+          <button onclick="goTo('s-events')" class="sbtn accent" style="width:100%;margin-top:4px;">Create account</button>
+        </div>
+        <div style="margin-top:24px;font-size:14px;color:rgba(245,240,232,.45);text-align:center;">Already have an account? <button onclick="goTo('s-login')" style="border:none;background:transparent;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:14px;">Sign in</button></div>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="screen" id="s-events">
+      <div style="padding:16px 20px 0;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--warm-mid);">London</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:2px;">Discover Events</div>
+          </div>
+          <div style="font-size:22px;cursor:pointer;opacity:.6;">🔍</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:4px;" id="event-cats"></div>
+      </div>
+      <div class="ss" id="events-scroll">
+        <div id="events-tonight-head" style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px 0;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--warm-mid);">Tonight near you</div>
+          <div style="font-size:12px;color:var(--accent);cursor:pointer;">See all →</div>
+        </div>
+        <div id="events-tonight" style="margin-top:10px;"></div>
+        <div id="events-week-head" style="display:none;justify-content:space-between;align-items:center;padding:18px 20px 0;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--warm-mid);">This week</div>
+          <div style="font-size:12px;color:var(--accent);cursor:pointer;">See all →</div>
+        </div>
+        <div id="events-week" style="margin-top:10px;"></div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni on" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-events" style="display:none;">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- EVENT DETAIL -->
+    <div class="screen" id="s-eventdetail">
+      <div id="ed-hero" style="height:190px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span id="ed-emoji" style="font-size:70px;filter:drop-shadow(0 4px 16px rgba(0,0,0,.4));"></span>
+        <button class="bbtn lt" style="position:absolute;top:16px;left:16px;" onclick="goTo('s-events')">←</button>
+        <div id="ed-spon" style="display:none;position:absolute;top:16px;right:16px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;color:white;background:var(--accent);">⭐ Sponsored</div>
+        <div id="ed-members-badge" style="position:absolute;bottom:16px;right:16px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;color:white;background:rgba(74,124,89,.88);"></div>
+      </div>
+      <div class="ss">
+        <div style="padding:18px 22px 0;">
+          <div id="ed-cat" style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--warm-mid);"></div>
+          <div id="ed-title" style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-top:4px;line-height:1.25;"></div>
+          <div id="ed-meta" style="font-size:13px;color:var(--warm-mid);margin-top:6px;"></div>
+          <div id="ed-desc" style="font-size:13px;color:var(--ink-soft);margin-top:10px;line-height:1.6;"></div>
+        </div>
+        <div style="padding:16px 22px;" id="ed-actions"></div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni on" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-ed" style="display:none;">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- NEARBY -->
+    <div class="screen" id="s-nearby">
+      <div style="padding:20px 20px 0;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);">Nearby</div>
+          <div id="nearby-radius" style="display:none;font-size:11px;color:var(--warm-mid);margin-top:2px;">Within <strong style="color:var(--ink);">500 m</strong></div>
+        </div>
+        <button id="go-live-btn" onclick="toggleLive()" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1.5px solid var(--border);background:rgba(139,115,85,.1);cursor:pointer;font-family:inherit;">
+          <span id="live-dot" style="width:6px;height:6px;border-radius:50%;background:var(--warm-mid);display:inline-block;"></span>
+          <span id="live-label" style="font-size:11px;font-weight:600;color:var(--warm-mid);">Go live</span>
+        </button>
+      </div>
+      <div class="ss">
+        <div id="nearby-empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 32px;text-align:center;">
+          <div style="font-size:48px;opacity:.3;margin-bottom:12px;">📡</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px;">Discover people around you</div>
+          <div style="font-size:13px;color:var(--warm-mid);line-height:1.6;">Tap <strong>Go live</strong> to become discoverable and see who else is open to meet right now.</div>
+        </div>
+        <div id="nearby-live-content" style="display:none;">
+          <div style="padding:12px 20px 4px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:13px;font-weight:600;color:var(--ink);" id="nearby-count">4 members open to meet</div>
+          </div>
+          <div style="padding:12px 16px 4px;display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="nearby-grid"></div>
+          <div style="margin:8px 16px 12px;padding:12px 14px;border-radius:14px;font-size:12px;color:var(--warm-mid);background:rgba(139,115,85,.08);line-height:1.6;">Your visibility ends when you turn off Go live.</div>
+        </div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni on" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-nearby" style="display:none;">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- REQUEST -->
+    <div class="screen" id="s-request">
+      <div style="padding:22px 22px 0;display:flex;align-items:center;gap:14px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-nearby')">←</button>
+        <div id="req-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(160deg,#a5b4d4,#6b8ac4);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;"></div>
+        <div>
+          <div id="req-name" style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--ink);">—</div>
+          <div id="req-meta" style="font-size:12px;color:var(--warm-mid);margin-top:2px;">—</div>
+        </div>
+      </div>
+      <div class="ss">
+        <div style="background:white;margin:16px 22px 0;border-radius:18px;padding:16px;box-shadow:0 2px 14px rgba(26,20,16,.06);">
+          <div class="slabel">Interests</div>
+          <div id="req-interests" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div id="req-conv-starter" style="display:none;margin-top:12px;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.6;background:rgba(74,124,89,.06);color:var(--ink-soft);"></div>
+          <div id="req-langs-wrap" style="display:none;margin-top:12px;">
+            <div class="slabel">Languages</div>
+            <div id="req-langs" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+        </div>
+        <div style="margin:12px 22px 0;padding:14px 16px;border-radius:14px;background:rgba(139,115,85,.07);font-size:12px;color:var(--warm-mid);line-height:1.6;">
+          You will only receive a notification if <strong id="req-fname-note" style="color:var(--ink-soft);">they</strong> is also open to meet.
+        </div>
+        <div id="req-sent-banner" style="display:none;margin:12px 22px 0;padding:14px;border-radius:16px;text-align:center;font-size:14px;font-weight:600;background:rgba(74,124,89,.1);color:var(--green);">Interest sent — you will hear back in Requests</div>
+        <button onclick="sendRequest()" class="sbtn green" style="width:calc(100% - 44px);margin:14px 22px 0;">Express interest →</button>
+        <div style="height:16px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni on" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-req" style="display:none;">2</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- PENDING -->
+    <div class="screen" id="s-pending" style="background:var(--ink);">
+      <div style="padding:24px 24px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn lt" onclick="goTo('s-inbox')">✕</button>
+        <div style="font-size:12px;color:rgba(245,240,232,.45);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Request sent</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;animation:flt 3s ease-in-out infinite;">⏳</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--cream);line-height:1.25;margin-bottom:12px;">Request sent to<br><em id="pend-name" style="color:var(--accent);">them</em></div>
+        <div style="font-size:13px;color:rgba(245,240,232,.55);margin-bottom:20px;line-height:1.6;" id="pend-next">Waiting for them to respond.</div>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.4s 0s ease-in-out infinite;"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.4s .2s ease-in-out infinite;"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.4s .4s ease-in-out infinite;"></div>
+        </div>
+        <div style="padding:14px;border-radius:18px;background:rgba(196,120,58,.08);border:1px solid rgba(196,120,58,.2);text-align:left;width:100%;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--accent);margin-bottom:8px;">What happens next</div>
+          <div style="font-size:13px;color:rgba(245,240,232,.6);line-height:1.6;" id="pend-name2-wrap">If <span id="pend-name2">they</span> accepts, you'll see a notification in <strong style="color:rgba(245,240,232,.75);">Requests</strong>.</div>
+        </div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:10px;">
+        <button onclick="goTo('s-nearby')" class="sbtn accent" style="width:100%;">← Back to Nearby</button>
+        <button onclick="goTo('s-inbox')" style="width:100%;padding:14px;border-radius:16px;background:rgba(245,240,232,.08);border:none;color:rgba(245,240,232,.55);font-size:14px;font-family:inherit;cursor:pointer;">View Meet Requests</button>
+      </div>
+    </div>
+
+    <!-- INBOX -->
+    <div class="screen" id="s-inbox">
+      <div style="padding:20px 22px 0;flex-shrink:0;">
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);">Meet Requests</div>
+      </div>
+      <div class="ss">
+        <div id="accepted-banner-wrap" style="display:none;padding:10px 22px 0;">
+          <div style="font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:6px;">Green light</div>
+          <div class="abanner" onclick="viewAcceptedMatch()">
+            <div class="ashimmer"></div>
+            <div style="padding:12px 14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(160deg,#a5d4b4,#6bc48a);display:flex;align-items:center;justify-content:center;font-size:18px;position:relative;flex-shrink:0;">👩<div style="position:absolute;top:-3px;right:-3px;width:16px;height:16px;background:var(--green);border-radius:50%;border:2px solid #1a3a28;display:flex;align-items:center;justify-content:center;font-size:9px;color:white;">✓</div></div>
+                <div><div style="font-family:'DM Serif Display',serif;font-size:14px;color:#e8f5ee;">Priya accepted</div><div style="font-size:11px;color:rgba(232,245,238,.65);margin-top:1px;">Tap to get the green light and go find them</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 22px 0;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:11px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Incoming</div>
+          <div style="display:flex;align-items:center;gap:6px;" id="inbox-live-indicator"><span class="pdot"></span><span style="font-size:11px;font-weight:600;color:var(--green);" id="inbox-count-label">2 new</span></div>
+        </div>
+        <div id="inbox-list" style="padding:10px 0 0;"></div>
+        <div style="margin:8px 22px;padding:14px;border-radius:14px;font-size:12px;color:var(--warm-mid);background:rgba(139,115,85,.07);line-height:1.6;">You are only notified when both parties are open to meet. Requests expire after 30 minutes.</div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- INCOMING -->
+    <div class="screen" id="s-incoming">
+      <div style="padding:22px 22px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-inbox')">←</button>
+        <div style="font-size:12px;color:var(--warm-mid);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Incoming interest</div>
+      </div>
+      <div class="ss">
+        <div style="margin:16px 22px 0;display:flex;align-items:center;gap:16px;">
+          <div id="inc-avatar" style="width:58px;height:58px;border-radius:50%;background:linear-gradient(160deg,#a5b4d4,#6b8ac4);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;"></div>
+          <div>
+            <div id="inc-name" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);">—</div>
+            <div id="inc-meta" style="font-size:13px;color:var(--warm-mid);margin-top:2px;">—</div>
+            <div id="inc-tags" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;"></div>
+          </div>
+        </div>
+        <div style="margin:14px 22px 0;padding:14px 18px;border-radius:16px;background:rgba(74,124,89,.08);border:1px solid rgba(74,124,89,.25);">
+          <div style="font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:6px;">Expressed interest in meeting you</div>
+          <div id="inc-req-text" style="font-size:14px;line-height:1.6;color:var(--ink-soft);"></div>
+        </div>
+        <div style="padding:14px 22px 0;">
+          <div class="slabel">Your response</div>
+          <div id="inc-accept" class="roption on" onclick="selectIncResp('accept')"><div style="font-size:22px;width:34px;text-align:center;">✅</div><div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet now</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">Give them the green light to approach you</div></div></div>
+          <div id="inc-15min" class="roption" onclick="selectIncResp('15min')"><div style="font-size:22px;width:34px;text-align:center;">⏱️</div><div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet in 15 min</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">I will be with you shortly</div></div></div>
+          <div id="inc-30min" class="roption" onclick="selectIncResp('30min')"><div style="font-size:22px;width:34px;text-align:center;">🕐</div><div><div style="font-size:14px;font-weight:600;color:var(--ink);">Accept — meet in 30 min</div><div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">I will see you in a bit</div></div></div>
+        </div>
+        <div id="inc-area-hint-wrap" style="display:none;padding:8px 22px 0;">
+          <div class="slabel">Where will you be? <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+          <input id="inc-area-hint" maxlength="80" placeholder="e.g. near the tube exit, by the bar…" oninput="document.getElementById('inc-area-count').textContent=this.value.length+' / 80'" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:13px;color:var(--ink);outline:none;background:white;">
+          <div style="font-size:11px;color:var(--warm-mid);text-align:right;margin-top:4px;" id="inc-area-count">0 / 80</div>
+        </div>
+        <button class="sbtn green" style="width:calc(100% - 44px);margin:14px 22px 0;" onclick="confirmIncoming()">Accept</button>
+        <button onclick="declineIncoming()" style="width:calc(100% - 44px);margin:10px 22px 0;padding:13px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--warm-mid);font-size:14px;font-family:inherit;cursor:pointer;">Decline</button>
+        <div style="height:16px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <div class="screen" id="s-match" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 24px 0;overflow-y:auto;">
+        <div style="font-size:40px;margin-bottom:8px;animation:flt 3s ease-in-out infinite;">↑</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--cream);text-align:center;line-height:1.2;" id="match-title">Priya accepted.<br><em style="color:var(--green);">Go find her.</em></div>
+        <div style="font-size:13px;color:rgba(245,240,232,.55);margin-top:8px;text-align:center;line-height:1.5;padding:0 8px;" id="match-sub">Priya is expecting you. Go say hello in person.</div>
+        <div class="match-pcard" style="margin-top:14px;">
+          <div id="match-avatar" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(160deg,#d4a5a5,#c47a6b);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👩</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:var(--cream);" id="match-person-name">Priya, 26</div>
+            <div style="font-size:11px;color:rgba(245,240,232,.45);margin-top:1px;" id="match-person-occ">Architect</div>
+            <div id="match-person-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;"></div>
+            <div id="match-area-hint" style="display:none;margin-top:6px;font-size:12px;color:rgba(245,240,232,.6);line-height:1.5;"></div>
+          </div>
+          <div style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 8px var(--green);"></div>
+        </div>
+        <div style="margin-top:14px;text-align:center;">
+          <div class="tring" id="match-tring"><div class="ttext" id="match-timer">29:41</div></div>
+          <div style="font-size:11px;color:rgba(245,240,232,.4);margin-top:6px;" id="match-timer-label">Green light expires in 30 min</div>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;border-radius:12px;font-size:11px;color:rgba(245,240,232,.3);text-align:center;background:rgba(245,240,232,.04);border:1px solid rgba(245,240,232,.08);width:100%;">Location is never shared. This is an in-person introduction only.</div>
+      </div>
+      <div style="padding:0 24px 8px;">
+        <button onclick="goToOpeners()" style="width:100%;padding:11px;border-radius:14px;background:rgba(196,120,58,.12);border:1.5px solid rgba(196,120,58,.3);color:var(--accent);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">View your openers →</button>
+      </div>
+      <div style="display:flex;gap:12px;padding:0 24px 0;">
+        <button onclick="openReportModal()" style="flex:1;padding:13px;border-radius:14px;border:1px solid rgba(184,80,66,.3);background:transparent;color:rgba(245,240,232,.6);font-size:13px;font-family:inherit;cursor:pointer;">Report</button>
+        <button onclick="metThem()" style="flex:2;padding:13px;border-radius:14px;background:var(--green);border:none;color:white;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;">Met them ✓</button>
+      </div>
+      <div style="height:20px;"></div>
+      <!-- Report modal -->
+      <div class="report-modal-overlay" id="report-modal">
+        <div class="report-sheet">
+          <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Report this profile</div>
+          <div style="font-size:13px;color:var(--warm-mid);margin-bottom:20px;">What's the issue? Your report is anonymous.</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="report-btn" onclick="selectReport(this)">Made me feel unsafe or uncomfortable</button>
+            <button class="report-btn" onclick="selectReport(this)">Inappropriate behaviour or messages</button>
+            <button class="report-btn" onclick="selectReport(this)">Fake or misleading profile</button>
+            <button class="report-btn" onclick="selectReport(this)">Other</button>
+          </div>
+          <button id="report-submit" style="display:none;margin-top:12px;width:100%;padding:14px;border-radius:14px;border:none;background:var(--ink);color:var(--cream);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;" onclick="submitReport()">Submit report</button>
+          <button onclick="closeReportModal()" style="margin-top:10px;width:100%;padding:14px;border-radius:14px;border:1px solid var(--border);background:transparent;color:var(--warm-mid);font-size:14px;font-family:inherit;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+      <div id="report-toast" style="display:none;position:absolute;bottom:40px;left:24px;right:24px;padding:16px;border-radius:18px;background:var(--ink);border:1px solid rgba(245,240,232,.1);color:var(--cream);text-align:center;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Thank you for your report</div>
+        <div style="font-size:13px;color:rgba(245,240,232,.6);line-height:1.5;">We take safety seriously and will review within 24 hours.</div>
+      </div>
+    </div>
+
+    <!-- OPENERS -->
+    <div class="screen" id="s-openers" style="background:var(--ink);">
+      <div style="padding:24px 24px 0;flex-shrink:0;">
+        <button class="bbtn lt" onclick="goTo('s-match')">←</button>
+        <div style="margin-top:14px;">
+          <div id="op-person-name" style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--cream);">Priya</div>
+          <div id="op-person-sub" style="font-size:13px;color:rgba(245,240,232,.45);margin-top:2px;">Architect · tonight</div>
+        </div>
+        <div style="margin-top:16px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--accent);">Your openers</div>
+        <div style="margin-top:6px;font-size:13px;color:rgba(245,240,232,.55);font-style:italic;line-height:1.5;">Here are some openers to break the ice!</div>
+      </div>
+      <div class="ss" style="padding:16px 24px 0;">
+        <div id="op-questions" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div style="margin-top:14px;padding:12px 14px;border-radius:12px;font-size:12px;color:rgba(245,240,232,.3);text-align:center;line-height:1.6;">After you meet, tap "met them" to record what you actually said. Your answers stay private until you both save.</div>
+        <div style="height:8px;"></div>
+      </div>
+      <div style="padding:16px 24px 20px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+        <button onclick="metThem()" class="sbtn green" style="width:100%;">Go find her →</button>
+        <button onclick="goTo('s-match')" style="width:100%;padding:12px;border-radius:16px;border:none;background:rgba(245,240,232,.06);color:rgba(245,240,232,.4);font-size:13px;font-family:inherit;cursor:pointer;">Back to match</button>
+      </div>
+    </div>
+
+    <!-- POST-MEET RECORD -->
+    <div class="screen" id="s-postmeet">
+      <div style="padding:20px 22px 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-match')">←</button>
+        <div>
+          <div id="pm-name" style="font-family:'DM Serif Display',serif;font-size:19px;color:var(--ink);">Priya</div>
+          <div style="font-size:12px;color:var(--warm-mid);">Met tonight</div>
+        </div>
+        <div style="margin-left:auto;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(74,124,89,.12);color:var(--green);">Both met ✓</div>
+      </div>
+      <div class="ss">
+        <div style="margin:12px 22px 0;padding:10px 14px;border-radius:12px;background:rgba(74,124,89,.07);border:1px solid rgba(74,124,89,.2);font-size:12px;color:var(--green);text-align:center;line-height:1.5;font-style:italic;">Write what you actually said in person. Her answers appear once she saves hers.</div>
+        <!-- Dot progress -->
+        <div style="display:flex;justify-content:center;gap:6px;margin:14px 0 0;" id="pm-dots"></div>
+        <!-- Questions rendered here -->
+        <div id="pm-questions" style="padding:14px 22px 0;"></div>
+        <div style="margin:14px 22px 0;">
+          <button id="pm-save-btn" onclick="savePostMeet()" class="sbtn" style="width:100%;background:var(--ink);">Save my answers</button>
+          <div style="font-size:11px;color:var(--warm-mid);text-align:center;margin-top:8px;line-height:1.4;">Neither sees the other's until both have saved.</div>
+        </div>
+        <!-- Saved state -->
+        <div id="pm-saved-state" style="display:none;margin:14px 22px 0;">
+          <div style="padding:14px;border-radius:14px;background:rgba(74,124,89,.08);border:1px solid rgba(74,124,89,.2);text-align:center;">
+            <div style="font-size:14px;font-weight:600;color:var(--green);">✓ Answers saved</div>
+            <div style="font-size:12px;color:var(--warm-mid);margin-top:4px;line-height:1.5;">Waiting for Priya to save hers. You'll see both side by side when she does.</div>
+          </div>
+          <!-- Blind reveal (demo — shown after 2s delay) -->
+          <div id="pm-revealed" style="display:none;margin-top:12px;">
+            <div style="padding:10px 14px;border-radius:12px;background:rgba(74,124,89,.07);font-size:11px;color:var(--green);text-align:center;margin-bottom:10px;">✦ Priya saved her answers — both revealed</div>
+            <div id="pm-revealed-qs"></div>
+            <div style="margin-top:10px;font-size:10px;color:rgba(139,115,85,.6);text-align:center;line-height:1.4;">Read only. here. never stores conversations — this is a keepsake of tonight.</div>
+          </div>
+        </div>
+        <div style="margin:14px 22px 16px;padding:12px 14px;border-radius:12px;background:rgba(196,120,58,.06);border:1px solid rgba(196,120,58,.15);font-size:12px;color:var(--warm-mid);line-height:1.5;">
+          <strong style="color:var(--ink);">How did it go?</strong> In 3 hours you'll get a prompt asking if you'd like to meet again. Only if you both say yes will a chat open.
+        </div>
+        <div style="padding:0 22px 8px;">
+          <button onclick="goTo('s-howdiditgo')" style="width:100%;padding:12px;border-radius:14px;border:1px solid var(--border);background:transparent;color:var(--warm-mid);font-size:13px;font-family:inherit;cursor:pointer;">How did it go? →</button>
+        </div>
+        <div style="height:8px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni on" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- HOW DID IT GO -->
+    <div class="screen" id="s-howdiditgo" style="background:var(--ink);">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;animation:flt 3s ease-in-out infinite;">🌙</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--cream);line-height:1.3;margin-bottom:6px;">How did it go<br>with <em id="hdig-name" style="color:var(--accent);">Priya</em>?</div>
+        <div style="font-size:13px;color:rgba(245,240,232,.45);margin-bottom:28px;">You met earlier tonight</div>
+        <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
+          <div class="hdig-opt" id="hdig-yes" onclick="selectHdig('yes')">
+            <div style="font-size:14px;font-weight:600;color:rgba(184,232,200,.95);">Would meet again</div>
+            <div style="font-size:12px;color:rgba(184,232,200,.55);margin-top:3px;">If she says yes too, a chat opens</div>
+          </div>
+          <div class="hdig-opt" id="hdig-no" onclick="selectHdig('no')">
+            <div style="font-size:14px;font-weight:600;color:rgba(245,240,232,.8);">It was nice, but no</div>
+            <div style="font-size:12px;color:rgba(245,240,232,.4);margin-top:3px;">No chat, no notification to her</div>
+          </div>
+          <div class="hdig-opt" id="hdig-numbers" onclick="selectHdig('numbers')">
+            <div style="font-size:14px;font-weight:600;color:rgba(245,240,232,.8);">We already exchanged numbers</div>
+            <div style="font-size:12px;color:rgba(245,240,232,.4);margin-top:3px;">Nice — no further action needed</div>
+          </div>
+          <div class="hdig-opt" id="hdig-didntmeet" onclick="selectHdig('didntmeet')">
+            <div style="font-size:14px;font-weight:600;color:rgba(245,240,232,.8);">Didn't end up meeting</div>
+            <div style="font-size:12px;color:rgba(245,240,232,.4);margin-top:3px;">Closes the record quietly</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:rgba(245,240,232,.3);line-height:1.5;">Only a mutual yes unlocks chat.<br>She never knows if you said no.</div>
+      </div>
+      <div style="padding:0 24px 28px;">
+        <button id="hdig-confirm-btn" onclick="confirmHdig()" class="sbtn" style="width:100%;background:rgba(245,240,232,.1);color:rgba(245,240,232,.4);" disabled>Confirm</button>
+      </div>
+    </div>
+
+    <!-- CHAT UNLOCKED -->
+    <div class="screen" id="s-chat">
+      <div style="padding:16px 22px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <button class="bbtn" onclick="goTo('s-inbox')">←</button>
+        <div id="chat-avatar" style="width:38px;height:38px;border-radius:50%;background:linear-gradient(160deg,#d4a5a5,#c47a6b);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👩</div>
+        <div><div id="chat-name" style="font-size:14px;font-weight:600;color:var(--ink);">Priya</div><div style="font-size:11px;color:var(--green);font-weight:500;">Chat unlocked · mutual</div></div>
+      </div>
+      <div class="ss" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:rgba(74,124,89,.08);border-radius:10px;padding:8px 12px;font-size:11px;color:var(--green);text-align:center;font-style:italic;">You both said you'd meet again — chat unlocked</div>
+        <div style="font-size:10px;color:var(--warm-mid);text-align:center;">tonight · 11:42pm</div>
+        <div class="bubble-them">So Georgia the country — have you looked into it much?</div>
+        <div class="bubble-me">Only that the wine is supposed to be incredible</div>
+        <div class="bubble-them">That's literally all the reason you need</div>
+        <div class="bubble-me">Exactly. When are you thinking of going?</div>
+        <div class="bubble-them">Maybe spring. Would be amazing with someone who actually knows about wine</div>
+      </div>
+      <div style="padding:8px 16px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+        <div style="background:white;border-radius:12px;border:1px solid var(--border);padding:12px 14px;font-size:13px;color:rgba(139,115,85,.5);">Message Priya…</div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni on" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span></button>
+        <button class="ni" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="screen" id="s-profile">
+      <div style="padding:24px 22px 0;flex-shrink:0;"><div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--ink);">Your Profile</div></div>
+      <div class="ss">
+        <div style="margin:20px 22px 0;background:white;border-radius:20px;padding:20px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 16px rgba(26,20,16,.07);cursor:pointer;" onclick="openInterestsEdit()">
+          <div style="position:relative;flex-shrink:0;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(160deg,#d4a5c4,#c46b9a);display:flex;align-items:center;justify-content:center;font-size:30px;">👩</div>
+            <div style="position:absolute;bottom:-4px;right:-4px;width:24px;height:24px;border-radius:50%;background:#dc2626;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;">✕</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:18px;color:var(--ink);">You, 26</div>
+            <div style="font-size:13px;color:var(--warm-mid);margin-top:2px;">Scientist</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;" id="profile-tags"><span class="itag music">Music</span><span class="itag food">Food</span><span class="itag fitness">Fitness</span></div>
+            <button style="margin-top:8px;padding:5px 12px;border-radius:20px;border:none;background:rgba(220,38,38,.08);color:#dc2626;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();">Update today's photo</button>
+            <div style="font-size:11px;color:var(--warm-mid);margin-top:4px;">Tap card to edit interests</div>
+          </div>
+        </div>
+        <div style="margin:16px 22px 0;background:white;border-radius:18px;overflow:hidden;box-shadow:0 2px 16px rgba(26,20,16,.07);">
+          <div class="srow"><div><div style="font-size:14px;font-weight:500;color:var(--ink);">Profile visibility</div><div style="font-size:11px;color:var(--green);margin-top:2px;">Your profile is visible to others</div></div><button style="padding:6px 14px;border-radius:20px;border:none;background:rgba(220,38,38,.08);color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Deactivate</button></div>
+          <div class="srow"><span style="font-size:14px;font-weight:500;color:var(--ink);">⚡ here. Premium</span><span style="font-size:12px;color:var(--accent);cursor:pointer;">Upgrade →</span></div>
+          <div class="srow" onclick="openLangsEdit()"><div><div style="font-size:14px;font-weight:500;color:var(--ink);">Languages</div><div style="font-size:11px;color:var(--warm-mid);margin-top:2px;">English</div></div><span style="color:var(--warm-mid);">›</span></div>
+          <div class="srow" onclick="togglePronounsPanel()"><div><div style="font-size:14px;font-weight:500;color:var(--ink);">Pronouns</div><div style="font-size:11px;color:var(--warm-mid);margin-top:2px;" id="pronouns-summary">Not set</div></div><span id="pronouns-chev" style="color:var(--warm-mid);transition:transform .2s;">›</span></div>
+          <div id="pronouns-panel" style="display:none;padding:14px 18px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="setPronouns('she/her',this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);">she/her</button>
+              <button onclick="setPronouns('he/him',this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);">he/him</button>
+              <button onclick="setPronouns('they/them',this)" style="padding:6px 14px;border-radius:20px;font-size:13px;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--ink-soft);">they/them</button>
+            </div>
+          </div>
+          <div class="srow" onclick="togglePrivPanel()"><div><span style="font-size:14px;font-weight:500;color:var(--ink);">Privacy settings</span></div><span id="priv-chev" style="color:var(--warm-mid);transition:transform .2s;">›</span></div>
+          <div id="priv-panel" style="display:none;padding:14px 18px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(139,115,85,.06);margin-bottom:12px;">
+              <div><div style="font-size:13px;font-weight:600;color:var(--ink);">📍 Location Access</div><div style="font-size:11px;color:var(--warm-mid);margin-top:2px;">Only visible when discoverability is on</div></div>
+              <div class="tog-wrap" id="loc-tog" onclick="toggleLocAccess()"><div class="tog-knob"></div></div>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">Auto-turns off after</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;" id="timer-chips">
+              <button class="chip" onclick="selectTimer(this,'30min')">30 min</button>
+              <button class="chip" onclick="selectTimer(this,'60min')">1 hour</button>
+              <button class="chip" onclick="selectTimer(this,'120min')">2 hours</button>
+              <button class="chip on" onclick="selectTimer(this,'never')">Never</button>
+            </div>
+          </div>
+          <button onclick="goTo('s-login')" style="width:100%;padding:14px 18px;text-align:left;font-size:14px;font-weight:500;color:#B85042;border:none;background:transparent;cursor:pointer;font-family:inherit;">Sign out</button>
+        </div>
+        <div style="height:16px;"></div>
+      </div>
+      <div class="nav">
+        <button class="ni" onclick="goTo('s-events')"><span class="ic">🎭</span><span class="lb">Events</span></button>
+        <button class="ni" onclick="goTo('s-nearby')"><span class="ic">📡</span><span class="lb">Nearby</span></button>
+        <button class="ni" onclick="goTo('s-inbox')"><span class="ic">💬</span><span class="lb">Requests</span><span class="nbadge" id="nb-profile" style="display:none;">2</span></button>
+        <button class="ni on" onclick="goTo('s-profile')"><span class="ic">👤</span><span class="lb">Profile</span></button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+</div><!-- /phone -->
+
+<!-- Interests Modal -->
+<div class="modal-overlay" id="interests-modal">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Edit your interests</div>
+    <div style="font-size:12px;color:var(--warm-mid);margin-bottom:16px;" id="interests-count-label">Pick up to 3 · 0/3 selected</div>
+    <div id="interests-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;"></div>
+    <button onclick="saveInterests()" style="width:100%;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Save interests</button>
+    <button onclick="closeInterestsEdit()" style="width:100%;margin-top:8px;padding:13px;border-radius:16px;border:none;background:transparent;color:var(--warm-mid);font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+  </div>
+</div>
+
+<!-- Languages Modal -->
+<div class="modal-overlay" id="langs-modal">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:4px;">Languages you speak</div>
+    <div id="langs-selected-wrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+    <input placeholder="Search languages…" oninput="filterLangs(this.value)" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;outline:none;background:white;margin-bottom:8px;" id="langs-search">
+    <div id="langs-list" style="border:1px solid var(--border);border-radius:14px;overflow:hidden;max-height:200px;overflow-y:auto;margin-bottom:16px;"></div>
+    <button onclick="saveLangs()" style="width:100%;padding:14px;border-radius:16px;background:var(--accent);border:none;color:white;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Save languages</button>
+    <button onclick="closeLangsEdit()" style="width:100%;margin-top:8px;padding:13px;border-radius:16px;border:none;background:transparent;color:var(--warm-mid);font-size:14px;cursor:pointer;font-family:inherit;">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const INTERESTS_ALL = [
+  {id:"art",label:"Art"},{id:"comedy",label:"Comedy"},{id:"cooking",label:"Cooking"},{id:"fashion",label:"Fashion"},{id:"film",label:"Film"},{id:"fitness",label:"Fitness"},{id:"food",label:"Food"},{id:"gaming",label:"Gaming"},{id:"hiking",label:"Hiking"},{id:"museums",label:"Museums"},{id:"music",label:"Music"},{id:"photography",label:"Photography"},{id:"podcasts",label:"Podcasts"},{id:"reading",label:"Reading"},{id:"tech",label:"Tech"},{id:"theatre",label:"Theatre"},{id:"travel",label:"Travel"},{id:"wine",label:"Wine"},{id:"racket_sports",label:"Racket Sports"},{id:"team_sports",label:"Team Sports"},
+];
+const INTEREST_LABELS = Object.fromEntries(INTERESTS_ALL.map(i=>[i.id,i.label]));
+const LANGUAGES_ALL = ["Arabic","Bengali","Cantonese","Czech","Danish","Dutch","English","Finnish","French","German","Greek","Hebrew","Hindi","Hungarian","Italian","Japanese","Korean","Malay","Mandarin","Norwegian","Persian","Polish","Portuguese","Romanian","Russian","Spanish","Swahili","Swedish","Thai","Turkish","Urdu","Vietnamese"];
+
+const EVENTS = [
+  {id:0,emoji:"🎻",gFrom:"#1e1a30",gTo:"#3d2060",cat:"music",name:"LSO — An Evening of Brahms",venue:"Barbican Centre",area:"Barbican",meta:"Tonight 7:30pm · from £35",members:34,time:"7:30pm",sponsored:true,buyTicket:true,section:"tonight",desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1."},
+  {id:1,emoji:"🍷",gFrom:"#1a2535",gTo:"#243045",cat:"food",name:"Terroirs Natural Wine Evening",venue:"Terroirs Wine Bar",area:"Strand",meta:"Tonight · until 11pm · Free",members:27,time:"Until 11pm",sponsored:false,buyTicket:false,section:"tonight",desc:"The best natural wine bar in London — exceptional low-intervention wines."},
+  {id:2,emoji:"🎨",gFrom:"#1e1a30",gTo:"#2d1e3a",cat:"art",name:"Tate Modern Late — After Hours",venue:"Tate Modern",area:"Bankside",meta:"Tonight until 10pm · £12",members:42,time:"Until 10pm",sponsored:false,buyTicket:true,section:"tonight",desc:"After-hours access to the Tate galleries with a live DJ and the riverside bar open late."},
+  {id:3,emoji:"🎷",gFrom:"#182a1e",gTo:"#223828",cat:"music",name:"Jazz at Ronnie Scott's",venue:"Ronnie Scott's",area:"Soho",meta:"Tonight 9:30pm · from £30",members:38,time:"9:30pm",sponsored:true,buyTicket:true,section:"tonight",desc:"The world-famous jazz club. Tonight's late set features some of London's finest musicians."},
+  {id:4,emoji:"💃",gFrom:"#2a1035",gTo:"#4a1060",cat:"dance",name:"Bachata Social Night",venue:"Café Salsa",area:"Covent Garden",meta:"Tonight 9pm–2am · £10",members:31,time:"9pm",sponsored:false,buyTicket:true,section:"tonight",desc:"London's most popular bachata social. All levels welcome."},
+  {id:5,emoji:"😂",gFrom:"#2a1a10",gTo:"#3a2810",cat:"comedy",name:"Comedy Store — Late Show",venue:"The Comedy Store",area:"Leicester Square",meta:"Tonight 9:45pm · from £16",members:29,time:"9:45pm",sponsored:true,buyTicket:true,section:"tonight",desc:"London's most iconic comedy club. The UK's best stand-up talent on one stage."},
+  {id:6,emoji:"🍜",gFrom:"#2a1208",gTo:"#3a2010",cat:"food",name:"Maltby Street Market — Evening Edition",venue:"Maltby Street",area:"Bermondsey",meta:"Tonight 5pm–10pm · Free",members:37,time:"5pm–10pm",sponsored:false,buyTicket:false,section:"tonight",desc:"Over 30 of London's best street food traders in the arches under London Bridge."},
+  {id:7,emoji:"🎬",gFrom:"#10101a",gTo:"#1a1a2a",cat:"film",name:"Rooftop Cinema — Brief Encounter",venue:"Roof East",area:"Stratford",meta:"Tonight 8pm · £19",members:33,time:"8pm",sponsored:false,buyTicket:true,section:"tonight",desc:"Classic British romance under the stars. Blankets provided."},
+  {id:11,emoji:"🎭",gFrom:"#1e1a30",gTo:"#3d2060",cat:"art",name:"ENO — La Traviata Opening Night",venue:"London Coliseum",area:"West End",meta:"Friday 8pm · from £25",members:25,time:"Fri 8pm",sponsored:true,buyTicket:true,section:"week",desc:"English National Opera's new production of Verdi's La Traviata."},
+  {id:12,emoji:"🌿",gFrom:"#182a1e",gTo:"#223828",cat:"food",name:"Borough Market — After Dark",venue:"Borough Market",area:"Borough",meta:"Saturday 6pm · Free",members:46,time:"Sat 6pm",sponsored:false,buyTicket:false,section:"week",desc:"London's celebrated food market stays open late with evening-only traders."},
+  {id:19,emoji:"🌅",gFrom:"#1a1410",gTo:"#2a2018",cat:"food",name:"Skylight Rooftop Bar — Sunset Session",venue:"Skylight Tobacco Dock",area:"Wapping",meta:"Saturday 5pm · Free entry",members:39,time:"Sat 5pm",sponsored:false,buyTicket:false,section:"week",desc:"London's most loved rooftop bar. Cocktails, croquet, and the city at golden hour."},
+];
+
+const NEARBY_PEOPLE = [
+  {id:1,name:"Priya",age:26,occ:"Architect",emoji:"👩",bg:"pgrad1",interests:["wine","travel","film"],languages:["English","French"],gender:"f"},
+  {id:2,name:"James",age:29,occ:"Product Designer",emoji:"👨",bg:"pgrad2",interests:["music","tech","food"],languages:["English"],gender:"m"},
+  {id:3,name:"Sofia",age:24,occ:"Journalist",emoji:"👩",bg:"pgrad3",interests:["art","reading","travel"],languages:["English","Spanish"],gender:"f"},
+  {id:4,name:"Marcus",age:31,occ:"Startup Founder",emoji:"👨",bg:"pgrad4",interests:["tech","fitness","podcasts"],languages:["English"],gender:"m"},
+];
+
+const INBOX_DATA = [
+  {id:1,name:"James, 29",emoji:"👨",bg:"linear-gradient(160deg,#a5b4d4,#6b8ac4)",meta:"Product Designer",tags:["music","tech","food"],time:"3m ago",isNew:true,gender:"m"},
+  {id:2,name:"Marcus, 31",emoji:"👨",bg:"linear-gradient(160deg,#d4c4a5,#c4a06b)",meta:"Startup Founder",tags:["tech","fitness"],time:"12m ago",isNew:true,gender:"m"},
+];
+
+// 15-question pool — same as page.tsx
+const OPENER_QUESTIONS = [
+  "If tonight was a film, what genre would it be?",
+  "What's the last thing you got genuinely excited about?",
+  "What would your perfect Sunday look like?",
+  "One place you haven't been yet?",
+  "What did you think London would be like before you moved here?",
+  "What's something you're better at than most people think?",
+  "Describe your ideal meal in three words.",
+  "What's the most interesting thing you've learned recently?",
+  "What song would play if you walked into a room?",
+  "What do you do on a free Tuesday afternoon?",
+  "What's a question you're always hoping someone will ask you?",
+  "If you could live in any decade, which one?",
+  "What's a skill you're quietly proud of?",
+  "What's the best advice you've ever ignored?",
+  "What would you be doing right now if you weren't here?",
+];
+
+// Deterministic shuffle — mulberry32 PRNG seeded by string hash (matches page.tsx)
+function mulberry32(seed) {
+  return function() {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function pickOpenerQuestions(seed) {
+  const s = typeof seed === 'string' ? seed.split('').reduce((a,c)=>a+c.charCodeAt(0),0) : (seed||42);
+  const rng = mulberry32(s);
+  const arr = [...OPENER_QUESTIONS];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 4);
+}
+
+// ── STATE ──────────────────────────────────────────────────
+let currentScreen = 's-splash';
+let isLive = false;
+let dismissedNearby = [];
+let currentNearbyPerson = null;
+let currentRequest = null;
+let incResponseMode = 'accept';
+let matchTimerSecs = 1800;
+let timerInterval = null;
+let currentAreaHint = '';
+let showAcceptedBanner = false;
+let inboxData = JSON.parse(JSON.stringify(INBOX_DATA));
+let eventCatFilter = 'all';
+let draftInterests = ['music','food','fitness'];
+let draftLanguages = ['English'];
+let currentPronouns = null;
+// post-meet state
+let pmAnswers = ['','','',''];
+let pmOpenerQuestions = [];
+let pmSaved = false;
+
+// ── ROUTING ────────────────────────────────────────────────
+function goTo(id, data) {
+  const prev = document.getElementById(currentScreen);
+  const next = document.getElementById(id);
+  if (!next || id === currentScreen) return;
+  prev.classList.remove('active');
+  prev.classList.add('exit');
+  setTimeout(() => prev.classList.remove('exit'), 300);
+  next.classList.add('active');
+  currentScreen = id;
+  const sb = document.getElementById('statusbar');
+  const darkScreens = ['s-splash','s-login','s-signup','s-match','s-pending','s-openers','s-howdiditgo'];
+  sb.className = darkScreens.includes(id) ? 'sb dark' : 'sb';
+  // screen-specific init
+  if (id === 's-events') initEvents();
+  if (id === 's-eventdetail' && data !== undefined) { const e = EVENTS.find(x=>x.id===data)||EVENTS[0]; loadEventDetail(e); }
+  if (id === 's-nearby') syncNearby();
+  if (id === 's-incoming') syncIncoming();
+  if (id === 's-openers') renderOpeners();
+  if (id === 's-postmeet') loadPostMeet();
+  if (id === 's-howdiditgo') resetHdig();
+  if (id === 's-inbox') renderInbox();
+}
+
+// ── EVENTS ────────────────────────────────────────────────
+const EVENT_CATS = ['all','music','art','food','comedy','fitness','dance','film'];
+const CAT_LABELS = {all:'All',music:'Live Music',art:'Art & Culture',food:'Food & Drink',comedy:'Comedy',fitness:'Fitness',dance:'Dance',film:'Film'};
+function initEvents() {
+  const el = document.getElementById('event-cats');
+  if (el.children.length) return;
+  el.innerHTML = EVENT_CATS.map(c=>`<button class="chip${c==='all'?' on':''}" onclick="setCat('${c}',this)">${CAT_LABELS[c]}</button>`).join('');
+  renderEvents();
+}
+function setCat(cat, el) {
+  eventCatFilter = cat;
+  document.querySelectorAll('#event-cats .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderEvents();
+}
+function renderEvents() {
+  const tonight = EVENTS.filter(e=>e.section==='tonight'&&(eventCatFilter==='all'||e.cat===eventCatFilter));
+  const week    = EVENTS.filter(e=>e.section==='week'&&(eventCatFilter==='all'||e.cat===eventCatFilter));
+  document.getElementById('events-tonight-head').style.display = tonight.length?'flex':'none';
+  document.getElementById('events-week-head').style.display = week.length?'flex':'none';
+  document.getElementById('events-tonight').innerHTML = tonight.map(e=>eRowHTML(e)).join('');
+  document.getElementById('events-week').innerHTML = week.map(e=>eRowHTML(e)).join('');
+}
+function eRowHTML(e) {
+  return `<div class="erow" onclick="goTo('s-eventdetail',${e.id})">
+    <div class="eicon" style="background:linear-gradient(135deg,${e.gFrom},${e.gTo});">${e.emoji}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:600;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.name}</div>
+      <div style="font-size:12px;color:var(--warm-mid);margin-top:2px;">${e.venue} · ${e.area}</div>
+      ${e.buyTicket?`<div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;">Buy ticket here</div>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
+      <div style="font-size:11px;font-weight:600;color:var(--green);">${e.members} members</div>
+      <div style="font-size:11px;color:var(--warm-mid);">${e.time}</div>
+      ${e.sponsored?`<div style="font-size:10px;color:var(--accent);font-weight:600;">Sponsored</div>`:''}
+    </div>
+  </div>`;
+}
+function loadEventDetail(e) {
+  document.getElementById('ed-hero').style.background = `linear-gradient(160deg,${e.gFrom},${e.gTo})`;
+  document.getElementById('ed-emoji').textContent = e.emoji;
+  document.getElementById('ed-cat').textContent = e.cat.charAt(0).toUpperCase()+e.cat.slice(1)+' · '+e.venue;
+  document.getElementById('ed-title').textContent = e.name;
+  document.getElementById('ed-meta').textContent = '📅 '+e.meta;
+  document.getElementById('ed-desc').textContent = e.desc;
+  document.getElementById('ed-members-badge').textContent = '✦ '+e.members+' members here';
+  document.getElementById('ed-spon').style.display = e.sponsored?'block':'none';
+  let acts = '';
+  if (e.sponsored && e.buyTicket) acts = `<div style="display:flex;gap:10px;"><button class="sbtn accent" style="flex:1;margin:0;padding:14px;">🎟 Buy Ticket</button><button class="sbtn" style="flex:1;margin:0;padding:14px;background:rgba(139,115,85,.12);color:var(--ink);">📷 Scan QR</button></div>`;
+  else if (e.buyTicket) acts = `<button style="width:100%;padding:14px;border-radius:16px;background:rgba(139,115,85,.12);color:var(--ink);border:none;font-size:15px;font-family:inherit;cursor:pointer;" onclick="goTo('s-nearby')">📷 Scan venue QR to check in</button>`;
+  else acts = `<button onclick="goTo('s-nearby')" class="sbtn green" style="width:100%;margin:0;">See who's going →</button>`;
+  document.getElementById('ed-actions').innerHTML = acts;
+}
+
+// ── NEARBY ────────────────────────────────────────────────
+function syncNearby() { if (isLive) renderNearbyLive(); }
+function toggleLive() {
+  isLive = !isLive;
+  const btn = document.getElementById('go-live-btn');
+  const dot = document.getElementById('live-dot');
+  const lbl = document.getElementById('live-label');
+  if (isLive) {
+    btn.style.cssText += ';background:rgba(74,124,89,.12);border-color:rgba(74,124,89,.35);';
+    dot.style.background = 'var(--green)'; dot.style.animation = 'pulse 2s infinite';
+    lbl.style.color = 'var(--green)'; lbl.textContent = 'Live';
+    document.getElementById('nearby-radius').style.display = 'block';
+    document.getElementById('nearby-empty').style.display = 'none';
+    document.getElementById('nearby-live-content').style.display = 'block';
+    renderNearbyLive();
+  } else {
+    btn.style.cssText += ';background:rgba(139,115,85,.1);border-color:var(--border);';
+    dot.style.background = 'var(--warm-mid)'; dot.style.animation = 'none';
+    lbl.style.color = 'var(--warm-mid)'; lbl.textContent = 'Go live';
+    document.getElementById('nearby-radius').style.display = 'none';
+    document.getElementById('nearby-empty').style.display = 'flex';
+    document.getElementById('nearby-live-content').style.display = 'none';
+  }
+}
+function renderNearbyLive() {
+  const people = NEARBY_PEOPLE.filter(p=>!dismissedNearby.includes(p.id));
+  document.getElementById('nearby-count').textContent = people.length+' members open to meet';
+  document.getElementById('nearby-grid').innerHTML = people.map(p=>nearbyCardHTML(p)).join('');
+}
+function nearbyCardHTML(p) {
+  const tags = p.interests.slice(0,3).map(t=>`<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+  const langs = (p.languages||[]).slice(0,2).map(l=>`<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(139,115,85,.1);color:var(--ink-soft);">${l}</span>`).join('');
+  return `<div class="pcard">
+    <div class="pphoto ${p.bg}"><span style="font-size:50px;">${p.emoji}</span>
+      <div class="active-badge"><span class="active-dot"></span>Active</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:5px 8px;background:linear-gradient(to top,rgba(26,20,16,.8),transparent);font-size:10px;font-weight:600;color:white;text-align:center;">Just arrived</div>
+    </div>
+    <div style="padding:10px 10px 4px;"><div style="font-weight:600;font-size:14px;color:var(--ink);">${p.name}, ${p.age}</div><div style="font-size:11px;color:var(--warm-mid);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.occ}</div></div>
+    <div style="padding:2px 10px 4px;display:flex;flex-wrap:wrap;gap:3px;">${tags}</div>
+    ${langs?`<div style="padding:2px 10px 6px;display:flex;flex-wrap:wrap;gap:3px;">${langs}</div>`:''}
+    <div style="display:flex;gap:6px;padding:0 10px 10px;">
+      <button onclick="openNearbyPerson(${p.id})" style="flex:1;padding:7px;border-radius:10px;border:none;background:var(--green);color:white;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">Express interest</button>
+      <button onclick="dismissNearby(${p.id})" style="width:32px;padding:7px;border-radius:10px;border:1px solid var(--border);background:transparent;font-size:13px;cursor:pointer;">✕</button>
+    </div>
+  </div>`;
+}
+function dismissNearby(id) { dismissedNearby.push(id); renderNearbyLive(); }
+function openNearbyPerson(id) {
+  currentNearbyPerson = NEARBY_PEOPLE.find(p=>p.id===id);
+  syncRequest(currentNearbyPerson);
+  goTo('s-request');
+}
+function syncRequest(p) {
+  if (!p) return;
+  const av = document.getElementById('req-avatar');
+  av.textContent = p.emoji; av.style.background = bgToStyle(p.bg);
+  document.getElementById('req-name').textContent = p.name+', '+p.age;
+  document.getElementById('req-meta').textContent = p.occ+' · Verified';
+  document.getElementById('req-fname-note').textContent = p.name;
+  document.getElementById('req-interests').innerHTML = p.interests.map(t=>`<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+  const starter = document.getElementById('req-conv-starter');
+  if (p.interests.length) {
+    const top2 = p.interests.slice(0,2).map(id=>`<strong style="color:var(--ink);">${INTEREST_LABELS[id]||id}</strong>`).join(' or ');
+    starter.innerHTML = 'Ask about '+top2+' to break the ice.'; starter.style.display='block';
+  } else starter.style.display='none';
+  const lw = document.getElementById('req-langs-wrap');
+  if ((p.languages||[]).length) {
+    document.getElementById('req-langs').innerHTML = p.languages.map(l=>`<span style="font-size:11px;padding:3px 8px;border-radius:8px;background:rgba(139,115,85,.1);color:var(--ink-soft);">${l}</span>`).join('');
+    lw.style.display='block';
+  } else lw.style.display='none';
+  document.getElementById('req-sent-banner').style.display='none';
+}
+function sendRequest() {
+  document.getElementById('req-sent-banner').style.display='block';
+  setTimeout(()=>{ syncPending(); goTo('s-pending'); },1200);
+}
+function syncPending() {
+  const p = currentNearbyPerson; if (!p) return;
+  document.getElementById('pend-name').textContent = p.name;
+  document.getElementById('pend-name2').textContent = p.name;
+}
+function bgToStyle(bg) {
+  const map={pgrad1:'linear-gradient(160deg,#d4a5a5,#c47a6b)',pgrad2:'linear-gradient(160deg,#a5b4d4,#6b8ac4)',pgrad3:'linear-gradient(160deg,#a5d4b4,#6bc48a)',pgrad4:'linear-gradient(160deg,#d4c4a5,#c4a06b)',pgrad5:'linear-gradient(160deg,#c4a5d4,#8f6bc4)'};
+  return map[bg]||'linear-gradient(160deg,#d4a5a5,#c47a6b)';
+}
+
+// ── INBOX ─────────────────────────────────────────────────
+function renderInbox() {
+  const list = document.getElementById('inbox-list');
+  const newR = inboxData.filter(r=>r.isNew);
+  const oldR = inboxData.filter(r=>!r.isNew);
+  document.getElementById('inbox-live-indicator').style.display = newR.length?'flex':'none';
+  document.getElementById('inbox-count-label').textContent = newR.length+' new';
+  document.getElementById('accepted-banner-wrap').style.display = showAcceptedBanner?'block':'none';
+  let html = '';
+  newR.forEach(r=>{
+    html+=`<div class="req-card" onclick="openRequest(${r.id})">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;display:inline-block;"></span>
+        <div style="width:38px;height:38px;border-radius:50%;background:${r.bg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${r.emoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;color:var(--ink);">${r.name} <span style="font-size:10px;color:var(--green);font-weight:600;">✓ Verified</span></div>
+          <div style="font-size:11px;color:var(--warm-mid);margin-top:1px;">${r.meta}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--accent);margin-top:2px;">👋 Spotted you — wants to say hi</div>
+        </div>
+        <div style="font-size:11px;color:var(--warm-mid);flex-shrink:0;">${r.time}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="event.stopPropagation();openRequest(${r.id})" style="flex:2;padding:9px;border-radius:10px;background:var(--green);border:none;color:white;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Respond →</button>
+        <button onclick="event.stopPropagation();declineReq(${r.id})" style="flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:transparent;font-size:12px;color:var(--warm-mid);font-family:inherit;cursor:pointer;">Decline</button>
+      </div>
+    </div>`;
+  });
+  if (!newR.length && !oldR.length) html = `<div style="padding:24px 22px;text-align:center;color:var(--warm-mid);font-size:13px;">${showAcceptedBanner?'No other incoming requests':'No requests yet'}</div>`;
+  list.innerHTML = html;
+  updateBadges(newR.length);
+}
+function updateBadges(count) {
+  ['nb-events','nb-ed','nb-nearby','nb-req','nb-profile'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent=count;el.style.display=count>0?'flex':'none';}
+  });
+}
+function openRequest(id) {
+  currentRequest = inboxData.find(r=>r.id===id);
+  incResponseMode = 'accept';
+  goTo('s-incoming');
+}
+function declineReq(id) { const r=inboxData.find(x=>x.id===id); if(r) r.isNew=false; renderInbox(); }
+function viewAcceptedMatch() {
+  currentNearbyPerson = NEARBY_PEOPLE.find(p=>p.name==='Priya')||NEARBY_PEOPLE[0];
+  currentRequest = null; incResponseMode = 'accept'; matchTimerSecs = 1800;
+  syncMatch(); goTo('s-match');
+}
+
+// ── INCOMING ──────────────────────────────────────────────
+function syncIncoming() {
+  const r = currentRequest; if (!r) return;
+  const av = document.getElementById('inc-avatar');
+  av.textContent = r.emoji; av.style.background = r.bg;
+  document.getElementById('inc-name').textContent = r.name;
+  document.getElementById('inc-meta').textContent = r.meta;
+  document.getElementById('inc-req-text').textContent = r.name.split(',')[0]+' would like to meet you in person. Accept to give them the green light.';
+  document.getElementById('inc-tags').innerHTML = (r.tags||[]).map(t=>`<span class="itag ${t}">${INTEREST_LABELS[t]||t}</span>`).join('');
+  selectIncResp('accept');
+  document.getElementById('inc-area-hint').value='';
+  document.getElementById('inc-area-count').textContent='0 / 80';
+}
+function selectIncResp(mode) {
+  incResponseMode = mode;
+  ['accept','15min','30min'].forEach(m=>document.getElementById('inc-'+m).classList.toggle('on',m===mode));
+  document.getElementById('inc-area-hint-wrap').style.display=(mode==='15min'||mode==='30min')?'block':'none';
+}
+function confirmIncoming() {
+  currentAreaHint = document.getElementById('inc-area-hint').value;
+  matchTimerSecs = incResponseMode==='15min'?900:1800;
+  showAcceptedBanner = false;
+  syncMatch(); goTo('s-match');
+}
+function declineIncoming() { if(currentRequest) declineReq(currentRequest.id); goTo('s-inbox'); }
+
+// ── MATCH ─────────────────────────────────────────────────
+function syncMatch() {
+  const person = currentRequest || (currentNearbyPerson?{name:currentNearbyPerson.name+', '+currentNearbyPerson.age,occ:currentNearbyPerson.occ,emoji:currentNearbyPerson.emoji,bg:bgToStyle(currentNearbyPerson.bg),interests:currentNearbyPerson.interests}:null);
+  const isFromInc = !!currentRequest;
+  const firstName = person?person.name.split(',')[0]:'They';
+  document.getElementById('match-title').innerHTML = isFromInc?`You accepted.<br><em style="color:var(--green);">Go find them.</em>`:`${firstName} accepted.<br><em style="color:var(--green);">Go find her.</em>`;
+  document.getElementById('match-sub').textContent = isFromInc?`${firstName} will be looking out for you. Head over and introduce yourself.`:`${firstName} is expecting you. Go say hello in person.`;
+  const av = document.getElementById('match-avatar');
+  if (person){av.textContent=person.emoji||'';av.style.background=person.bg||'linear-gradient(160deg,#d4a5a5,#c47a6b)';}
+  document.getElementById('match-person-name').textContent = person?person.name:'—';
+  document.getElementById('match-person-occ').textContent = person?(person.occ||''):'';
+  document.getElementById('match-person-tags').innerHTML = (person?person.interests||[]:[]).slice(0,3).map(i=>`<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(74,124,89,.2);color:rgba(232,245,238,.8);">${INTEREST_LABELS[i]||i}</span>`).join('');
+  const ae = document.getElementById('match-area-hint');
+  if(currentAreaHint&&currentAreaHint.trim()){ae.style.display='block';ae.innerHTML=`Near: <strong style="color:var(--cream);">${currentAreaHint}</strong>`;}else ae.style.display='none';
+  const mins=incResponseMode==='15min'?15:30;
+  document.getElementById('match-timer').textContent=mins+':00';
+  document.getElementById('match-timer-label').textContent=`Green light expires in ${mins} min`;
+  startMatchTimer(matchTimerSecs);
+}
+function startMatchTimer(start) {
+  clearInterval(timerInterval); let s=start;
+  timerInterval=setInterval(()=>{
+    if(--s<=0){clearInterval(timerInterval);document.getElementById('match-timer').textContent='—';document.getElementById('match-timer-label').textContent='Green light expired';const tr=document.getElementById('match-tring');tr.style.borderTopColor='rgba(245,240,232,.12)';tr.style.animation='none';return;}
+    const el=document.getElementById('match-timer');
+    if(el)el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  },1000);
+}
+function goToOpeners() {
+  // Set opener person info
+  const person = currentRequest || currentNearbyPerson;
+  const firstName = person?(currentRequest?person.name.split(',')[0]:person.name):'them';
+  const occ = person?(currentRequest?person.meta:person.occ):'';
+  document.getElementById('op-person-name').textContent = firstName;
+  document.getElementById('op-person-sub').textContent = (occ?occ+' · ':'')+'tonight';
+  // Pick 4 questions seeded by a stable identifier
+  const seed = person?(currentRequest?String(person.id):String(person.id)):42;
+  pmOpenerQuestions = pickOpenerQuestions(seed);
+  goTo('s-openers');
+}
+function renderOpeners() {
+  const qs = pmOpenerQuestions.length?pmOpenerQuestions:pickOpenerQuestions(42);
+  document.getElementById('op-questions').innerHTML = qs.map((q,i)=>`
+    <div style="display:flex;gap:12px;align-items:flex-start;background:rgba(245,240,232,.05);border:1px solid rgba(245,240,232,.1);border-radius:16px;padding:14px 16px;">
+      <span style="font-size:13px;font-weight:700;color:var(--accent);flex-shrink:0;padding-top:1px;">${i+1}</span>
+      <span style="font-size:14px;color:var(--cream);font-weight:500;line-height:1.45;">${q}</span>
+    </div>`).join('');
+}
+function metThem() {
+  clearInterval(timerInterval);
+  pmAnswers = ['','','',''];
+  pmSaved = false;
+  goTo('s-postmeet');
+}
+
+// ── POST-MEET ─────────────────────────────────────────────
+const PRIYA_ANSWERS = ["Honestly? A rom-com.", "I tried making croissants. Took 3 days. Still raw.", "Farmers market, long bath, no plans.", "Georgia. The country, not the state."];
+
+function loadPostMeet() {
+  const person = currentRequest || currentNearbyPerson;
+  const firstName = person?(currentRequest?person.name.split(',')[0]:person.name):'Priya';
+  document.getElementById('pm-name').textContent = firstName;
+  if (!pmOpenerQuestions.length) {
+    const seed = person?(currentRequest?String(person.id):String(person.id)):42;
+    pmOpenerQuestions = pickOpenerQuestions(seed);
+  }
+  pmSaved = false;
+  document.getElementById('pm-save-btn').style.display='block';
+  document.getElementById('pm-saved-state').style.display='none';
+  document.getElementById('pm-revealed').style.display='none';
+  renderPmDots(0);
+  renderPmQuestions(firstName);
+}
+
+function renderPmDots(active) {
+  document.getElementById('pm-dots').innerHTML = [0,1,2,3].map(i=>`<div style="width:${i===active?'18':'8'}px;height:8px;border-radius:4px;background:${i===active?'var(--accent)':'rgba(139,115,85,.2)'};transition:all .2s;"></div>`).join('');
+}
+
+function renderPmQuestions(firstName) {
+  const qs = pmOpenerQuestions.length ? pmOpenerQuestions : pickOpenerQuestions(42);
+  document.getElementById('pm-questions').innerHTML = qs.map((q,i)=>`
+    <div class="pm-q-card">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;color:var(--accent);margin-bottom:8px;">Question ${i+1} of 4</div>
+      <div style="font-size:13px;color:var(--ink-soft);font-style:italic;line-height:1.5;margin-bottom:12px;">"${q}"</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div>
+          <div style="font-size:11px;color:var(--warm-mid);margin-bottom:4px;">you said ·</div>
+          <textarea class="pm-answer-box" rows="2" placeholder="What did you say? (optional)" oninput="pmAnswers[${i}]=this.value;renderPmDots(${i})" onclick="renderPmDots(${i})">${pmAnswers[i]||''}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--warm-mid);margin-bottom:4px;">${firstName} ·</div>
+          <div style="padding:8px 10px;border-radius:10px;background:rgba(139,115,85,.07);font-size:12px;color:rgba(139,115,85,.5);font-style:italic;">visible after you both save</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function savePostMeet() {
+  pmSaved = true;
+  document.getElementById('pm-save-btn').style.display='none';
+  document.getElementById('pm-saved-state').style.display='block';
+  // Simulate Priya saving her answers after 2.5s
+  setTimeout(()=>{
+    const revealed = document.getElementById('pm-revealed');
+    const qs = pmOpenerQuestions.length?pmOpenerQuestions:pickOpenerQuestions(42);
+    document.getElementById('pm-revealed-qs').innerHTML = qs.map((q,i)=>`
+      <div class="pm-q-card" style="margin-bottom:10px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;color:var(--accent);margin-bottom:6px;">Question ${i+1}</div>
+        <div style="font-size:12px;color:var(--ink-soft);font-style:italic;margin-bottom:10px;">"${q}"</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><div style="font-size:10px;color:var(--warm-mid);margin-bottom:4px;">you said ·</div><div style="padding:8px 10px;border-radius:8px;background:var(--ink);color:var(--cream);font-size:12px;line-height:1.4;">${pmAnswers[i]||'—'}</div></div>
+          <div><div style="font-size:10px;color:var(--warm-mid);margin-bottom:4px;">Priya said ·</div><div style="padding:8px 10px;border-radius:8px;background:rgba(74,124,89,.08);color:var(--ink-soft);font-size:12px;line-height:1.4;font-style:italic;">${PRIYA_ANSWERS[i]||'—'}</div></div>
+        </div>
+      </div>`).join('');
+    revealed.style.display='block';
+  }, 2500);
+}
+
+// ── HOW DID IT GO ─────────────────────────────────────────
+let hdigChoice = null;
+function selectHdig(choice) {
+  hdigChoice = choice;
+  ['yes','no','numbers','didntmeet'].forEach(c=>{
+    document.getElementById('hdig-'+c).classList.toggle('on', c===choice);
+  });
+  const btn = document.getElementById('hdig-confirm-btn');
+  btn.disabled = false;
+  btn.style.background = choice==='yes'?'var(--green)':'rgba(245,240,232,.15)';
+  btn.style.color = choice==='yes'?'white':'rgba(245,240,232,.7)';
+}
+function confirmHdig() {
+  const choice = hdigChoice;
+  if (!choice) return;
+  hdigChoice = null;
+  if (choice === 'yes') {
+    goTo('s-chat');
+  } else {
+    goTo('s-inbox');
+  }
+}
+function resetHdig() {
+  hdigChoice = null;
+  ['yes','no','numbers','didntmeet'].forEach(c=>{
+    const el = document.getElementById('hdig-'+c);
+    if (el) el.classList.remove('on');
+  });
+  const btn = document.getElementById('hdig-confirm-btn');
+  if (btn) { btn.disabled = true; btn.style.background='rgba(245,240,232,.1)'; btn.style.color='rgba(245,240,232,.4)'; }
+}
+
+// ── REPORT ────────────────────────────────────────────────
+function openReportModal() { document.getElementById('report-modal').classList.add('show'); document.querySelectorAll('.report-btn').forEach(b=>b.classList.remove('selected')); document.getElementById('report-submit').style.display='none'; }
+function closeReportModal() { document.getElementById('report-modal').classList.remove('show'); }
+function selectReport(el) { document.querySelectorAll('.report-btn').forEach(b=>b.classList.remove('selected')); el.classList.add('selected'); document.getElementById('report-submit').style.display='block'; }
+function submitReport() { closeReportModal(); const t=document.getElementById('report-toast'); t.style.display='block'; setTimeout(()=>{t.style.display='none';goTo('s-inbox');},3000); }
+
+// ── PROFILE ───────────────────────────────────────────────
+function togglePronounsPanel() {
+  const p=document.getElementById('pronouns-panel'),c=document.getElementById('pronouns-chev');
+  const open=p.style.display==='none';
+  p.style.display=open?'block':'none';
+  c.style.transform=open?'rotate(90deg)':'none';
+}
+function setPronouns(val, btn) {
+  currentPronouns=val;
+  document.querySelectorAll('#pronouns-panel button').forEach(b=>{b.style.background='transparent';b.style.borderColor='var(--border)';b.style.color='var(--ink-soft)';});
+  btn.style.background='var(--ink)';btn.style.borderColor='var(--ink)';btn.style.color='var(--cream)';
+  document.getElementById('pronouns-summary').textContent=val;
+}
+function togglePrivPanel() {
+  const p=document.getElementById('priv-panel'),c=document.getElementById('priv-chev');
+  const open=p.style.display==='none';
+  p.style.display=open?'block':'none';
+  c.style.transform=open?'rotate(90deg)':'none';
+}
+let locAccessOn=false;
+function toggleLocAccess(){locAccessOn=!locAccessOn;document.getElementById('loc-tog').classList.toggle('on',locAccessOn);}
+function selectTimer(el,val){document.querySelectorAll('#timer-chips .chip').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+
+// ── INTERESTS MODAL ───────────────────────────────────────
+function openInterestsEdit(){draftInterests=['music','food','fitness'];renderInterestsModal();document.getElementById('interests-modal').classList.add('show');}
+function renderInterestsModal(){
+  const g=document.getElementById('interests-grid');
+  g.innerHTML=INTERESTS_ALL.map(i=>{
+    const on=draftInterests.includes(i.id),dis=!on&&draftInterests.length>=3;
+    return `<button onclick="${dis?'':'toggleInterestDraft(\''+i.id+'\')'}" style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:${dis?'not-allowed':'pointer'};font-family:inherit;transition:all .15s;border:1px solid ${on?'var(--ink)':'var(--border)'};background:${on?'var(--ink)':'white'};color:${on?'var(--cream)':dis?'rgba(139,115,85,.35)':'var(--ink-soft)'};">${i.label}</button>`;
+  }).join('');
+  document.getElementById('interests-count-label').textContent=`Pick up to 3 · ${draftInterests.length}/3 selected`;
+}
+function toggleInterestDraft(id){if(draftInterests.includes(id))draftInterests=draftInterests.filter(x=>x!==id);else if(draftInterests.length<3)draftInterests.push(id);renderInterestsModal();}
+function saveInterests(){document.getElementById('profile-tags').innerHTML=draftInterests.map(i=>`<span class="itag ${i}">${INTEREST_LABELS[i]||i}</span>`).join('');closeInterestsEdit();}
+function closeInterestsEdit(){document.getElementById('interests-modal').classList.remove('show');}
+
+// ── LANGUAGES MODAL ───────────────────────────────────────
+function openLangsEdit(){draftLanguages=['English'];document.getElementById('langs-search').value='';renderLangsSelected();renderLangsList('');document.getElementById('langs-modal').classList.add('show');}
+function renderLangsSelected(){document.getElementById('langs-selected-wrap').innerHTML=draftLanguages.map(l=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--ink);color:var(--cream);">${l}<button onclick="removeLangDraft('${l}')" style="border:none;background:transparent;color:rgba(245,240,232,.55);font-size:14px;cursor:pointer;line-height:1;padding:0;">×</button></span>`).join('');}
+function renderLangsList(q){const f=LANGUAGES_ALL.filter(l=>l.toLowerCase().includes(q.toLowerCase())&&!draftLanguages.includes(l)).slice(0,20);const el=document.getElementById('langs-list');el.innerHTML=f.map((l,i)=>`<button onclick="addLangDraft('${l}')" style="width:100%;padding:10px 14px;text-align:left;font-size:14px;border:none;background:${i%2===0?'white':'rgba(245,240,232,.5)'};color:var(--ink);font-family:inherit;cursor:pointer;border-bottom:1px solid var(--border);display:block;">${l}</button>`).join('');if(!f.length)el.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--warm-mid);">No matches</div>';}
+function filterLangs(q){renderLangsList(q);}
+function addLangDraft(l){if(!draftLanguages.includes(l)){draftLanguages.push(l);renderLangsSelected();renderLangsList('');document.getElementById('langs-search').value='';}}
+function removeLangDraft(l){draftLanguages=draftLanguages.filter(x=>x!==l);renderLangsSelected();renderLangsList('');}
+function saveLangs(){closeLangsEdit();}
+function closeLangsEdit(){document.getElementById('langs-modal').classList.remove('show');}
+
+// ── INIT ──────────────────────────────────────────────────
+setTimeout(()=>goTo('s-login'),2000);
+initEvents();
+renderInbox();
+setTimeout(()=>{showAcceptedBanner=true;document.getElementById('accepted-banner-wrap').style.display='block';},600);
+</script>
+</body>
+</html>
