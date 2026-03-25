@@ -2221,10 +2221,10 @@ function MessagesScreen({
 
   useEffect(() => {
     async function load() {
-      // Fetch all accepted requests involving the current user
+      // Fetch all accepted requests involving the current user (no join — fetch profiles separately)
       const { data: reqs } = await supabase
         .from("meet_requests")
-        .select("id, from_id, to_id, created_at, profiles!meet_requests_from_id_fkey(*), profiles!meet_requests_to_id_fkey(*)")
+        .select("id, from_id, to_id, created_at")
         .or(`from_id.eq.${currentUser.id},to_id.eq.${currentUser.id}`)
         .eq("status", "accepted")
         .order("created_at", { ascending: false });
@@ -2232,12 +2232,16 @@ function MessagesScreen({
       if (!reqs) { setLoading(false); return; }
 
       const built: ChatThread[] = [];
-      for (const r of reqs) {
+      for (const r of reqs as { id: string; from_id: string; to_id: string; created_at: string }[]) {
         const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
-        // Get other person's profile
-        const fromProfile = r["profiles!meet_requests_from_id_fkey"] as UserProfile;
-        const toProfile   = r["profiles!meet_requests_to_id_fkey"]   as UserProfile;
-        const other = r.from_id === currentUser.id ? toProfile : fromProfile;
+
+        // Fetch the other person's profile directly
+        const { data: other } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", otherId)
+          .single();
+
         if (!other) continue;
 
         // Get last message for this request
