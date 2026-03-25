@@ -33,7 +33,7 @@ interface UserProfile {
   checked_in_at: string | null;  // ISO timestamp – used for time-at-event
   lat: number | null;           // GPS latitude
   lng: number | null;           // GPS longitude
-  pronouns?: "he/him" | "she/her" | "they/them"; // optional — shown on match screen
+  pronouns?: "he/him" | "she/her" | "they/them"; // optional, shown on match screen
   ask_me_prompts?: string[]; // 3 user-written "Ask me about" prompts
 }
 
@@ -68,35 +68,35 @@ const C = {
 // ── Static data ────────────────────────────────────────────
 const EVENTS: HereEvent[] = [
   // ── TONIGHT ───────────────────────────────────────────────────────────────
-  { id:0,  emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"music",   name:"LSO — An Evening of Brahms",               venue:"Barbican Centre",          area:"Barbican",         meta:"Tonight 7:30pm · from £35",       members:34, time:"7:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's finest concert series — a full house and an electric atmosphere." },
-  { id:1,  emoji:"🍷", gradientFrom:"#1a2535", gradientTo:"#243045", category:"food",    name:"Terroirs Natural Wine Evening",            venue:"Terroirs Wine Bar",         area:"Strand",           meta:"Tonight · until 11pm · Free",     members:27, time:"Until 11pm", sponsored:false, buyTicket:false, section:"tonight", desc:"The best natural wine bar in London — an evening of exceptional low-intervention wines poured at the bar." },
-  { id:2,  emoji:"🎨", gradientFrom:"#1e1a30", gradientTo:"#2d1e3a", category:"art",     name:"Tate Modern Late — After Hours",           venue:"Tate Modern",               area:"Bankside",         meta:"Tonight until 10pm · £12",        members:42, time:"Until 10pm", sponsored:false, buyTicket:true,  section:"tonight", desc:"After-hours access to the Tate galleries with a live DJ set and the riverside bar open late." },
-  { id:3,  emoji:"🎷", gradientFrom:"#182a1e", gradientTo:"#223828", category:"music",   name:"Jazz at Ronnie Scott's",                   venue:"Ronnie Scott's",            area:"Soho",             meta:"Tonight 9:30pm · from £30",       members:38, time:"9:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The world-famous jazz club. Tonight's late set features some of London's finest musicians — standing room only." },
-  { id:4,  emoji:"💃", gradientFrom:"#2a1035", gradientTo:"#4a1060", category:"dance",   name:"Bachata Social Night",                     venue:"Café Salsa",                area:"Covent Garden",    meta:"Tonight 9pm–2am · £10",           members:31, time:"9pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's most popular bachata social. All levels welcome — the dance floor does the introducing." },
-  { id:5,  emoji:"😂", gradientFrom:"#2a1a10", gradientTo:"#3a2810", category:"comedy",  name:"Comedy Store — Late Show",                 venue:"The Comedy Store",          area:"Leicester Square", meta:"Tonight 9:45pm · from £16",       members:29, time:"9:45pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"London's most iconic comedy club. Tonight's late show brings the UK's best stand-up talent to one stage." },
-  { id:6,  emoji:"🍜", gradientFrom:"#2a1208", gradientTo:"#3a2010", category:"food",    name:"Maltby Street Market — Evening Edition",   venue:"Maltby Street",             area:"Bermondsey",       meta:"Tonight 5pm–10pm · Free",         members:37, time:"5pm–10pm",   sponsored:false, buyTicket:false, section:"tonight", desc:"Over 30 of London's best street food traders in the arches under London Bridge — an evening edition." },
-  { id:7,  emoji:"🎬", gradientFrom:"#10101a", gradientTo:"#1a1a2a", category:"film",    name:"Rooftop Cinema Club — Brief Encounter",    venue:"Roof East",                 area:"Stratford",        meta:"Tonight 8pm · £19",               members:33, time:"8pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"Classic British romance under the stars on Roof East's open-air screen. Blankets provided." },
-  { id:8,  emoji:"🏃", gradientFrom:"#1a2a1a", gradientTo:"#243824", category:"fitness", name:"Run Dem Crew — Thursday Run",              venue:"Regent's Park",             area:"Regent's Park",    meta:"Tonight 6:30pm · Free",           members:22, time:"6:30pm",     sponsored:false, buyTicket:false, section:"tonight", desc:"London's most sociable running crew. 5k through Regent's Park, all paces welcome — drinks after at the pub." },
-  { id:9,  emoji:"🥊", gradientFrom:"#2a1010", gradientTo:"#3a1818", category:"fitness", name:"BXR London — Boxing Evening Class",        venue:"BXR London",                area:"Marylebone",       meta:"Tonight 7pm · £25",               members:18, time:"7pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's best boxing gym runs an open evening class. Gloves provided. All fitness levels — come prepared to work." },
-  { id:10, emoji:"🎵", gradientFrom:"#1a1028", gradientTo:"#2a1838", category:"music",   name:"Electric Brixton — Club Night",            venue:"Electric Brixton",          area:"Brixton",          meta:"Tonight 10pm · £15",              members:51, time:"10pm",       sponsored:true,  buyTicket:true,  section:"tonight", desc:"One of London's best live music venues. Tonight's resident DJs play disco, house, and soul until 4am." },
+  { id:0,  emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"music",   name:"LSO: An Evening of Brahms",               venue:"Barbican Centre",          area:"Barbican",         meta:"Tonight 7:30pm · from £35",       members:34, time:"7:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's finest concert series, a full house and an electric atmosphere." },
+  { id:1,  emoji:"🍷", gradientFrom:"#1a2535", gradientTo:"#243045", category:"food",    name:"Terroirs Natural Wine Evening",            venue:"Terroirs Wine Bar",         area:"Strand",           meta:"Tonight · until 11pm · Free",     members:27, time:"Until 11pm", sponsored:false, buyTicket:false, section:"tonight", desc:"The best natural wine bar in London, an evening of exceptional low-intervention wines poured at the bar." },
+  { id:2,  emoji:"🎨", gradientFrom:"#1e1a30", gradientTo:"#2d1e3a", category:"art",     name:"Tate Modern Late: After Hours",           venue:"Tate Modern",               area:"Bankside",         meta:"Tonight until 10pm · £12",        members:42, time:"Until 10pm", sponsored:false, buyTicket:true,  section:"tonight", desc:"After-hours access to the Tate galleries with a live DJ set and the riverside bar open late." },
+  { id:3,  emoji:"🎷", gradientFrom:"#182a1e", gradientTo:"#223828", category:"music",   name:"Jazz at Ronnie Scott's",                   venue:"Ronnie Scott's",            area:"Soho",             meta:"Tonight 9:30pm · from £30",       members:38, time:"9:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The world-famous jazz club. Tonight's late set features some of London's finest musicians , standing room only." },
+  { id:4,  emoji:"💃", gradientFrom:"#2a1035", gradientTo:"#4a1060", category:"dance",   name:"Bachata Social Night",                     venue:"Café Salsa",                area:"Covent Garden",    meta:"Tonight 9pm–2am · £10",           members:31, time:"9pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's most popular bachata social. All levels welcome so the dance floor does the introducing." },
+  { id:5,  emoji:"😂", gradientFrom:"#2a1a10", gradientTo:"#3a2810", category:"comedy",  name:"Comedy Store: Late Show",                 venue:"The Comedy Store",          area:"Leicester Square", meta:"Tonight 9:45pm · from £16",       members:29, time:"9:45pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"London's most iconic comedy club. Tonight's late show brings the UK's best stand-up talent to one stage." },
+  { id:6,  emoji:"🍜", gradientFrom:"#2a1208", gradientTo:"#3a2010", category:"food",    name:"Maltby Street Market: Evening Edition",   venue:"Maltby Street",             area:"Bermondsey",       meta:"Tonight 5pm–10pm · Free",         members:37, time:"5pm–10pm",   sponsored:false, buyTicket:false, section:"tonight", desc:"Over 30 of London's best street food traders in the arches under London Bridge , an evening edition." },
+  { id:7,  emoji:"🎬", gradientFrom:"#10101a", gradientTo:"#1a1a2a", category:"film",    name:"Rooftop Cinema Club: Brief Encounter",    venue:"Roof East",                 area:"Stratford",        meta:"Tonight 8pm · £19",               members:33, time:"8pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"Classic British romance under the stars on Roof East's open-air screen. Blankets provided." },
+  { id:8,  emoji:"🏃", gradientFrom:"#1a2a1a", gradientTo:"#243824", category:"fitness", name:"Run Dem Crew: Thursday Run",              venue:"Regent's Park",             area:"Regent's Park",    meta:"Tonight 6:30pm · Free",           members:22, time:"6:30pm",     sponsored:false, buyTicket:false, section:"tonight", desc:"London's most sociable running crew. 5k through Regent's Park, all paces welcome, drinks after at the pub." },
+  { id:9,  emoji:"🥊", gradientFrom:"#2a1010", gradientTo:"#3a1818", category:"fitness", name:"BXR London: Boxing Evening Class",        venue:"BXR London",                area:"Marylebone",       meta:"Tonight 7pm · £25",               members:18, time:"7pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's best boxing gym runs an open evening class. Gloves provided. All fitness levels , come prepared to work." },
+  { id:10, emoji:"🎵", gradientFrom:"#1a1028", gradientTo:"#2a1838", category:"music",   name:"Electric Brixton: Club Night",            venue:"Electric Brixton",          area:"Brixton",          meta:"Tonight 10pm · £15",              members:51, time:"10pm",       sponsored:true,  buyTicket:true,  section:"tonight", desc:"One of London's best live music venues. Tonight's resident DJs play disco, house, and soul until 4am." },
 
   // ── THIS WEEK ─────────────────────────────────────────────────────────────
-  { id:11, emoji:"🎭", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"art",     name:"ENO — La Traviata Opening Night",          venue:"London Coliseum",           area:"West End",         meta:"Friday 8pm · from £25",           members:25, time:"Fri 8pm",    sponsored:true,  buyTicket:true,  section:"week",    desc:"English National Opera's acclaimed new production of Verdi's La Traviata. Opening night." },
+  { id:11, emoji:"🎭", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"art",     name:"ENO: La Traviata Opening Night",          venue:"London Coliseum",           area:"West End",         meta:"Friday 8pm · from £25",           members:25, time:"Fri 8pm",    sponsored:true,  buyTicket:true,  section:"week",    desc:"English National Opera's acclaimed new production of Verdi's La Traviata. Opening night." },
   { id:12, emoji:"🖼️", gradientFrom:"#1a2535", gradientTo:"#243045", category:"art",     name:"National Portrait Gallery Members Evening",venue:"NPG",                       area:"St Martin's Place",meta:"Thursday 6:30pm · Members free",  members:29, time:"Thu 6:30pm", sponsored:false, buyTicket:false, section:"week",    desc:"Exclusive after-hours access to the galleries with wine and live music." },
-  { id:13, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"food",    name:"Borough Market — After Dark",              venue:"Borough Market",            area:"Borough",          meta:"Saturday 6pm · Free",             members:46, time:"Sat 6pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most celebrated food market stays open late with evening-only traders and street food." },
-  { id:14, emoji:"🎸", gradientFrom:"#1a1020", gradientTo:"#281830", category:"music",   name:"Moth Club — Indie Night",                  venue:"Moth Club",                 area:"Hackney",          meta:"Friday 9pm · £12",                members:28, time:"Fri 9pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"Hackney's best-kept secret. Indie and alternative DJ sets in the most characterful venue in East London." },
-  { id:15, emoji:"🧗", gradientFrom:"#1a1010", gradientTo:"#282010", category:"fitness", name:"Castle Climbing — Evening Session",        venue:"Castle Climbing Centre",    area:"Stoke Newington",  meta:"Thursday 6pm · £18",              members:17, time:"Thu 6pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"One of London's most celebrated climbing walls. Evening sessions are open to all abilities — shoes for hire." },
-  { id:16, emoji:"🍳", gradientFrom:"#2a1808", gradientTo:"#3a2010", category:"food",    name:"Ottolenghi — Saturday Masterclass",        venue:"Ottolenghi NOPI",           area:"Soho",             meta:"Saturday 11am · £95",             members:12, time:"Sat 11am",   sponsored:true,  buyTicket:true,  section:"week",    desc:"A hands-on morning with Ottolenghi's chefs. Learn four signature dishes, then sit down together to eat them." },
-  { id:17, emoji:"🎤", gradientFrom:"#1a0a28", gradientTo:"#2a1038", category:"comedy",  name:"Soho Theatre — Stand-Up Night",            venue:"Soho Theatre",              area:"Soho",             meta:"Wednesday 8pm · £15",             members:21, time:"Wed 8pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The most respected comedy venue in London. Tonight's bill features three rising stand-ups at the top of their game." },
+  { id:13, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"food",    name:"Borough Market: After Dark",              venue:"Borough Market",            area:"Borough",          meta:"Saturday 6pm · Free",             members:46, time:"Sat 6pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most celebrated food market stays open late with evening-only traders and street food." },
+  { id:14, emoji:"🎸", gradientFrom:"#1a1020", gradientTo:"#281830", category:"music",   name:"Moth Club: Indie Night",                  venue:"Moth Club",                 area:"Hackney",          meta:"Friday 9pm · £12",                members:28, time:"Fri 9pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"Hackney's best-kept secret. Indie and alternative DJ sets in the most characterful venue in East London." },
+  { id:15, emoji:"🧗", gradientFrom:"#1a1010", gradientTo:"#282010", category:"fitness", name:"Castle Climbing: Evening Session",        venue:"Castle Climbing Centre",    area:"Stoke Newington",  meta:"Thursday 6pm · £18",              members:17, time:"Thu 6pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"One of London's most celebrated climbing walls. Evening sessions are open to all abilities , shoes for hire." },
+  { id:16, emoji:"🍳", gradientFrom:"#2a1808", gradientTo:"#3a2010", category:"food",    name:"Ottolenghi: Saturday Masterclass",        venue:"Ottolenghi NOPI",           area:"Soho",             meta:"Saturday 11am · £95",             members:12, time:"Sat 11am",   sponsored:true,  buyTicket:true,  section:"week",    desc:"A hands-on morning with Ottolenghi's chefs. Learn four signature dishes, then sit down together to eat them." },
+  { id:17, emoji:"🎤", gradientFrom:"#1a0a28", gradientTo:"#2a1038", category:"comedy",  name:"Soho Theatre: Stand-Up Night",            venue:"Soho Theatre",              area:"Soho",             meta:"Wednesday 8pm · £15",             members:21, time:"Wed 8pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The most respected comedy venue in London. Tonight's bill features three rising stand-ups at the top of their game." },
   { id:18, emoji:"🚣", gradientFrom:"#0a1a2a", gradientTo:"#102030", category:"fitness", name:"Paddleboarding on the Thames",             venue:"Thames Paddle Co.",         area:"Richmond",         meta:"Sunday 10am · £35",               members:16, time:"Sun 10am",   sponsored:false, buyTicket:true,  section:"week",    desc:"Guided paddleboard session on the Thames at Richmond. Equipment and full instruction included. Beginners welcome." },
-  { id:19, emoji:"🌅", gradientFrom:"#1a1410", gradientTo:"#2a2018", category:"food",    name:"Skylight Rooftop Bar — Sunset Session",    venue:"Skylight Tobacco Dock",     area:"Wapping",          meta:"Saturday 5pm · Free entry",       members:39, time:"Sat 5pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most loved rooftop bar and games space. Cocktails, croquet, and a view of the city at golden hour." },
-  { id:20, emoji:"🏊", gradientFrom:"#0a1a28", gradientTo:"#101e30", category:"fitness", name:"London Fields Lido — Social Swim",         venue:"London Fields Lido",        area:"Hackney",          meta:"Sunday 8am · £5",                 members:23, time:"Sun 8am",    sponsored:false, buyTicket:true,  section:"week",    desc:"The heated outdoor lido at London Fields. Sunday morning swims followed by coffee and pastries at the poolside café." },
-  { id:21, emoji:"📖", gradientFrom:"#1a1818", gradientTo:"#282020", category:"art",     name:"Waterstones — Author Reading & Q&A",       venue:"Waterstones Piccadilly",    area:"Piccadilly",       meta:"Tuesday 7pm · £10",               members:14, time:"Tue 7pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The world's largest bookshop hosts an evening reading and Q&A with one of this year's most talked-about authors." },
-  { id:22, emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#2e1a40", category:"music",   name:"Wigmore Hall — Piano Recital",             venue:"Wigmore Hall",              area:"Marylebone",       meta:"Thursday 7:30pm · from £18",      members:19, time:"Thu 7:30pm", sponsored:false, buyTicket:true,  section:"week",    desc:"The finest chamber music venue in the world. This Thursday's recital features a rising pianist performing Schubert." },
-  { id:23, emoji:"🏃", gradientFrom:"#182a18", gradientTo:"#223820", category:"fitness", name:"Parkrun — Victoria Park",                  venue:"Victoria Park",             area:"Hackney",          meta:"Saturday 9am · Free",             members:31, time:"Sat 9am",    sponsored:false, buyTicket:false, section:"week",    desc:"The world's largest free weekly run. 5k around Victoria Park — all paces welcome, no registration needed on the day." },
+  { id:19, emoji:"🌅", gradientFrom:"#1a1410", gradientTo:"#2a2018", category:"food",    name:"Skylight Rooftop Bar: Sunset Session",    venue:"Skylight Tobacco Dock",     area:"Wapping",          meta:"Saturday 5pm · Free entry",       members:39, time:"Sat 5pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most loved rooftop bar and games space. Cocktails, croquet, and a view of the city at golden hour." },
+  { id:20, emoji:"🏊", gradientFrom:"#0a1a28", gradientTo:"#101e30", category:"fitness", name:"London Fields Lido: Social Swim",         venue:"London Fields Lido",        area:"Hackney",          meta:"Sunday 8am · £5",                 members:23, time:"Sun 8am",    sponsored:false, buyTicket:true,  section:"week",    desc:"The heated outdoor lido at London Fields. Sunday morning swims followed by coffee and pastries at the poolside café." },
+  { id:21, emoji:"📖", gradientFrom:"#1a1818", gradientTo:"#282020", category:"art",     name:"Waterstones: Author Reading & Q&A",       venue:"Waterstones Piccadilly",    area:"Piccadilly",       meta:"Tuesday 7pm · £10",               members:14, time:"Tue 7pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The world's largest bookshop hosts an evening reading and Q&A with one of this year's most talked-about authors." },
+  { id:22, emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#2e1a40", category:"music",   name:"Wigmore Hall: Piano Recital",             venue:"Wigmore Hall",              area:"Marylebone",       meta:"Thursday 7:30pm · from £18",      members:19, time:"Thu 7:30pm", sponsored:false, buyTicket:true,  section:"week",    desc:"The finest chamber music venue in the world. This Thursday's recital features a rising pianist performing Schubert." },
+  { id:23, emoji:"🏃", gradientFrom:"#182a18", gradientTo:"#223820", category:"fitness", name:"Parkrun, Victoria Park",                  venue:"Victoria Park",             area:"Hackney",          meta:"Saturday 9am · Free",             members:31, time:"Sat 9am",    sponsored:false, buyTicket:false, section:"week",    desc:"The world's largest free weekly run. 5k around Victoria Park, all paces welcome, no registration needed on the day." },
 ];
 
-// 18 interests — each user picks up to 3
+// 18 interests, each user picks up to 3
 const INTERESTS: { id: string; emoji: string; label: string }[] = [
   { id:"art",           emoji:"", label:"Art"           },
   { id:"comedy",        emoji:"", label:"Comedy"        },
@@ -168,7 +168,7 @@ const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
   volunteering: { background:"rgba(60,160,100,0.1)",    color:"#3ca064" },
 };
 
-// No dummy inbox — all requests come from Supabase
+// No dummy inbox, all requests come from Supabase
 
 // ── Round-robin rotation ───────────────────────────────────
 // Every ROTATION_MS we advance the top slot by 1, giving each person
@@ -204,7 +204,7 @@ function timeAtEventLabel(mins: number) {
 
 // ── Shared UI atoms ────────────────────────────────────────
 
-/** Shows uploaded photo or a gradient-initial fallback — round */
+/** Shows uploaded photo or a gradient-initial fallback, round */
 function AvatarCircle({
   user, size = 52,
 }: { user: { photo_url?: string | null; bg: string; name: string }; size?: number }) {
@@ -229,7 +229,7 @@ function AvatarCircle({
   );
 }
 
-/** Shows photo or gradient initial — fills a rectangular container */
+/** Shows photo or gradient initial, fills a rectangular container */
 function AvatarFill({
   user,
 }: { user: { photo_url?: string | null; bg: string; name: string } }) {
@@ -349,7 +349,7 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
     try {
-      // Sign out any stale session first — prevents crash on page refresh then re-login
+      // Sign out any stale session first, prevents crash on page refresh then re-login
       await supabase.auth.signOut();
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
@@ -447,7 +447,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     if (err) { setError(err.message); setLoading(false); return; }
     setLoading(false);
     // If email confirmation is enabled, user.identities will be populated but
-    // session will be null — show the confirm-your-email screen.
+    // session will be null, show the confirm-your-email screen.
     // If confirmation is disabled, sign in immediately and proceed to onboarding.
     if (!data.session) {
       setConfirmed(true);
@@ -528,7 +528,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
   );
 }
 
-// ── Onboarding — 5 steps ───────────────────────────────────
+// ── Onboarding, 5 steps ───────────────────────────────────
 function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [step, setStep]           = useState(1);
   const [name, setName]           = useState("");
@@ -569,7 +569,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
     if (!interests.length) { setError("Pick at least one interest"); return; }
     setLoading(true); setError("");
 
-    // Safety timeout — if saving takes more than 12 seconds, show an error
+    // Safety timeout, if saving takes more than 12 seconds, show an error
     const timeout = setTimeout(() => {
       setLoading(false);
       setError("Saving is taking too long. Please check your connection and try again.");
@@ -577,7 +577,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
     try {
       const { data:{ user } } = await supabase.auth.getUser();
-      if (!user) { clearTimeout(timeout); setError("Not logged in — please go back and sign in again."); setLoading(false); return; }
+      if (!user) { clearTimeout(timeout); setError("Not logged in. Please go back and sign in again."); setLoading(false); return; }
 
       let photo_url: string|null = null;
       if (photoFile) {
@@ -587,7 +587,6 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
         if (upErr) { clearTimeout(timeout); setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
         photo_url = urlData.publicUrl + `?v=${Date.now()}`;
-        localStorage.setItem(`selfie_date_${user.id}`, new Date().toDateString());
       }
 
       const profile: UserProfile = {
@@ -613,7 +612,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
 
   return (
     <div className="flex flex-col" style={{ background: C.cream, height:"100vh", overflow:"hidden" }}>
-      {/* Progress bar — 4 steps */}
+      {/* Progress bar, 4 steps */}
       <div className="px-6 pt-10 flex-shrink-0">
         <div className="flex gap-1.5 mb-1">
           {[1,2,3,4,5].map(s=>(
@@ -633,9 +632,9 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
             <div className="mb-4">
-              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today's Photo</div>
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your Photo</div>
               <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
-                <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. Your profile photo must be taken daily to accurately represent how you look today. A green tick next to a profile photo indicates the photo has been updated today.
+                Your photo is how people find you in person, so please use a clear, unedited photo that looks like you today.
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center relative"
@@ -655,11 +654,11 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                     {photoPreview ? "Retake photo" : "Take photo now"}
                   </button>
                   <div className="text-[11px] mt-1.5" style={{ color:C.warmMid }}>
-                    {photoPreview ? "Looks good — retake if needed" : "Opens your camera"}
+                    {photoPreview ? "Looks good, retake if needed" : "Camera or gallery"}
                   </div>
                 </div>
               </div>
-              <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
             </div>
             <div className="space-y-3 mb-3">
               {([
@@ -691,10 +690,10 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div className="mb-2 flex-shrink-0">
             <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
-            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS}, shown as conversation starters</div>
           </div>
           <div className="mb-2 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
-            These tags don't affect who sees you or in what order — purely for starting conversations.
+            These tags don't affect who sees you or in what order, they're purely for starting conversations.
           </div>
           <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div className="text-xs font-semibold" style={{ color:C.inkSoft }}>
@@ -785,7 +784,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>3 topics others can use to start a conversation with you</div>
           </div>
           <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
-            These appear on the match screen when someone meets you — so they have a natural way in.
+            These appear on the match screen when someone meets you, so they have a natural way in.
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
             {[0,1,2].map(i => (
@@ -810,7 +809,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                 <div className="text-[10px] text-right mt-0.5" style={{ color:"rgba(139,115,85,0.5)" }}>{askMePrompts[i].length}/60</div>
               </div>
             ))}
-            {/* Pronouns — compact, within step 4 */}
+            {/* Pronouns, compact, within step 4 */}
             <div className="mt-2 mb-3">
               <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your pronouns</div>
               <div className="flex gap-2">
@@ -887,7 +886,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   );
 }
 
-// ── EventRow — defined outside EventsScreen to prevent remounts ──────────────
+// ── EventRow, defined outside EventsScreen to prevent remounts ──────────────
 function EventRow({ e, onNavigate }: { e:HereEvent; onNavigate:(s:Screen,d?:unknown)=>void }) {
   return (
     <div className="flex items-center gap-3.5 px-5 py-3 cursor-pointer"
@@ -969,17 +968,17 @@ function NearbyCard({
       <div className="h-[152px] relative overflow-hidden">
         <AvatarFill user={user} />
 
-        {/* (1) Open-to-meet status — top-left badge */}
+        {/* (1) Open-to-meet status, top-left badge */}
         <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>
           <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" style={{ animation:"pulse 2s infinite" }} />
           Active
         </div>
-        {/* Verified tick — only shown when user has an uploaded photo */}
+        {/* Verified tick, only shown when user has an uploaded photo */}
         {user.photo_url && (
           <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>
         )}
 
-        {/* (2) Time at event — bottom gradient strip */}
+        {/* (2) Time at event, bottom gradient strip */}
         <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center leading-none"
           style={{ background:"linear-gradient(to top,rgba(26,20,16,0.8) 0%,transparent 100%)" }}>
           {timeAtEventLabel(user.minutes_at_event)}
@@ -992,7 +991,7 @@ function NearbyCard({
         <div className="text-[11px] mt-0.5 truncate" style={{ color:C.warmMid }}>{user.occupation}</div>
       </div>
 
-      {/* (4) Interest tags — conversation starters, no ranking */}
+      {/* (4) Interest tags, conversation starters, no ranking */}
       <div className="px-2.5 pb-1 flex flex-wrap gap-1 min-h-[20px]">
         {user.interests.slice(0,3).map(i=><InterestTag key={i} interest={i} />)}
       </div>
@@ -1085,7 +1084,7 @@ function NearbyScreen({
     const { data } = await q;
     let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
 
-    // Distance filter — only show users within RADIUS_M who are open_to_meet
+    // Distance filter, only show users within RADIUS_M who are open_to_meet
     // Rely on open_to_meet=false to remove people who have left, not on timestamp staleness
     const myLat = myLatRef.current;
     const myLng = myLngRef.current;
@@ -1095,7 +1094,7 @@ function NearbyScreen({
         return haversineMetres(myLat, myLng, u.lat, u.lng) <= RADIUS_M;
       });
     } else {
-      // No coords yet — show nobody rather than everyone
+      // No coords yet, show nobody rather than everyone
       candidates = [];
     }
 
@@ -1115,7 +1114,7 @@ function NearbyScreen({
       return;
     }
 
-    // Turn ON — use cached coords if location already granted
+    // Turn ON, use cached coords if location already granted
     setLoading(true);
     setLocError(null);
 
@@ -1206,7 +1205,7 @@ function NearbyScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Round-robin all open users (no distance filter — page ranks by proximity already)
+  // Round-robin all open users (no distance filter, page ranks by proximity already)
   const ordered = applyRoundRobin(rawUsers, offset);
   const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id) && !interactedIds.includes(u.id));
 
@@ -1232,7 +1231,7 @@ function NearbyScreen({
           )}
         </div>
 
-        {/* Compact discoverability toggle — top-right corner */}
+        {/* Compact discoverability toggle, top-right corner */}
         <button
           onClick={locationGranted ? toggleLoc : undefined}
           disabled={loading || !locationGranted}
@@ -1440,7 +1439,7 @@ function PendingScreen({
   const firstName = person.name.split(",")[0];
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
-  // No auto-navigation — sender stays here until they tap a button.
+  // No auto-navigation, sender stays here until they tap a button.
   // We just stop polling silently when a final status is reached.
   useEffect(() => {
     async function checkStatus() {
@@ -1454,7 +1453,7 @@ function PendingScreen({
         .limit(1)
         .maybeSingle();
       if (data) {
-        // Stop polling — but don't navigate. User taps the button themselves.
+        // Stop polling, but don't navigate. User taps the button themselves.
         clearInterval(pollRef.current!);
       }
     }
@@ -1687,7 +1686,7 @@ function IncomingScreen({
           ))}
         </div>
 
-        {/* Area hint — only shown for 15min / 30min */}
+        {/* Area hint, only shown for 15min / 30min */}
         {showAreaHint && (
           <div className="px-[22px] pt-1 pb-1">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
@@ -1794,7 +1793,7 @@ function ChatScreen({
         (payload) => {
           const incoming = payload.new as ChatMessage;
           setMessages(prev => {
-            // Ignore echo of own messages — already shown optimistically
+            // Ignore echo of own messages, already shown optimistically
             if (incoming.sender_id === currentUser.id) return prev;
             // Deduplicate in case of any other repeat
             if (prev.some(m => m.id === incoming.id)) return prev;
@@ -1817,7 +1816,7 @@ function ChatScreen({
     setSending(true);
     setDraft("");
 
-    // Optimistic insert — show immediately without waiting for realtime echo
+    // Optimistic insert, show immediately without waiting for realtime echo
     const optimistic: ChatMessage = {
       id: `optimistic-${Date.now()}`, // temp id
       request_id: requestId,
@@ -1848,7 +1847,7 @@ function ChatScreen({
 
   return (
     <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      {/* Header — tap profile to open private notes */}
+      {/* Header, tap profile to open private notes */}
       <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0"
         style={{ borderBottom: `1px solid ${C.border}` }}>
         <BackBtn onClick={() => onNavigate("messages")} />
@@ -1871,7 +1870,7 @@ function ChatScreen({
         {/* Unlocked banner */}
         <div className="px-3 py-2 rounded-xl text-[11px] text-center mb-1"
           style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
-          You both said you'd meet again — chat unlocked
+          You both said you'd meet again, so chat is now unlocked
         </div>
 
         {loading && (
@@ -1955,7 +1954,7 @@ function ChatScreen({
         </button>
       </div>
 
-      {/* Private notes modal — only visible to current user */}
+      {/* Private notes modal, only visible to current user */}
       {showNotes && (
         <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.45)" }}>
           <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
@@ -1963,7 +1962,7 @@ function ChatScreen({
             <div className="flex items-center gap-3 mb-1">
               <AvatarCircle user={person} size={36} />
               <div>
-                <div className="text-[17px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{firstName} — your notes</div>
+                <div className="text-[17px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{firstName}, your notes</div>
                 <div className="text-[11px]" style={{ color:C.warmMid }}>Private · {firstName} cannot see this</div>
               </div>
             </div>
@@ -2112,11 +2111,11 @@ function MatchScreen({
               <AvatarCircle user={person ?? { name:"?", bg:BG_OPTIONS[0], photo_url:null }} size={36} />
               <div>
                 <div className="text-[17px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>First impression</div>
-                <div className="text-[11px]" style={{ color:C.warmMid }}>Private — only you can see this</div>
+                <div className="text-[11px]" style={{ color:C.warmMid }}>Private, only you can see this</div>
               </div>
             </div>
             <div className="mb-3 mt-3 text-xs leading-relaxed" style={{ color:C.warmMid }}>
-              Jot down your initial thoughts about {firstName}. This is saved as a personal note — {firstName} will never see it. You can add to it any time from your messages.
+              Jot down your initial thoughts about {firstName}. This is saved as a personal note, {firstName} will never see it. You can add to it any time from your messages.
             </div>
             <textarea
               value={notesText}
@@ -2224,7 +2223,7 @@ function MessagesScreen({
 
   useEffect(() => {
     async function load() {
-      // Fetch all accepted requests involving the current user (no join — fetch profiles separately)
+      // Fetch all accepted requests involving the current user (no join, fetch profiles separately)
       const { data: reqs } = await supabase
         .from("meet_requests")
         .select("id, from_id, to_id, created_at")
@@ -2234,7 +2233,7 @@ function MessagesScreen({
 
       if (!reqs) { setLoading(false); return; }
 
-      // Deduplicate by other person — keep only the most recent request per person
+      // Deduplicate by other person, keep only the most recent request per person
       const seenPersonIds = new Set<string>();
       const dedupedReqs: { id: string; from_id: string; to_id: string; created_at: string }[] = [];
       for (const r of reqs as { id: string; from_id: string; to_id: string; created_at: string }[]) {
@@ -2382,6 +2381,10 @@ function ProfileScreen({
   const [editingPronouns, setEditingPronouns]   = useState(false);
   const [draftPronouns,   setDraftPronouns]     = useState<"he/him"|"she/her"|"they/them">(currentUser.pronouns ?? "she/her");
   const [savingPronouns,  setSavingPronouns]    = useState(false);
+  // Ask me about editing
+  const [editingAskMe,   setEditingAskMe]   = useState(false);
+  const [draftAskMe,     setDraftAskMe]     = useState<string[]>(currentUser.ask_me_prompts ?? ["", "", ""]);
+  const [savingAskMe,    setSavingAskMe]    = useState(false);
 
   async function savePronouns() {
     setSavingPronouns(true);
@@ -2389,6 +2392,15 @@ function ProfileScreen({
     onUpdateUser({ ...currentUser, pronouns: draftPronouns });
     setSavingPronouns(false);
     setEditingPronouns(false);
+  }
+
+  async function saveAskMe() {
+    setSavingAskMe(true);
+    const filtered = draftAskMe.map(p => p.trim());
+    await supabase.from("profiles").update({ ask_me_prompts: filtered }).eq("id", currentUser.id);
+    onUpdateUser({ ...currentUser, ask_me_prompts: filtered });
+    setSavingAskMe(false);
+    setEditingAskMe(false);
   }
 
   function toggleDraftLanguage(lang: string) {
@@ -2435,15 +2447,10 @@ function ProfileScreen({
     const url = urlData.publicUrl+`?v=${Date.now()}`;
     await supabase.from("profiles").update({ photo_url:url }).eq("id",currentUser.id);
     onUpdateUser({ ...currentUser, photo_url: url });
-    // Store today's date so we can show "selfie taken today" badge
-    localStorage.setItem(`selfie_date_${currentUser.id}`, new Date().toDateString());
     setPhotoL(false);
   }
 
-  const todaySelfieDate = typeof window !== "undefined" ? localStorage.getItem(`selfie_date_${currentUser.id}`) : null;
-  const selfieIsToday = todaySelfieDate === new Date().toDateString();
-  // photoIsToday alias for clarity in the UI
-  const photoIsToday = selfieIsToday;
+  const hasPhoto = !!currentUser.photo_url;
 
   async function handleSignOut() {
     await supabase.from("profiles").update({ open_to_meet:false, checked_in_event_id:null, checked_in_at:null }).eq("id",currentUser.id);
@@ -2457,29 +2464,28 @@ function ProfileScreen({
         <div className="text-[24px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your Profile</div>
       </div>
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        {/* Profile card — tap to edit interests */}
+        {/* Profile card, tap to edit interests */}
         <div className="mx-[22px] mt-5 p-5 bg-white rounded-[20px] flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-transform"
           style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)", border:`1.5px solid ${editingInterests ? C.accent : "transparent"}` }}
           onClick={()=>{ setDraftInterests(currentUser.interests); setEditingInterests(true); }}>
           <div className="relative flex-shrink-0" onClick={e=>e.stopPropagation()}>
             <AvatarCircle user={currentUser} size={64} />
-            {/* Green tick if photo taken today, red cross if not */}
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-bold"
-              style={{ background: photoIsToday ? C.green : "#dc2626", color:"white", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
-              {photoIsToday ? "✓" : "✕"}
+            {/* Camera icon badge */}
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[11px]"
+              style={{ background: C.accent, color:"white", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+              📷
             </div>
             {/* camera-only, no gallery */}
-            <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
-            {/* Daily photo nudge */}
             <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
               className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer border-0"
-              style={{ background: photoIsToday ? "rgba(74,124,89,0.1)" : "rgba(220,38,38,0.08)", color: photoIsToday ? C.green : "#dc2626", fontFamily:"'DM Sans',sans-serif" }}>
-              {photoLoading ? "Uploading…" : photoIsToday ? "Today's photo taken" : "Update today's photo"}
+              style={{ background:"rgba(196,120,58,0.08)", color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              {photoLoading ? "Uploading…" : hasPhoto ? "Update photo" : "Add photo"}
             </button>
             <div className="text-[11px] mt-1" style={{ color:C.warmMid }}>Tap card to edit interests</div>
           </div>
@@ -2613,6 +2619,47 @@ function ProfileScreen({
           </div>
         )}
 
+        {/* Ask me about edit modal */}
+        {editingAskMe && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingAskMe(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Ask me about…</div>
+              <div className="text-xs mb-4" style={{ color:C.warmMid }}>3 topics shown to people when you're matched, helps break the ice</div>
+              {[0,1,2].map(i => (
+                <div key={i} className="mb-3">
+                  <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Prompt {i+1}</div>
+                  <input
+                    value={draftAskMe[i] ?? ""}
+                    onChange={e => {
+                      const next = [...draftAskMe];
+                      next[i] = e.target.value;
+                      setDraftAskMe(next);
+                    }}
+                    maxLength={60}
+                    placeholder={["e.g. my pottery hobby", "e.g. the best spots in Hackney", "e.g. why I left finance"][i]}
+                    className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                    style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
+                  />
+                  <div className="text-[10px] text-right mt-0.5" style={{ color:"rgba(139,115,85,0.4)" }}>{(draftAskMe[i]??'').length}/60</div>
+                </div>
+              ))}
+              <button onClick={saveAskMe} disabled={savingAskMe}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mt-1"
+                style={{ background:C.accent, opacity:savingAskMe?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                {savingAskMe ? "Saving…" : "Save prompts"}
+              </button>
+              <button onClick={()=>setEditingAskMe(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mx-[22px] mt-4 bg-white rounded-[18px] overflow-hidden" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)" }}>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
             <div>
@@ -2664,6 +2711,20 @@ function ProfileScreen({
               </div>
             </div>
             <span style={{ color:C.warmMid }}>›</span>
+          </div>
+
+          {/* Ask me about row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftAskMe(currentUser.ask_me_prompts?.length ? [...currentUser.ask_me_prompts, ...Array(3).fill("")].slice(0,3) : ["","",""]); setEditingAskMe(true); }}>
+            <div className="flex-1 min-w-0 pr-3">
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Ask me about…</div>
+              <div className="text-[11px] mt-0.5 truncate" style={{ color:C.warmMid }}>
+                {(currentUser.ask_me_prompts ?? []).filter(p=>p.trim()).length > 0
+                  ? (currentUser.ask_me_prompts ?? []).filter(p=>p.trim()).join(" · ")
+                  : "Not set — tap to add conversation starters"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid, flexShrink:0 }}>›</span>
           </div>
           <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setAgeX(v=>!v)}>
             <div className="flex justify-between items-center">
@@ -2813,7 +2874,7 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     async function checkSentAccepted() {
-      // Only surface accepted requests from the last 30 min — older ones are stale / hint-expired
+      // Only surface accepted requests from the last 30 min, older ones are stale / hint-expired
       const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
       const { data } = await supabase
         .from("meet_requests")
@@ -2832,7 +2893,7 @@ export default function App() {
         seenAcceptedIdsRef.current.add(data.id);
         const recipient = data.profiles as UserProfile;
         setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
-        // Keep polling — don't clearInterval — so new matches surface without a page refresh
+        // Keep polling, don't clearInterval, so new matches surface without a page refresh
       }
     }
     checkSentAccepted();
@@ -2852,10 +2913,10 @@ export default function App() {
     return () => { if (autoOffRef.current) clearTimeout(autoOffRef.current); };
   }, [locationGranted, autoOffTimer]);
 
-  // GPS heartbeat — refresh our own coords in Supabase every 60 seconds while live.
+  // GPS heartbeat, refresh our own coords in Supabase every 60 seconds while live.
   // Uses low-accuracy (cell/WiFi) to preserve battery. This keeps our position current
   // so the distance filter on other users' screens reflects our actual location.
-  // We don't use this to filter others out — open_to_meet=false is the exit signal.
+  // We don't use this to filter others out, open_to_meet=false is the exit signal.
   const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval>|null>(null);
   useEffect(() => {
     if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
@@ -2870,7 +2931,7 @@ export default function App() {
             location_updated_at: new Date().toISOString(),
           }).eq("id", currentUser.id);
         },
-        () => {}, // silently ignore — next tick will retry
+        () => {}, // silently ignore, next tick will retry
         { enableHighAccuracy: false, timeout: 10_000, maximumAge: 30_000 }
       );
     };
@@ -2885,9 +2946,9 @@ export default function App() {
   const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
-  // Restore session on mount — handles page refresh and link-based auth (magic link, confirm email)
+  // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
-    // Safety timeout — if getSession hangs (e.g. flaky network), fall through to login
+    // Safety timeout, if getSession hangs (e.g. flaky network), fall through to login
     const splashTimeout = setTimeout(() => navigate("login"), 6_000);
 
     supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
@@ -2906,7 +2967,7 @@ export default function App() {
           navigate("onboarding");
         }
       } catch {
-        // Profile fetch failed — sign out stale session so login screen starts clean
+        // Profile fetch failed, sign out stale session so login screen starts clean
         await supabase.auth.signOut().catch(() => {});
         navigate("login");
       }
@@ -2922,7 +2983,7 @@ export default function App() {
         navigate("login");
         return;
       }
-      // Only handle SIGNED_IN for link-based flows — not password logins
+      // Only handle SIGNED_IN for link-based flows, not password logins
       // which are handled directly in LoginScreen to avoid a race condition
       if (event === "SIGNED_IN" && session?.user && !currentUserRef.current) {
         try {
@@ -2970,7 +3031,7 @@ export default function App() {
       declinedIdsRef.current.delete(id);
       if (currentUser) fetchInbox(currentUser.id);
     });
-    // Remove immediately from state — declined requests disappear
+    // Remove immediately from state, declined requests disappear
     setInbox(prev => prev.filter(r => r.id !== id));
     setAcceptedSent(prev => (prev && (prev as any).requestId === id ? null : prev));
     if (screen === "incoming" || screen === "match") {
