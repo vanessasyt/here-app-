@@ -2163,10 +2163,12 @@ function MatchScreen({
             const key = `here_met_${currentUser.id}`;
             const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
             const alreadyThere = existing.some((e: any) => e.personId === (metPerson as UserProfile).id);
+            const reqId = (matchData as any).requestId ?? (matchData.request as any)?.id ?? null;
             if (!alreadyThere) {
               existing.push({
                 personId: (metPerson as UserProfile).id,
                 person: metPerson,
+                requestId: reqId,
                 metAt: new Date().toISOString(),
                 answered: false,
               });
@@ -2297,23 +2299,28 @@ function FollowUpScreen({
     { id:"didntmeet", label:"Didn't end up meeting",        sub:"Closes the record quietly",                           yes:false },
   ];
 
-  function confirm() {
+  async function confirm() {
     if (!choice) return;
     // Mark as answered in localStorage
     const key = `here_met_${currentUser.id}`;
     const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+    // Find the requestId for this person
+    const metRecord = existing.find((e: any) => e.personId === person.id);
+    const requestId = metRecord?.requestId ?? null;
     const updated = existing.map((e: any) =>
       e.personId === person.id ? { ...e, answered: true, choice } : e
     );
     localStorage.setItem(key, JSON.stringify(updated));
 
-    if (choice === "yes") {
-      // Navigate to chat — the chat will be unlocked visually but actual chat
-      // functionality requires mutual yes which is tracked server-side
-      onNavigate("inbox");
-    } else {
-      onNavigate("inbox");
+    if (choice === "yes" && requestId) {
+      // Write mutual-yes intent to Supabase
+      await supabase.from("meet_again").upsert({
+        user_id: currentUser.id,
+        request_id: requestId,
+        created_at: new Date().toISOString(),
+      });
     }
+    onNavigate("inbox");
   }
 
   return (
@@ -2386,9 +2393,31 @@ function MessagesScreen({
 
       if (!reqs) { setLoading(false); return; }
 
+      // For each request, check if BOTH parties said yes in meet_again table
+      const reqIds = (reqs as { id: string }[]).map(r => r.id);
+      const { data: meetAgainRows } = await supabase
+        .from("meet_again")
+        .select("user_id, request_id")
+        .in("request_id", reqIds.length > 0 ? reqIds : ["__none__"]);
+
+      // Build a set of request_ids where both parties said yes
+      const mutualYesIds = new Set<string>();
+      const yesMap: Record<string, string[]> = {};
+      for (const row of (meetAgainRows ?? []) as { user_id: string; request_id: string }[]) {
+        if (!yesMap[row.request_id]) yesMap[row.request_id] = [];
+        yesMap[row.request_id].push(row.user_id);
+      }
+      for (const [reqId, users] of Object.entries(yesMap)) {
+        if (users.length >= 2) mutualYesIds.add(reqId);
+      }
+
+      // Only keep requests with mutual yes
+      const mutualReqs = (reqs as { id: string; from_id: string; to_id: string; created_at: string }[])
+        .filter(r => mutualYesIds.has(r.id));
+
       const seenPersonIds = new Set<string>();
       const dedupedReqs: { id: string; from_id: string; to_id: string; created_at: string }[] = [];
-      for (const r of reqs as { id: string; from_id: string; to_id: string; created_at: string }[]) {
+      for (const r of mutualReqs) {
         const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
         if (!seenPersonIds.has(otherId)) {
           seenPersonIds.add(otherId);
