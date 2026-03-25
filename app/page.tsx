@@ -14,7 +14,7 @@ type Screen =
   | "splash" | "login" | "signup" | "onboarding"
   | "events" | "eventdetail" | "nearby" | "request"
   | "inbox"  | "incoming"    | "match" | "profile" | "pending"
-  | "openers" | "postmeet" | "followup" | "chat";
+  | "messages" | "chat";
 
 type IncResponse  = "accept" | "15min" | "30min";
 
@@ -33,7 +33,8 @@ interface UserProfile {
   checked_in_at: string | null;  // ISO timestamp – used for time-at-event
   lat: number | null;           // GPS latitude
   lng: number | null;           // GPS longitude
-  pronouns?: "he/him" | "she/her" | "they/them"; // optional — used in openers & match screen
+  pronouns?: "he/him" | "she/her" | "they/them"; // optional — shown on match screen
+  ask_me_prompts?: string[]; // 3 user-written "Ask me about" prompts
 }
 
 // NearbyUser extends UserProfile with client-side display fields
@@ -279,15 +280,16 @@ function BackBtn({ onClick, dark }: { onClick: () => void; dark?: boolean }) {
   );
 }
 
-type NavTab = "events" | "nearby" | "inbox" | "profile";
+type NavTab = "events" | "nearby" | "inbox" | "messages" | "profile";
 function BottomNav({
   active, onNavigate, dark, inboxCount,
 }: { active: NavTab; onNavigate: (s: Screen) => void; dark?: boolean; inboxCount?: number }) {
   const items: { id: NavTab; dest: Screen; icon: string; label: string }[] = [
-    { id:"events",  dest:"events",  icon:"🎭", label:"Events"   },
-    { id:"nearby",  dest:"nearby",  icon:"📡", label:"Nearby"   },
-    { id:"inbox",   dest:"inbox",   icon:"💬", label:"Requests" },
-    { id:"profile", dest:"profile", icon:"👤", label:"Profile"  },
+    { id:"events",   dest:"events",   icon:"🎭", label:"Events"   },
+    { id:"nearby",   dest:"nearby",   icon:"📡", label:"Nearby"   },
+    { id:"inbox",    dest:"inbox",    icon:"💬", label:"Requests" },
+    { id:"messages", dest:"messages", icon:"✉️",  label:"Messages" },
+    { id:"profile",  dest:"profile",  icon:"👤", label:"Profile"  },
   ];
   return (
     <div
@@ -536,6 +538,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [languages, setLanguages] = useState<string[]>(["English"]);
   const [langInput,  setLangInput] = useState("");
   const [pronouns,   setPronouns] = useState<"he/him"|"she/her"|"they/them">("she/her");
+  const [askMePrompts, setAskMePrompts] = useState<string[]>(["", "", ""]);
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [photoPreview, setPreview]= useState<string|null>(null);
   const [loading, setLoading]     = useState(false);
@@ -591,6 +594,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
         id: user.id, email: user.email ?? "", name, age: parseInt(age),
         occupation: occ, interests, languages: languages ?? [], photo_url, bg,
         pronouns,
+        ask_me_prompts: askMePrompts.filter(p => p.trim()),
         open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
       };
 
@@ -773,31 +777,55 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
         </div>
       )}
 
-      {/* ─── Step 4: Pronouns ─── */}
+      {/* ─── Step 4: Ask me about prompts ─── */}
       {step===4 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
-          <div className="mb-4 flex-shrink-0">
-            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your pronouns</div>
-            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Shown on your profile and used when others are matched with you</div>
+          <div className="mb-2 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Ask me about…</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>3 topics others can use to start a conversation with you</div>
           </div>
-          <div className="flex flex-col gap-3 flex-shrink-0">
-            {(["she/her","he/him","they/them"] as const).map(p => (
-              <button key={p} onClick={()=>setPronouns(p)}
-                className="w-full py-4 rounded-2xl text-[15px] font-semibold cursor-pointer transition-all"
-                style={{
-                  border: `1.5px solid ${pronouns===p ? C.ink : C.border}`,
-                  background: pronouns===p ? C.ink : "white",
-                  color: pronouns===p ? C.cream : C.inkSoft,
-                  fontFamily:"'DM Sans',sans-serif",
-                }}>
-                {p}
-              </button>
+          <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
+            These appear on the match screen when someone meets you — so they have a natural way in.
+          </div>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
+            {[0,1,2].map(i => (
+              <div key={i} className="mb-3">
+                <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Prompt {i+1}</div>
+                <input
+                  value={askMePrompts[i]}
+                  onChange={e => {
+                    const next = [...askMePrompts];
+                    next[i] = e.target.value;
+                    setAskMePrompts(next);
+                  }}
+                  maxLength={60}
+                  placeholder={[
+                    "e.g. my pottery hobby",
+                    "e.g. the best spots in Hackney",
+                    "e.g. why I left finance",
+                  ][i]}
+                  className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none"
+                  style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }}
+                />
+                <div className="text-[10px] text-right mt-0.5" style={{ color:"rgba(139,115,85,0.5)" }}>{askMePrompts[i].length}/60</div>
+              </div>
             ))}
+            {/* Pronouns — compact, within step 4 */}
+            <div className="mt-2 mb-3">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your pronouns</div>
+              <div className="flex gap-2">
+                {(["she/her","he/him","they/them"] as const).map(p => (
+                  <button key={p} onClick={()=>setPronouns(p)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                    style={{ border:`1.5px solid ${pronouns===p ? C.ink : C.border}`, background: pronouns===p ? C.ink : "white", color: pronouns===p ? C.cream : C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ height:8 }} />
           </div>
-          <div className="mt-3 text-[11px] leading-relaxed flex-shrink-0" style={{ color:C.warmMid }}>
-            This helps here. use the right language when showing your profile to others.
-          </div>
-          <div className="flex gap-3 flex-shrink-0 mt-auto pt-4">
+          <div className="flex gap-3 flex-shrink-0 mt-3">
             <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
             <button onClick={()=>setStep(5)}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
@@ -1704,313 +1732,6 @@ function getPronouns(person?: UserProfile | null) {
   return                         { sub: "She",  obj: "her",  goFind: "Go find her"  };
 }
 
-// ── Opener questions ──────────────────────────────────────
-const OPENER_QUESTIONS = [
-  "If tonight was a film, what genre would it be?",
-  "What's one thing you'd recommend in London that most people miss?",
-  "What do you actually do when you're not working?",
-  "One place you want to go that you haven't been yet?",
-  "What's something you changed your mind about recently?",
-  "Best meal you've had this year — where was it?",
-  "What's the last thing you got genuinely excited about?",
-  "What did you want to be when you were ten?",
-  "What's something most people get wrong about your job?",
-  "What's the most interesting thing you've done in the last month?",
-  "What would your perfect Sunday look like?",
-  "What's a skill you've picked up in the last year?",
-  "What's the best thing about where you grew up?",
-  "If you could only eat one cuisine for the rest of your life, what would it be?",
-  "What's something you're looking forward to this month?",
-];
-
-// Seeded deterministic picker — both people get the same 4 questions for the same
-// request, because the seed is derived from the requestId (a shared value).
-// Falls back to Math.random() only if no seed is available (shouldn't happen).
-function seededRandom(seed: number) {
-  // Simple mulberry32 PRNG — fast, deterministic, good distribution
-  let t = seed + 0x6D2B79F5;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function pickOpenerQuestions(seed?: number): string[] {
-  const pool = [...OPENER_QUESTIONS];
-  if (!seed) return pool.sort(() => Math.random() - 0.5).slice(0, 4);
-  // Fisher-Yates with deterministic seed so both users get identical questions
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(seededRandom(seed + i) * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, 4);
-}
-
-// ── Opener Screen ──────────────────────────────────────────
-function OpenerScreen({
-  person, questions, onBack, onNavigate, inboxCount,
-}: { person: UserProfile; questions: string[]; onBack: () => void; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
-  const firstName = person.name.split(",")[0];
-  const pr = getPronouns(person);
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.ink }}>
-      <div className="px-6 pt-6 flex items-center gap-3 flex-shrink-0">
-        <BackBtn onClick={onBack} dark />
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
-        {/* Person header */}
-        <div className="mt-3 mb-1">
-          <div className="text-[24px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>{person.name}</div>
-          <div className="text-[12px] mt-0.5 mb-4" style={{ color: "rgba(245,240,232,0.45)" }}>{person.occupation}</div>
-        </div>
-        {/* Intro */}
-        <div className="mb-4">
-          <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-1.5" style={{ color: C.accent }}>Your openers</div>
-          <div className="text-[13px] leading-relaxed" style={{ color: "rgba(245,240,232,0.6)", fontStyle: "italic" }}>
-            Here are some openers for you to break the ice!
-          </div>
-        </div>
-        {/* All 4 questions */}
-        <div className="flex flex-col gap-2.5 mb-5">
-          {questions.map((q, i) => (
-            <div key={i} className="flex gap-3 items-start px-4 py-3.5 rounded-2xl"
-              style={{ background: "rgba(245,240,232,0.05)", border: "1px solid rgba(245,240,232,0.1)" }}>
-              <span className="text-[13px] font-bold flex-shrink-0 mt-0.5" style={{ color: C.accent }}>{i + 1}</span>
-              <span className="text-[14px] leading-relaxed font-medium" style={{ color: C.cream }}>{q}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-[11px] text-center leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          After you meet, tap "met them" to record what you actually said. Your answers stay private until you both save.
-        </div>
-      </div>
-      <div className="px-6 pb-7 flex flex-col gap-2 flex-shrink-0">
-        <button onClick={onBack} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-          style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
-          {pr.goFind} →
-        </button>
-        <button onClick={onBack} className="w-full py-3 rounded-2xl text-[13px] border-0 cursor-pointer"
-          style={{ background: "rgba(245,240,232,0.06)", color: "rgba(245,240,232,0.4)", fontFamily: "'DM Sans',sans-serif" }}>
-          Skip openers
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Post-Meet Record Screen ────────────────────────────────
-function PostMeetScreen({
-  person, questions, onNavigate, inboxCount, requestId,
-}: { person: UserProfile; questions: string[]; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; requestId?: string | null }) {
-  const [idx, setIdx]         = useState(0);
-  const [answers, setAnswers] = useState<string[]>(() => Array(questions.length).fill(""));
-  const [saved, setSaved]     = useState(false);
-  const firstName = person.name.split(",")[0];
-  const pr = getPronouns(person);
-
-  function updateAnswer(val: string) {
-    const a = [...answers]; a[idx] = val; setAnswers(a);
-  }
-
-  function save() {
-    setSaved(true);
-    // No auto-navigate — user taps button when ready
-  }
-
-  if (saved) {
-    return (
-      <div className="flex flex-col h-full" style={{ background: C.cream }}>
-        <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
-          <BackBtn onClick={() => onNavigate("inbox")} />
-          <div>
-            <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
-            <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
-          <div className="mt-3 mb-3 px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(196,120,58,0.07)", color: C.warmMid, fontStyle: "italic" }}>
-            Your answers saved — {firstName}&apos;s answers will appear here once they save theirs
-          </div>
-          {questions.map((q, i) => (
-            <div key={i} className="bg-white rounded-[14px] px-3.5 py-3 mb-2.5" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
-              <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>Question {i + 1}</div>
-              <div className="text-[12px] mb-2.5 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{q}"</div>
-              <div className="flex flex-col gap-1.5">
-                {answers[i] ? (
-                  <div className="flex items-start gap-2">
-                    <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>you said ·</span>
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-lg" style={{ background: C.ink, color: C.cream }}>{answers[i]}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2">
-                    <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>you said ·</span>
-                    <span className="text-[11px] px-2 py-1 rounded-lg" style={{ color: "rgba(139,115,85,0.4)", fontStyle: "italic" }}>skipped</span>
-                  </div>
-                )}
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] min-w-[52px] pt-0.5" style={{ color: C.warmMid }}>{firstName} ·</span>
-                  <span className="text-[11px] px-2 py-1 rounded-lg" style={{ background: "rgba(139,115,85,0.07)", color: "rgba(139,115,85,0.5)", fontStyle: "italic" }}>waiting for their answer…</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="text-[10px] text-center mt-2 leading-relaxed" style={{ color: "rgba(139,115,85,0.4)" }}>
-            here. never stores conversations — this is just a record of tonight.
-          </div>
-          <div style={{ height: 8 }} />
-        </div>
-        {/* Explicit followup button — no auto-nav */}
-        <div className="px-[22px] pb-6 flex-shrink-0">
-          <button onClick={() => onNavigate("followup", { person, requestId })}
-            className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-            style={{ background: C.green, fontFamily: "'DM Sans',sans-serif" }}>
-            How did it go? →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      <div className="px-[22px] pt-5 flex items-center gap-3 flex-shrink-0">
-        <BackBtn onClick={() => onNavigate("inbox")} />
-        <div>
-          <div className="text-[18px]" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.ink }}>{firstName}</div>
-          <div className="text-[11px]" style={{ color: C.warmMid }}>Met tonight</div>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-[22px] pb-4" style={{ minHeight: 0 }}>
-        <div className="mt-3 mb-4 px-3 py-2 rounded-xl text-[11px] text-center" style={{ background: "rgba(196,120,58,0.07)", color: C.warmMid, fontStyle: "italic" }}>
-          Both marked as met — write what you actually said in person
-        </div>
-        {/* Dot progress */}
-        <div className="flex gap-1.5 justify-center mb-4">
-          {questions.map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full transition-all"
-              style={{ background: i === idx ? C.accent : "rgba(139,115,85,0.2)" }} />
-          ))}
-        </div>
-        {/* Question card */}
-        <div className="bg-white rounded-[14px] px-3.5 py-3 mb-3" style={{ border: "0.5px solid rgba(139,115,85,0.18)" }}>
-          <div className="text-[9px] uppercase tracking-[1.2px] font-semibold mb-1.5" style={{ color: C.accent }}>
-            Question {idx + 1} of {questions.length}
-          </div>
-          <div className="text-[12px] mb-3 leading-relaxed" style={{ color: C.inkSoft, fontStyle: "italic" }}>"{questions[idx]}"</div>
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-start gap-2">
-              <span className="text-[10px] min-w-[52px] pt-2" style={{ color: C.warmMid }}>you said ·</span>
-              <textarea
-                value={answers[idx]}
-                onChange={e => updateAnswer(e.target.value)}
-                rows={2}
-                placeholder="what did you say? (optional — skip if you didn't use it)"
-                className="flex-1 px-2.5 py-2 rounded-lg text-[12px] outline-none resize-none"
-                style={{ border: "1px solid rgba(139,115,85,0.22)", background: "#faf8f4", fontFamily: "'DM Sans',sans-serif", color: C.ink }}
-              />
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-[10px] min-w-[52px] pt-2" style={{ color: C.warmMid }}>{firstName} ·</span>
-              <div className="flex-1 px-2.5 py-2 rounded-lg text-[11px]"
-                style={{ background: "rgba(139,115,85,0.05)", border: "1px solid rgba(139,115,85,0.1)", color: "rgba(139,115,85,0.45)", fontStyle: "italic" }}>
-                visible after you both save
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Nav */}
-        <div className="flex gap-2.5 mb-3">
-          <button onClick={() => setIdx(i => Math.max(0, i - 1))}
-            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer"
-            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === 0 ? 0.35 : 1 }}>
-            ← Back
-          </button>
-          <button onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))}
-            className="flex-1 py-2.5 rounded-[12px] text-[12px] cursor-pointer"
-            style={{ border: `1px solid ${C.border}`, background: "transparent", color: C.inkSoft, fontFamily: "'DM Sans',sans-serif", opacity: idx === questions.length - 1 ? 0.35 : 1 }}>
-            Next →
-          </button>
-        </div>
-        {idx === questions.length - 1 && (
-          <div>
-            <button onClick={save}
-              className="w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white border-0 cursor-pointer"
-              style={{ background: C.ink, fontFamily: "'DM Sans',sans-serif" }}>
-              Save my answers
-            </button>
-            <div className="text-[11px] text-center mt-2 leading-relaxed" style={{ color: C.warmMid }}>
-              {pr.sub === "They" ? "Their" : `${pr.sub === "She" ? "Her" : "His"}`} answers appear once {pr.obj} saves. Neither sees the other's until both have saved.
-            </div>
-          </div>
-        )}
-        <div style={{ height: 16 }} />
-      </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
-    </div>
-  );
-}
-// ── Follow-up Screen (3 hours after met) ──────────────────
-function FollowUpScreen({
-  person, onNavigate, inboxCount, requestId,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; requestId?: string | null }) {
-  const [choice, setChoice] = useState<string | null>(null);
-  const firstName = person.name.split(",")[0];
-  const pr = getPronouns(person);
-
-  const opts = [
-    { id: "yes",       label: "Would meet again",             sub: `If ${pr.sub.toLowerCase()} says yes too, a chat opens`, yes: true  },
-    { id: "nice",      label: "It was nice, but no",          sub: `No chat, no notification to ${pr.obj}`,                 yes: false },
-    { id: "numbers",   label: "We already exchanged numbers", sub: "No further action needed",                               yes: false },
-    { id: "didntmeet", label: "Didn't end up meeting",        sub: "Closes the record quietly",                             yes: false },
-  ];
-
-  function confirm() {
-    if (!choice) return;
-    if (choice === "yes") onNavigate("chat", { person, requestId });
-    else onNavigate("inbox");
-  }
-
-  return (
-    <div className="flex flex-col h-full" style={{ background: C.ink }}>
-      <div className="px-6 pt-6 flex-shrink-0">
-        <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color: "rgba(245,240,232,0.4)" }}>3 hours later</div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
-        <div className="text-[26px] text-center mt-5 mb-2 leading-snug" style={{ fontFamily: "'DM Serif Display',Georgia,serif", color: C.cream }}>
-          How did it go<br />with {firstName}?
-        </div>
-        <div className="text-[13px] text-center mb-6" style={{ color: "rgba(245,240,232,0.45)" }}>You met earlier tonight</div>
-        {opts.map(o => (
-          <div key={o.id} onClick={() => setChoice(o.id)}
-            className="p-3.5 rounded-2xl mb-2.5 cursor-pointer transition-all duration-200"
-            style={{
-              border: `1px solid ${choice === o.id ? (o.yes ? "rgba(74,124,89,0.5)" : "rgba(245,240,232,0.3)") : "rgba(245,240,232,0.1)"}`,
-              background: choice === o.id ? (o.yes ? "rgba(74,124,89,0.1)" : "rgba(245,240,232,0.05)") : "transparent",
-            }}>
-            <div className="text-[13px] font-semibold" style={{ color: choice === o.id && o.yes ? "#b8e8c8" : C.cream }}>{o.label}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: choice === o.id && o.yes ? "rgba(184,232,200,0.55)" : "rgba(245,240,232,0.4)" }}>{o.sub}</div>
-          </div>
-        ))}
-        <div className="text-[11px] text-center mt-3 leading-relaxed" style={{ color: "rgba(245,240,232,0.28)" }}>
-          Only a mutual yes unlocks chat. {pr.sub} never knows if you said no.
-        </div>
-      </div>
-      <div className="px-6 pb-7 flex-shrink-0">
-        <button onClick={confirm} disabled={!choice}
-          className="w-full py-4 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer transition-all"
-          style={{
-            background: choice === "yes" ? C.green : choice ? "rgba(245,240,232,0.12)" : "rgba(245,240,232,0.06)",
-            color: choice ? C.cream : "rgba(245,240,232,0.3)",
-            fontFamily: "'DM Sans',sans-serif",
-          }}>
-          Confirm
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Chat Screen (mutual yes unlock) ───────────────────────
 // ── Chat message type ─────────────────────────────────────
 interface ChatMessage {
   id: string;
@@ -2035,6 +1756,13 @@ function ChatScreen({
   const [draft,     setDraft]     = useState("");
   const [sending,   setSending]   = useState(false);
   const [loading,   setLoading]   = useState(true);
+  const [showNotes, setShowNotes] = useState(false);
+  const [notesText, setNotesText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(`here_note_${currentUser.id}_${person.id}`) ?? "";
+    }
+    return "";
+  });
   const bottomRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -2117,15 +1845,22 @@ function ChatScreen({
 
   return (
     <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      {/* Header */}
+      {/* Header — tap profile to open private notes */}
       <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0"
         style={{ borderBottom: `1px solid ${C.border}` }}>
-        <BackBtn onClick={() => onNavigate("inbox")} />
-        <AvatarCircle user={person} size={38} />
-        <div>
-          <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
-          <div className="text-[11px] font-semibold" style={{ color: C.green }}>Chat unlocked · mutual</div>
+        <BackBtn onClick={() => onNavigate("messages")} />
+        <div className="flex items-center gap-2.5 flex-1 cursor-pointer" onClick={() => setShowNotes(true)}>
+          <AvatarCircle user={person} size={38} />
+          <div>
+            <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
+            <div className="text-[11px] font-semibold" style={{ color: C.green }}>Chat unlocked · mutual</div>
+          </div>
         </div>
+        <button onClick={() => setShowNotes(true)}
+          className="px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer"
+          style={{ borderColor: C.border, color: C.warmMid, background: "transparent", fontFamily:"'DM Sans',sans-serif" }}>
+          📝 Notes
+        </button>
       </div>
 
       {/* Messages */}
@@ -2216,6 +1951,45 @@ function ChatScreen({
           <span style={{ color: draft.trim() ? "white" : C.warmMid, fontSize: 16 }}>↑</span>
         </button>
       </div>
+
+      {/* Private notes modal — only visible to current user */}
+      {showNotes && (
+        <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.45)" }}>
+          <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+            <div className="flex items-center gap-3 mb-1">
+              <AvatarCircle user={person} size={36} />
+              <div>
+                <div className="text-[17px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{firstName} — your notes</div>
+                <div className="text-[11px]" style={{ color:C.warmMid }}>Private · {firstName} cannot see this</div>
+              </div>
+            </div>
+            <div className="text-xs mt-3 mb-3 leading-relaxed" style={{ color:C.warmMid }}>
+              Keep a record of your impressions, things they mentioned, or anything you want to remember if you meet again.
+            </div>
+            <textarea
+              value={notesText}
+              onChange={e => setNotesText(e.target.value)}
+              rows={6}
+              placeholder={`Your notes about ${firstName}…`}
+              className="w-full px-4 py-3 rounded-2xl text-[13px] outline-none resize-none mb-4"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", fontFamily:"'DM Sans',sans-serif", color:C.ink }}
+            />
+            <button onClick={()=>{
+              localStorage.setItem(`here_note_${currentUser.id}_${person.id}`, notesText);
+              setShowNotes(false);
+            }} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mb-2"
+              style={{ background:C.ink, fontFamily:"'DM Sans',sans-serif" }}>
+              Save notes
+            </button>
+            <button onClick={()=>setShowNotes(false)}
+              className="w-full py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+              style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2224,14 +1998,13 @@ function ChatScreen({
 function MatchScreen({
   matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem, matchPersonProfile,
 }: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:string)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void; matchPersonProfile?:UserProfile|null }) {
-  // Use the full fetched profile when available — it has real name, photo, pronouns.
-  // Fall back to matchData.person (outgoing path) or matchData.request (incoming stub).
   const person    = matchPersonProfile ?? matchData.person ?? matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
   const pr        = getPronouns((matchPersonProfile ?? matchData.person) as UserProfile | null);
   const timerMins = matchData.response==="15min" ? 15 : 30;
   const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
   const fromIncoming = matchData.fromIncoming ?? false;
+  const askMePrompts = (matchPersonProfile ?? matchData.person as UserProfile | undefined)?.ask_me_prompts ?? [];
 
   const [secs,         setSecs]       = useState(timerMins*60);
   const [erased,       setErased]     = useState(false);
@@ -2239,6 +2012,8 @@ function MatchScreen({
   const [reportOpt,    setReportOpt]  = useState("");
   const [showToast,    setShowToast]  = useState(false);
   const [submitting,   setSubmitting] = useState(false);
+  const [showNotes,    setShowNotes]  = useState(false);
+  const [notesText,    setNotesText]  = useState("");
 
   useEffect(()=>{
     if (erased) return;
@@ -2273,7 +2048,6 @@ function MatchScreen({
                 <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(74,124,89,0.2)", color:"rgba(232,245,238,0.8)" }}>{i}</span>
               ))}
             </div>
-            {/* Area hint — shown if recipient provided one */}
             {matchData.recipientHint && (
               <div className="mt-2 text-[12px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
                 Near: <strong style={{ color:C.cream }}>{matchData.recipientHint}</strong>
@@ -2282,6 +2056,22 @@ function MatchScreen({
           </div>
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background:C.green, boxShadow:`0 0 10px ${C.green}` }} />
         </div>
+
+        {/* Ask me about prompts */}
+        {askMePrompts.length > 0 && (
+          <div className="w-full mt-4">
+            <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-2" style={{ color:C.accent }}>Ask {firstName} about…</div>
+            <div className="flex flex-col gap-2">
+              {askMePrompts.map((prompt, i) => (
+                <div key={i} className="flex gap-2.5 items-start px-3.5 py-3 rounded-xl"
+                  style={{ background:"rgba(245,240,232,0.05)", border:"1px solid rgba(245,240,232,0.1)" }}>
+                  <span className="text-[12px] font-bold flex-shrink-0 mt-0.5" style={{ color:C.accent }}>{i+1}</span>
+                  <span className="text-[13px] leading-relaxed" style={{ color:C.cream }}>{prompt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Timer */}
         <div className="mt-5 text-center">
@@ -2301,29 +2091,58 @@ function MatchScreen({
         </div>
       </div>
 
-      <div className="px-6 pt-3 pb-2 flex-shrink-0">
-        <button onClick={()=>onNavigate("openers")}
-          className="w-full py-2.5 rounded-[14px] text-[12px] font-semibold cursor-pointer"
-          style={{ border:`1.5px solid ${C.accent}`, background:"rgba(196,120,58,0.12)", color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
-          View your openers →
-        </button>
-      </div>
-      <div className="flex gap-3 px-6 flex-shrink-0">
+      <div className="flex gap-3 px-6 pt-3 flex-shrink-0">
         <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
         <button onClick={()=>{
           if(reportedId) onMetThem(reportedId);
-          const metPerson = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
-            id: (matchData.request as any).from_id ?? "",
-            email: "", name: matchData.request.name, age: 25,
-            occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
-            languages: [], photo_url: matchData.request.photo_url,
-            bg: matchData.request.bg, open_to_meet: true,
-            checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
-          } as UserProfile : null);
-          onNavigate("postmeet", { person: metPerson });
-        }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>Met them</button>
+          setShowNotes(true);
+        }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>Met them ✓</button>
       </div>
       <div className="h-7" />
+
+      {/* Private notes modal */}
+      {showNotes && (
+        <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.6)" }}>
+          <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+            <div className="flex items-center gap-3 mb-1">
+              <AvatarCircle user={person ?? { name:"?", bg:BG_OPTIONS[0], photo_url:null }} size={36} />
+              <div>
+                <div className="text-[17px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>First impression</div>
+                <div className="text-[11px]" style={{ color:C.warmMid }}>Private — only you can see this</div>
+              </div>
+            </div>
+            <div className="mb-3 mt-3 text-xs leading-relaxed" style={{ color:C.warmMid }}>
+              Jot down your initial thoughts about {firstName}. This is saved as a personal note — {firstName} will never see it. You can add to it any time from your messages.
+            </div>
+            <textarea
+              value={notesText}
+              onChange={e => setNotesText(e.target.value)}
+              rows={5}
+              placeholder={`Your first impression of ${firstName}… (optional)`}
+              className="w-full px-4 py-3 rounded-2xl text-[13px] outline-none resize-none mb-4"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", fontFamily:"'DM Sans',sans-serif", color:C.ink }}
+            />
+            <button onClick={()=>{
+              // Save note to localStorage keyed by person id
+              if (person && (person as UserProfile).id) {
+                const key = `here_note_${currentUser.id}_${(person as UserProfile).id}`;
+                localStorage.setItem(key, notesText);
+              }
+              setShowNotes(false);
+              onNavigate("events");
+            }} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mb-2"
+              style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>
+              Save &amp; done
+            </button>
+            <button onClick={()=>{ setShowNotes(false); onNavigate("events"); }}
+              className="w-full py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+              style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Report modal */}
       {showReport && (
@@ -2344,14 +2163,12 @@ function MatchScreen({
                 disabled={submitting}
                 onClick={async () => {
                   setSubmitting(true);
-                  // Write report to Supabase — include reported user's name/email via join
                   await supabase.from("reports").insert({
                     reporter_id:  currentUser.id,
                     reported_id:  reportedId,
                     reason:       reportOpt,
                     created_at:   new Date().toISOString(),
                   });
-                  // Block the user
                   if (reportedId) {
                     await supabase.from("blocked_users").insert({
                       blocker_id:  currentUser.id,
@@ -2359,14 +2176,9 @@ function MatchScreen({
                       created_at:  new Date().toISOString(),
                     });
                     onBlock(reportedId);
-                    // Remove the associated request from inbox state (both as receiver and as sender)
                     const requestId = (matchData.request as any)?.id;
                     if (requestId) onDecline(requestId);
-                    // Clear the accepted-sent banner if it references this match
                     onClearAccepted();
-                    // The blocked_users row is bidirectional — fetchUsers on both sides
-                    // already excludes any user where either party is in the block list,
-                    // so no further profile mutation is needed.
                   }
                   setSubmitting(false);
                   setShowReport(false);
@@ -2388,6 +2200,138 @@ function MatchScreen({
           <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>We take safety seriously and will review within 24 hours. This person has been blocked.</div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Messages Screen (list of past chats) ──────────────────
+interface ChatThread {
+  requestId: string;
+  person: UserProfile;
+  lastMessage: string;
+  lastAt: string;
+  unread: boolean;
+}
+
+function MessagesScreen({
+  currentUser, onNavigate, inboxCount,
+}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      // Fetch all accepted requests involving the current user
+      const { data: reqs } = await supabase
+        .from("meet_requests")
+        .select("id, from_id, to_id, created_at, profiles!meet_requests_from_id_fkey(*), profiles!meet_requests_to_id_fkey(*)")
+        .or(`from_id.eq.${currentUser.id},to_id.eq.${currentUser.id}`)
+        .eq("status", "accepted")
+        .order("created_at", { ascending: false });
+
+      if (!reqs) { setLoading(false); return; }
+
+      const built: ChatThread[] = [];
+      for (const r of reqs) {
+        const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
+        // Get other person's profile
+        const fromProfile = r["profiles!meet_requests_from_id_fkey"] as UserProfile;
+        const toProfile   = r["profiles!meet_requests_to_id_fkey"]   as UserProfile;
+        const other = r.from_id === currentUser.id ? toProfile : fromProfile;
+        if (!other) continue;
+
+        // Get last message for this request
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("content, created_at")
+          .eq("request_id", r.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const lastMsg = msgs?.[0];
+        built.push({
+          requestId: r.id,
+          person: other,
+          lastMessage: lastMsg?.content ?? "Chat unlocked — say hello",
+          lastAt: lastMsg?.created_at ?? r.created_at,
+          unread: false,
+        });
+      }
+      setThreads(built);
+      setLoading(false);
+    }
+    load();
+  }, [currentUser.id]);
+
+  function formatThreadTime(iso: string) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60_000);
+    if (diffMins < 1)  return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffH = Math.floor(diffMins / 60);
+    if (diffH < 24)    return `${diffH}h ago`;
+    return d.toLocaleDateString("en-GB", { day:"numeric", month:"short" });
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.cream }}>
+      <div className="px-[22px] pt-6 pb-2 flex-shrink-0">
+        <div className="text-[24px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Messages</div>
+        <div className="text-[12px] mt-0.5" style={{ color:C.warmMid }}>Chats with people you've met</div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight: 0 }}>
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-[28px]" style={{ animation:"spin 1s linear infinite" }}>⟳</div>
+          </div>
+        )}
+
+        {!loading && threads.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
+            <div className="text-[40px] mb-3 opacity-30">✉️</div>
+            <div className="text-[14px] font-semibold mb-1.5" style={{ color:C.ink }}>No messages yet</div>
+            <div className="text-[12px] leading-relaxed" style={{ color:C.warmMid }}>
+              When both you and someone you met say you'd meet again, a chat unlocks here.
+            </div>
+          </div>
+        )}
+
+        {!loading && threads.map(t => {
+          const firstName = t.person.name.split(",")[0];
+          const note = typeof window !== "undefined"
+            ? localStorage.getItem(`here_note_${currentUser.id}_${t.person.id}`)
+            : null;
+          return (
+            <div key={t.requestId}
+              className="mx-[22px] mb-2.5 p-4 rounded-[18px] bg-white cursor-pointer active:scale-[0.98] transition-transform"
+              style={{ boxShadow:"0 1px 8px rgba(26,20,16,0.06)", border:`1px solid ${C.border}` }}
+              onClick={() => onNavigate("chat", { person: t.person, requestId: t.requestId })}>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <AvatarCircle user={t.person} size={46} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline">
+                    <div className="font-semibold text-[14px]" style={{ color:C.ink }}>{firstName}</div>
+                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color:C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
+                  </div>
+                  <div className="text-[12px] mt-0.5 truncate" style={{ color:C.warmMid }}>{t.lastMessage}</div>
+                  {note && (
+                    <div className="text-[10px] mt-1 truncate" style={{ color:"rgba(139,115,85,0.55)", fontStyle:"italic" }}>
+                      📝 {note}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div className="h-2" />
+      </div>
+      <BottomNav active="messages" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
@@ -2799,12 +2743,7 @@ export default function App() {
     if (typeof window !== "undefined") localStorage.setItem("here_is_live", String(v));
   }
   const [interactedIds,   setInteractedIds]  = useState<string[]>([]);
-  // Opener / post-meet state
-  const [openerQuestions, setOpenerQuestions] = useState<string[]>([]);
-  const [matchRequestId,  setMatchRequestId]  = useState<string|null>(null);
-  const [postMeetPerson,  setPostMeetPerson]  = useState<UserProfile|null>(null);
-  const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
-  const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
+  // Chat person state
   const [chatPerson,      setChatPerson]      = useState<UserProfile|null>(null);
   const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
 
@@ -2924,7 +2863,7 @@ export default function App() {
   }, [isLive, currentUser]);
 
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
-  // Full profile of the person on the match/openers/postmeet screens
+  // Full profile of the person on the match screen
   const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
   const newCount = inbox.filter(r=>r.isNew).length;
 
@@ -2989,35 +2928,15 @@ export default function App() {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
     }
-    // When navigating to match, fetch the full profile of the other person so
-    // we have their real name, photo and pronouns (not just the InboxRequest stub)
+    // When navigating to match, fetch the full profile of the other person
     if (to === "match") {
       const d = data as any;
-      // Use requestId as seed — both users share the same requestId so both
-      // devices will compute the exact same 4 questions deterministically
-      const reqId: string = String(d?.request?.id ?? d?.requestId ?? "");
-      // Hash uuid string into a numeric seed for the deterministic shuffle
-      const reqSeed = reqId ? reqId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) : 0;
-      setOpenerQuestions(pickOpenerQuestions(reqSeed));
-      if (reqId) setMatchRequestId(reqId);
-      // person already has full profile (outgoing accept path)
       if (d?.person?.id) {
         setMatchPersonProfile(d.person as UserProfile);
-      // request path (incoming accept) — fetch by from_id
       } else if (d?.request?.from_id) {
         const { data: profile } = await supabase.from("profiles").select("*").eq("id", d.request.from_id).single();
         if (profile) setMatchPersonProfile(profile as UserProfile);
       }
-    }
-    // Set person state for post-meet flow screens
-    if (to === "postmeet" && data && typeof data === "object") {
-      const pd = data as any;
-      if (pd.person) setPostMeetPerson(pd.person as UserProfile);
-    }
-    if (to === "followup" && data && typeof data === "object") {
-      const pd = data as any;
-      if (pd.person) setFollowUpPerson(pd.person as UserProfile);
-      if (pd.requestId) setFollowUpRequestId(pd.requestId as string);
     }
     if (to === "chat" && data && typeof data === "object") {
       const pd = data as any;
@@ -3053,7 +2972,7 @@ export default function App() {
     ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }
     : {};
 
-  const darkScreens: Screen[] = ["splash","login","signup","match","pending","openers","followup"];
+  const darkScreens: Screen[] = ["splash","login","signup","match","pending"];
   const isDark = darkScreens.includes(screen);
 
   return (
@@ -3119,41 +3038,9 @@ export default function App() {
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
+            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
-
-            {/* ── New post-meet flow screens ── */}
-            {screen==="openers" && currentUser && (() => {
-              // Use full fetched profile — has correct name, photo, pronouns
-              const mp = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
-                id: (matchData.request as any).from_id ?? "",
-                email: "", name: matchData.request.name, age: 25,
-                occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
-                languages: [], photo_url: matchData.request.photo_url,
-                bg: matchData.request.bg, open_to_meet: true, pronouns: undefined,
-                checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
-              } as UserProfile : blankUser);
-              const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
-              return <OpenerScreen person={mp} questions={qs} onBack={() => navigate("match")} onNavigate={navigate} inboxCount={newCount} />;
-            })()}
-            {screen==="postmeet" && (() => {
-              const pm = matchPersonProfile ?? postMeetPerson ?? matchData.person ?? (matchData.request ? {
-                id: (matchData.request as any).from_id ?? "",
-                email: "", name: matchData.request.name, age: 25,
-                occupation: matchData.request.meta, interests: matchData.request.tags ?? [],
-                languages: [], photo_url: matchData.request.photo_url,
-                bg: matchData.request.bg, open_to_meet: true, pronouns: undefined,
-                checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
-              } as UserProfile : null);
-              if (!pm) return <div className="flex-1 flex items-center justify-center" style={{ background: C.cream }} />;
-              const qs = openerQuestions.length === 4 ? openerQuestions : pickOpenerQuestions();
-              return <PostMeetScreen person={pm} questions={qs} requestId={matchRequestId} onNavigate={navigate} inboxCount={newCount} />;
-            })()}
-            {screen==="followup" && followUpPerson && (
-              <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} />
-            )}
-            {screen==="chat" && chatPerson && currentUser && (
-              <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />
-            )}
           </div>
         </div>
       </div>
