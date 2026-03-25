@@ -14,7 +14,7 @@ type Screen =
   | "splash" | "login" | "signup" | "onboarding"
   | "events" | "eventdetail" | "nearby" | "request"
   | "inbox"  | "incoming"    | "match" | "profile" | "pending"
-  | "messages" | "chat";
+  | "messages" | "chat" | "followup";
 
 type IncResponse  = "accept" | "15min" | "30min";
 
@@ -350,8 +350,6 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
     try {
-      // Sign out any stale session first, prevents crash on page refresh then re-login
-      await supabase.auth.signOut();
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
         setError(err.message === "Invalid login credentials"
@@ -1519,8 +1517,16 @@ function PendingScreen({
 
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
-  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch, msgCount,
-}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch, msgCount, currentUser,
+}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; currentUser?:UserProfile; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+
+  // Load pending met records from localStorage
+  const pendingMet: { personId:string; person:UserProfile; metAt:string; answered:boolean }[] = (() => {
+    if (!currentUser || typeof window === "undefined") return [];
+    const raw = localStorage.getItem(`here_met_${currentUser.id}`);
+    if (!raw) return [];
+    try { return (JSON.parse(raw) as any[]).filter(e => !e.answered); } catch { return []; }
+  })();
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -1556,6 +1562,38 @@ function InboxScreen({
                 </div>
               </div>
             </div>
+          </>)}
+
+          {/* ── Pending, met but not yet answered ── */}
+          {pendingMet.length > 0 && (<>
+            <div className="px-[22px] mb-2 mt-1">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Pending</div>
+            </div>
+            {pendingMet.map(m => {
+              const firstName = m.person.name.split(",")[0];
+              const metDate = new Date(m.metAt);
+              const hoursAgo = Math.floor((Date.now() - metDate.getTime()) / 3_600_000);
+              const isOverdue = hoursAgo >= 3;
+              return (
+                <div key={m.personId}
+                  className="mx-[22px] mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
+                  style={{ background: isOverdue ? "rgba(196,120,58,0.06)" : "rgba(139,115,85,0.05)", border:`1.5px solid ${isOverdue ? C.accent : C.border}` }}
+                  onClick={() => onNavigate("followup", { person: m.person })}>
+                  <div className="flex items-center gap-3">
+                    <AvatarCircle user={m.person} size={42} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm" style={{ color:C.ink }}>{firstName}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
+                        {isOverdue ? "Waiting for your answer" : `Met ${hoursAgo < 1 ? "just now" : `${hoursAgo}h ago`}`}
+                      </div>
+                    </div>
+                    <div className="text-[11px] font-semibold flex-shrink-0" style={{ color: isOverdue ? C.accent : C.warmMid }}>
+                      {isOverdue ? "Answer now →" : "How did it go? →"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </>)}
 
           {/* ── Incoming requests ── */}
@@ -2113,6 +2151,28 @@ function MatchScreen({
         <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
         <button onClick={()=>{
           if(reportedId) onMetThem(reportedId);
+          // Save to pending met list with timestamp
+          const metPerson = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
+            id: (matchData.request as any).from_id ?? "",
+            name: matchData.request.name, age: 25, occupation: matchData.request.meta,
+            interests: matchData.request.tags ?? [], languages: [], photo_url: matchData.request.photo_url,
+            bg: matchData.request.bg, email: "", open_to_meet: true,
+            checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
+          } as UserProfile : null);
+          if (metPerson && (metPerson as UserProfile).id && currentUser) {
+            const key = `here_met_${currentUser.id}`;
+            const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+            const alreadyThere = existing.some((e: any) => e.personId === (metPerson as UserProfile).id);
+            if (!alreadyThere) {
+              existing.push({
+                personId: (metPerson as UserProfile).id,
+                person: metPerson,
+                metAt: new Date().toISOString(),
+                answered: false,
+              });
+              localStorage.setItem(key, JSON.stringify(existing));
+            }
+          }
           setShowNotes(true);
         }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>Met them ✓</button>
       </div>
@@ -2142,18 +2202,17 @@ function MatchScreen({
               style={{ border:`1.5px solid ${C.border}`, background:"white", fontFamily:"'DM Sans',sans-serif", color:C.ink }}
             />
             <button onClick={()=>{
-              // Save note to localStorage keyed by person id
               if (person && (person as UserProfile).id) {
                 const key = `here_note_${currentUser.id}_${(person as UserProfile).id}`;
                 localStorage.setItem(key, notesText);
               }
               setShowNotes(false);
-              onNavigate("events");
+              onNavigate("inbox");
             }} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mb-2"
               style={{ background:C.green, fontFamily:"'DM Sans',sans-serif" }}>
               Save &amp; done
             </button>
-            <button onClick={()=>{ setShowNotes(false); onNavigate("events"); }}
+            <button onClick={()=>{ setShowNotes(false); onNavigate("inbox"); }}
               className="w-full py-3 rounded-2xl text-[14px] cursor-pointer border-0"
               style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
               Skip
@@ -2218,6 +2277,84 @@ function MatchScreen({
           <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>We take safety seriously and will review within 24 hours. This person has been blocked.</div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ── Follow-up Screen ─────────────────────────────────────
+function FollowUpScreen({
+  person, onNavigate, inboxCount, msgCount, currentUser,
+}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; currentUser: UserProfile }) {
+  const [choice, setChoice] = useState<string | null>(null);
+  const firstName = person.name.split(",")[0];
+  const pr = getPronouns(person);
+
+  const opts = [
+    { id:"yes",       label:"Would meet again",             sub:`If ${pr.sub.toLowerCase()} says yes too, chat opens`, yes:true  },
+    { id:"nice",      label:"It was nice but no",           sub:`No chat, no notification to ${pr.obj}`,               yes:false },
+    { id:"numbers",   label:"We already exchanged numbers", sub:"No further action needed",                             yes:false },
+    { id:"didntmeet", label:"Didn't end up meeting",        sub:"Closes the record quietly",                           yes:false },
+  ];
+
+  function confirm() {
+    if (!choice) return;
+    // Mark as answered in localStorage
+    const key = `here_met_${currentUser.id}`;
+    const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const updated = existing.map((e: any) =>
+      e.personId === person.id ? { ...e, answered: true, choice } : e
+    );
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    if (choice === "yes") {
+      // Navigate to chat — the chat will be unlocked visually but actual chat
+      // functionality requires mutual yes which is tracked server-side
+      onNavigate("inbox");
+    } else {
+      onNavigate("inbox");
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.ink }}>
+      <div className="px-6 pt-8 flex items-center gap-3 flex-shrink-0">
+        <AvatarCircle user={person} size={42} />
+        <div>
+          <div className="text-[18px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>{firstName}</div>
+          <div className="text-[11px]" style={{ color:"rgba(245,240,232,0.45)" }}>You met earlier</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
+        <div className="text-[24px] mt-6 mb-2 leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+          How did it go with {firstName}?
+        </div>
+        <div className="text-[13px] mb-6" style={{ color:"rgba(245,240,232,0.45)" }}>
+          Only a mutual yes unlocks chat. {pr.sub} never knows if you said no.
+        </div>
+        {opts.map(o => (
+          <div key={o.id} onClick={() => setChoice(o.id)}
+            className="p-3.5 rounded-2xl mb-2.5 cursor-pointer transition-all duration-200"
+            style={{
+              border: `1px solid ${choice === o.id ? (o.yes ? "rgba(74,124,89,0.5)" : "rgba(245,240,232,0.3)") : "rgba(245,240,232,0.1)"}`,
+              background: choice === o.id ? (o.yes ? "rgba(74,124,89,0.1)" : "rgba(245,240,232,0.05)") : "transparent",
+            }}>
+            <div className="text-[13px] font-semibold" style={{ color: choice === o.id && o.yes ? "#b8e8c8" : C.cream }}>{o.label}</div>
+            <div className="text-[11px] mt-0.5" style={{ color: choice === o.id && o.yes ? "rgba(184,232,200,0.55)" : "rgba(245,240,232,0.4)" }}>{o.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="px-6 pb-7 flex-shrink-0">
+        <button onClick={confirm} disabled={!choice}
+          className="w-full py-4 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer transition-all"
+          style={{
+            background: choice === "yes" ? C.green : choice ? "rgba(245,240,232,0.12)" : "rgba(245,240,232,0.06)",
+            color: choice ? C.cream : "rgba(245,240,232,0.3)",
+            fontFamily:"'DM Sans',sans-serif",
+          }}>
+          Confirm
+        </button>
+      </div>
     </div>
   );
 }
@@ -2855,6 +2992,7 @@ export default function App() {
   const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
   const [chatUnlockedAt,  setChatUnlockedAt]  = useState<string|null>(null);
   const [messagesCount,   setMessagesCount]   = useState(0);
+  const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -2992,6 +3130,20 @@ export default function App() {
           if (wasLive) {
             try { await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id); } catch { /* ignore */ }
           }
+          // Check for overdue follow-up prompts (met someone 3+ hours ago, not yet answered)
+          const metKey = `here_met_${session.user.id}`;
+          const metRaw = localStorage.getItem(metKey);
+          if (metRaw) {
+            try {
+              const metList = JSON.parse(metRaw) as { personId:string; person:UserProfile; metAt:string; answered:boolean }[];
+              const overdue = metList.find(e => !e.answered && (Date.now() - new Date(e.metAt).getTime()) >= 3 * 3_600_000);
+              if (overdue) {
+                setFollowUpPerson(overdue.person);
+                navigate("followup", { person: overdue.person });
+                return;
+              }
+            } catch { /* ignore */ }
+          }
           navigate("events");
         } else {
           navigate("onboarding");
@@ -3053,6 +3205,10 @@ export default function App() {
       if (pd.requestId) setChatRequestId(pd.requestId as string);
       if (pd.unlockedAt) setChatUnlockedAt(pd.unlockedAt as string);
     }
+    if (to === "followup" && data && typeof data === "object") {
+      const pd = data as any;
+      if (pd.person) setFollowUpPerson(pd.person as UserProfile);
+    }
   }
 
   function declineRequest(id: string) {
@@ -3082,7 +3238,7 @@ export default function App() {
     ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }
     : {};
 
-  const darkScreens: Screen[] = ["splash","login","signup","match","pending"];
+  const darkScreens: Screen[] = ["splash","login","signup","match","pending","followup"];
   const isDark = darkScreens.includes(screen);
 
   return (
@@ -3143,11 +3299,12 @@ export default function App() {
 
             {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
             {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
-            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} msgCount={messagesCount} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
+            {screen==="inbox"    && currentUser && <InboxScreen requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} msgCount={messagesCount} currentUser={currentUser} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
+            {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
             {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} />}
             {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
