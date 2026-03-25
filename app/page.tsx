@@ -1792,10 +1792,13 @@ function ChatScreen({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `request_id=eq.${requestId}` },
         (payload) => {
+          const incoming = payload.new as ChatMessage;
           setMessages(prev => {
-            // Deduplicate — optimistic insert may already have added it
-            if (prev.some(m => m.id === (payload.new as ChatMessage).id)) return prev;
-            return [...prev, payload.new as ChatMessage];
+            // Ignore echo of own messages — already shown optimistically
+            if (incoming.sender_id === currentUser.id) return prev;
+            // Deduplicate in case of any other repeat
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
           });
         }
       )
@@ -2231,8 +2234,19 @@ function MessagesScreen({
 
       if (!reqs) { setLoading(false); return; }
 
-      const built: ChatThread[] = [];
+      // Deduplicate by other person — keep only the most recent request per person
+      const seenPersonIds = new Set<string>();
+      const dedupedReqs: { id: string; from_id: string; to_id: string; created_at: string }[] = [];
       for (const r of reqs as { id: string; from_id: string; to_id: string; created_at: string }[]) {
+        const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
+        if (!seenPersonIds.has(otherId)) {
+          seenPersonIds.add(otherId);
+          dedupedReqs.push(r);
+        }
+      }
+
+      const built: ChatThread[] = [];
+      for (const r of dedupedReqs) {
         const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
 
         // Fetch the other person's profile directly
