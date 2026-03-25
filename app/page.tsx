@@ -2233,8 +2233,8 @@ interface ChatThread {
 }
 
 function MessagesScreen({
-  currentUser, onNavigate, inboxCount, onUnreadCount,
-}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; onUnreadCount: (n: number) => void }) {
+  currentUser, onNavigate, inboxCount, msgCount, onUnreadCount,
+}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; onUnreadCount: (n: number) => void }) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -3148,7 +3148,7 @@ export default function App() {
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
-            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} onUnreadCount={setMessagesCount} />}
+            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} />}
             {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
           </div>
