@@ -282,8 +282,8 @@ function BackBtn({ onClick, dark }: { onClick: () => void; dark?: boolean }) {
 
 type NavTab = "events" | "nearby" | "inbox" | "messages" | "profile";
 function BottomNav({
-  active, onNavigate, dark, inboxCount,
-}: { active: NavTab; onNavigate: (s: Screen) => void; dark?: boolean; inboxCount?: number }) {
+  active, onNavigate, dark, inboxCount, messagesCount,
+}: { active: NavTab; onNavigate: (s: Screen) => void; dark?: boolean; inboxCount?: number; messagesCount?: number }) {
   const items: { id: NavTab; dest: Screen; icon: string; label: string }[] = [
     { id:"events",   dest:"events",   icon:"🎭", label:"Events"   },
     { id:"nearby",   dest:"nearby",   icon:"📡", label:"Nearby"   },
@@ -298,6 +298,7 @@ function BottomNav({
     >
       {items.map((item) => {
         const on = active === item.id;
+        const badge = item.id === "inbox" ? (inboxCount ?? 0) : item.id === "messages" ? (messagesCount ?? 0) : 0;
         return (
           <button
             key={item.id}
@@ -308,9 +309,9 @@ function BottomNav({
             <span className="text-[10px] font-medium" style={{ color: on ? (dark ? C.cream : C.ink) : (dark ? "rgba(245,240,232,0.4)" : C.warmMid), opacity: on ? 1 : 0.55 }}>
               {item.label}
             </span>
-            {item.id === "inbox" && (inboxCount ?? 0) > 0 && (
+            {badge > 0 && (
               <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: C.accent }}>
-                {inboxCount}
+                {badge}
               </span>
             )}
           </button>
@@ -911,7 +912,7 @@ function EventRow({ e, onNavigate }: { e:HereEvent; onNavigate:(s:Screen,d?:unkn
 }
 
 // ── Events ─────────────────────────────────────────────────
-function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+function EventsScreen({ onNavigate, inboxCount, msgCount }: { onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number }) {
   const [cat, setCat] = useState("all");
   const cats = ["all","music","art","food","comedy","fitness","dance","film"];
   const catLabels: Record<string,string> = { all:"All", music:"Live Music", art:"Art & Culture", food:"Food & Drink", comedy:"Comedy", fitness:"Fitness", dance:"Dance", film:"Film" };
@@ -952,7 +953,7 @@ function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unkn
         </>)}
         <div className="h-2" />
       </div>
-      <BottomNav active="events" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="events" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
@@ -1020,8 +1021,8 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 }
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
-  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive, interactedIds, setInteractedIds,
-}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void; interactedIds:string[]; setInteractedIds:React.Dispatch<React.SetStateAction<string[]>> }) {
+  currentUser, onNavigate, inboxCount, msgCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive, interactedIds, setInteractedIds,
+}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void; interactedIds:string[]; setInteractedIds:React.Dispatch<React.SetStateAction<string[]>> }) {
   const [locOn,      setLocOn]     = useState(isLive);
   const [rawUsers,   setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed,  setDismissed] = useState<string[]>([]);
@@ -1312,15 +1313,15 @@ function NearbyScreen({
         </div>
       )}
 
-      <BottomNav active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
 // ── Send request ───────────────────────────────────────────
 function RequestScreen({
-  person, currentUser, onNavigate, inboxCount,
-}: { person:UserProfile; currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+  person, currentUser, onNavigate, inboxCount, msgCount,
+}: { person:UserProfile; currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent]       = useState(false);
   const [error, setError]     = useState("");
@@ -1427,15 +1428,15 @@ function RequestScreen({
         {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
         <div className="h-4" />
       </div>
-      <BottomNav active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
 // ── Pending Screen (request sent, waiting for other party) ─
 function PendingScreen({
-  person, onNavigate, inboxCount, currentUser, sentAt,
-}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; currentUser:UserProfile; sentAt:string }) {
+  person, onNavigate, inboxCount, msgCount, currentUser, sentAt,
+}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; currentUser:UserProfile; sentAt:string }) {
   const firstName = person.name.split(",")[0];
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
@@ -1518,8 +1519,8 @@ function PendingScreen({
 
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
-  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch,
-}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch, msgCount,
+}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
@@ -1599,15 +1600,15 @@ function InboxScreen({
         </div>
         <div className="h-2" />
       </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={requests.length} />
+      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={requests.length} />
     </div>
   );
 }
 
 // ── Incoming ───────────────────────────────────────────────
 function IncomingScreen({
-  request, onNavigate, inboxCount, onDecline,
-}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:string)=>void }) {
+  request, onNavigate, inboxCount, msgCount, onDecline,
+}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; onDecline:(id:string)=>void }) {
   const [response,  setResponse]  = useState<IncResponse>("accept");
   const [areaHint,  setAreaHint]  = useState("");
   const [sending,   setSending]   = useState(false);
@@ -1717,7 +1718,7 @@ function IncomingScreen({
         </button>
         <div className="h-6" />
       </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
@@ -1742,13 +1743,14 @@ interface ChatMessage {
 
 // ── Real-time Chat Screen ─────────────────────────────────
 function ChatScreen({
-  person, requestId, currentUser, onNavigate, inboxCount,
+  person, requestId, currentUser, onNavigate, inboxCount, unlockedAt,
 }: {
   person: UserProfile;
   requestId: string | null;
   currentUser: UserProfile;
   onNavigate: (s: Screen, d?: unknown) => void;
   inboxCount: number;
+  unlockedAt?: string;
 }) {
   const firstName = person.name.split(",")[0];
   const [messages,  setMessages]  = useState<ChatMessage[]>([]);
@@ -1765,15 +1767,26 @@ function ChatScreen({
   const bottomRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Scroll to bottom whenever messages change
+  // Mark this thread as read when screen mounts
+  useEffect(() => {
+    if (requestId && typeof window !== "undefined") {
+      localStorage.setItem(`here_read_${currentUser.id}_${requestId}`, new Date().toISOString());
+    }
+  }, [requestId, currentUser.id]);
+
+  // Also mark read whenever new messages arrive while chat is open
+  useEffect(() => {
+    if (requestId && typeof window !== "undefined" && messages.length > 0) {
+      localStorage.setItem(`here_read_${currentUser.id}_${requestId}`, new Date().toISOString());
+    }
+  }, [messages, requestId, currentUser.id]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
     if (!requestId) { setLoading(false); return; }
-
-    // Fetch existing messages
     supabase
       .from("messages")
       .select("*")
@@ -1783,8 +1796,6 @@ function ChatScreen({
         if (data) setMessages(data as ChatMessage[]);
         setLoading(false);
       });
-
-    // Subscribe to new messages in real-time
     const channel = supabase
       .channel(`chat:${requestId}`)
       .on(
@@ -1793,21 +1804,15 @@ function ChatScreen({
         (payload) => {
           const incoming = payload.new as ChatMessage;
           setMessages(prev => {
-            // Ignore echo of own messages, already shown optimistically
             if (incoming.sender_id === currentUser.id) return prev;
-            // Deduplicate in case of any other repeat
             if (prev.some(m => m.id === incoming.id)) return prev;
             return [...prev, incoming];
           });
         }
       )
       .subscribe();
-
     channelRef.current = channel;
-
-    return () => {
-      channel.unsubscribe();
-    };
+    return () => { channel.unsubscribe(); };
   }, [requestId]);
 
   async function sendMessage() {
@@ -1815,25 +1820,20 @@ function ChatScreen({
     if (!text || !requestId || sending) return;
     setSending(true);
     setDraft("");
-
-    // Optimistic insert, show immediately without waiting for realtime echo
     const optimistic: ChatMessage = {
-      id: `optimistic-${Date.now()}`, // temp id
+      id: `optimistic-${Date.now()}`,
       request_id: requestId,
       sender_id: currentUser.id,
       content: text,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, optimistic]);
-
     const { error } = await supabase.from("messages").insert({
       request_id: requestId,
       sender_id:  currentUser.id,
       content:    text,
     });
-
     if (error) {
-      // Roll back optimistic message on failure
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
       setDraft(text);
     }
@@ -1841,13 +1841,29 @@ function ChatScreen({
   }
 
   function formatTime(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   }
+
+  function formatDayLabel(iso: string) {
+    const d = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString())     return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long" });
+  }
+
+  function isSameDay(a: string, b: string) {
+    return new Date(a).toDateString() === new Date(b).toDateString();
+  }
+
+  const unlockedLabel = unlockedAt
+    ? new Date(unlockedAt).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })
+    : null;
 
   return (
     <div className="flex flex-col h-full" style={{ background: C.cream }}>
-      {/* Header, tap profile to open private notes */}
+      {/* Header */}
       <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0"
         style={{ borderBottom: `1px solid ${C.border}` }}>
         <BackBtn onClick={() => onNavigate("messages")} />
@@ -1855,7 +1871,9 @@ function ChatScreen({
           <AvatarCircle user={person} size={38} />
           <div>
             <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
-            <div className="text-[11px] font-semibold" style={{ color: C.green }}>Chat unlocked · mutual</div>
+            <div className="text-[11px]" style={{ color: C.green }}>
+              Chat unlocked{unlockedLabel ? ` · ${unlockedLabel}` : ""}
+            </div>
           </div>
         </div>
         <button onClick={() => setShowNotes(true)}
@@ -1867,12 +1885,6 @@ function ChatScreen({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-[18px] py-3 flex flex-col gap-1.5" style={{ minHeight: 0 }}>
-        {/* Unlocked banner */}
-        <div className="px-3 py-2 rounded-xl text-[11px] text-center mb-1"
-          style={{ background: "rgba(74,124,89,0.08)", color: C.green, fontStyle: "italic" }}>
-          You both said you'd meet again, so chat is now unlocked
-        </div>
-
         {loading && (
           <div className="flex-1 flex items-center justify-center py-8">
             <div className="text-[24px]" style={{ animation: "spin 1s linear infinite" }}>⟳</div>
@@ -1888,10 +1900,16 @@ function ChatScreen({
         {!loading && messages.map((msg, i) => {
           const isMine = msg.sender_id === currentUser.id;
           const prevMsg = messages[i - 1];
-          const showTime = !prevMsg || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime()) > 5 * 60_000;
+          const showDayLabel = !prevMsg || !isSameDay(msg.created_at, prevMsg.created_at);
+          const showTime = !showDayLabel && (!prevMsg || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime()) > 5 * 60_000);
           return (
             <div key={msg.id}>
-              {showTime && (
+              {showDayLabel && (
+                <div className="text-[11px] text-center py-2 my-1 font-medium" style={{ color: C.warmMid }}>
+                  {formatDayLabel(msg.created_at)}
+                </div>
+              )}
+              {showTime && !showDayLabel && (
                 <div className="text-[10px] text-center py-1.5" style={{ color: C.warmMid }}>
                   {formatTime(msg.created_at)}
                 </div>
@@ -1899,9 +1917,7 @@ function ChatScreen({
               <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`px-3 py-2.5 text-[13px] max-w-[80%] leading-relaxed ${
-                    isMine
-                      ? "rounded-[14px_14px_4px_14px]"
-                      : "rounded-[14px_14px_14px_4px]"
+                    isMine ? "rounded-[14px_14px_4px_14px]" : "rounded-[14px_14px_14px_4px]"
                   }`}
                   style={isMine
                     ? { background: C.ink, color: C.cream }
@@ -2213,17 +2229,17 @@ interface ChatThread {
   lastMessage: string;
   lastAt: string;
   unread: boolean;
+  unlockedAt: string;
 }
 
 function MessagesScreen({
-  currentUser, onNavigate, inboxCount,
-}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number }) {
+  currentUser, onNavigate, inboxCount, onUnreadCount,
+}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; onUnreadCount: (n: number) => void }) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      // Fetch all accepted requests involving the current user (no join, fetch profiles separately)
       const { data: reqs } = await supabase
         .from("meet_requests")
         .select("id, from_id, to_id, created_at")
@@ -2233,7 +2249,6 @@ function MessagesScreen({
 
       if (!reqs) { setLoading(false); return; }
 
-      // Deduplicate by other person, keep only the most recent request per person
       const seenPersonIds = new Set<string>();
       const dedupedReqs: { id: string; from_id: string; to_id: string; created_at: string }[] = [];
       for (const r of reqs as { id: string; from_id: string; to_id: string; created_at: string }[]) {
@@ -2247,34 +2262,44 @@ function MessagesScreen({
       const built: ChatThread[] = [];
       for (const r of dedupedReqs) {
         const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
-
-        // Fetch the other person's profile directly
-        const { data: other } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", otherId)
-          .single();
-
+        const { data: other } = await supabase.from("profiles").select("*").eq("id", otherId).single();
         if (!other) continue;
 
-        // Get last message for this request
         const { data: msgs } = await supabase
           .from("messages")
-          .select("content, created_at")
+          .select("content, created_at, sender_id")
           .eq("request_id", r.id)
           .order("created_at", { ascending: false })
           .limit(1);
 
-        const lastMsg = msgs?.[0];
+        const lastMsg = msgs?.[0] as { content: string; created_at: string; sender_id: string } | undefined;
+
+        // Compute unread: last message is from the other person and newer than our last-read timestamp
+        const lastReadKey = `here_read_${currentUser.id}_${r.id}`;
+        const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+        const unread = !!lastMsg
+          && lastMsg.sender_id !== currentUser.id
+          && (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
+
         built.push({
           requestId: r.id,
           person: other,
           lastMessage: lastMsg?.content ?? "Chat unlocked — say hello",
           lastAt: lastMsg?.created_at ?? r.created_at,
-          unread: false,
+          unread,
+          unlockedAt: r.created_at,
         });
       }
+
+      // Sort so unread threads appear first, then by most recent
+      built.sort((a, b) => {
+        if (a.unread && !b.unread) return -1;
+        if (!a.unread && b.unread) return 1;
+        return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
+      });
+
       setThreads(built);
+      onUnreadCount(built.filter(t => t.unread).length);
       setLoading(false);
     }
     load();
@@ -2324,18 +2349,21 @@ function MessagesScreen({
           return (
             <div key={t.requestId}
               className="mx-[22px] mb-2.5 p-4 rounded-[18px] bg-white cursor-pointer active:scale-[0.98] transition-transform"
-              style={{ boxShadow:"0 1px 8px rgba(26,20,16,0.06)", border:`1px solid ${C.border}` }}
-              onClick={() => onNavigate("chat", { person: t.person, requestId: t.requestId })}>
+              style={{ boxShadow: t.unread ? "0 2px 12px rgba(196,120,58,0.15)" : "0 1px 8px rgba(26,20,16,0.06)", border:`1px solid ${t.unread ? C.accent : C.border}` }}
+              onClick={() => onNavigate("chat", { person: t.person, requestId: t.requestId, unlockedAt: t.unlockedAt })}>
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <AvatarCircle user={t.person} size={46} />
+                  {t.unread && (
+                    <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: C.accent }} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
-                    <div className="font-semibold text-[14px]" style={{ color:C.ink }}>{firstName}</div>
-                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color:C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
+                    <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
+                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color: t.unread ? C.accent : C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
                   </div>
-                  <div className="text-[12px] mt-0.5 truncate" style={{ color:C.warmMid }}>{t.lastMessage}</div>
+                  <div className="text-[12px] mt-0.5 truncate" style={{ color: t.unread ? C.ink : C.warmMid, fontWeight: t.unread ? 600 : 400 }}>{t.lastMessage}</div>
                   {note && (
                     <div className="text-[10px] mt-1 truncate" style={{ color:"rgba(139,115,85,0.55)", fontStyle:"italic" }}>
                       📝 {note}
@@ -2348,16 +2376,16 @@ function MessagesScreen({
         })}
         <div className="h-2" />
       </div>
-      <BottomNav active="messages" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="messages" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
 // ── Profile ────────────────────────────────────────────────
 function ProfileScreen({
-  currentUser, onNavigate, onSignOut, inboxCount,
+  currentUser, onNavigate, onSignOut, inboxCount, msgCount,
   locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer, onUpdateUser,
-}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number;
+}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number; msgCount:number;
      locationGranted:boolean; setLocationGranted:(v:boolean)=>void;
      autoOffTimer:string; setAutoOffTimer:(v:string)=>void;
      onUpdateUser:(u:UserProfile)=>void }) {
@@ -2787,7 +2815,7 @@ function ProfileScreen({
         <style>{`input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:white;border:2.5px solid #C4783A;box-shadow:0 2px 8px rgba(196,120,58,0.35);cursor:pointer;}`}</style>
         <div className="h-2" />
       </div>
-      <BottomNav active="profile" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="profile" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
@@ -2825,6 +2853,8 @@ export default function App() {
   // Chat person state
   const [chatPerson,      setChatPerson]      = useState<UserProfile|null>(null);
   const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
+  const [chatUnlockedAt,  setChatUnlockedAt]  = useState<string|null>(null);
+  const [messagesCount,   setMessagesCount]   = useState(0);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -3021,6 +3051,7 @@ export default function App() {
       const pd = data as any;
       if (pd.person) setChatPerson(pd.person as UserProfile);
       if (pd.requestId) setChatRequestId(pd.requestId as string);
+      if (pd.unlockedAt) setChatUnlockedAt(pd.unlockedAt as string);
     }
   }
 
@@ -3076,7 +3107,7 @@ export default function App() {
             {screen==="login"       && <LoginScreen  onNavigate={navigate} onLogin={u=>{ setUserAndRef(u); navigate("events"); }} />}
             {screen==="signup"      && <SignupScreen onNavigate={navigate} />}
             {screen==="onboarding"  && <OnboardingScreen onDone={p=>{ setUserAndRef(p); navigate("events"); }} />}
-            {screen==="events"      && currentUser && <EventsScreen onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="events"      && currentUser && <EventsScreen onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
 
             {/* Event detail inline */}
             {screen==="eventdetail" && currentUser && (
@@ -3106,20 +3137,20 @@ export default function App() {
                   </div>
                   <div className="h-6" />
                 </div>
-                <BottomNav active="events" onNavigate={navigate} inboxCount={newCount} />
+                <BottomNav messagesCount={messagesCount} active="events" onNavigate={navigate} inboxCount={newCount} />
               </div>
             )}
 
-            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
-            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
-            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
+            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
+            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
+            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} msgCount={messagesCount} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
+            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
-            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
-            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
+            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
+            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} onUnreadCount={setMessagesCount} />}
+            {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
+            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
           </div>
         </div>
       </div>
