@@ -3121,6 +3121,30 @@ export default function App() {
     inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 30_000);
     const msgPollInterval = setInterval(() => fetchMessagesCount(currentUser.id), 30_000);
 
+    // Page Visibility API — re-fetch everything the instant the user comes back
+    // to the app on mobile (when they switch tabs or unlock their phone).
+    // This is the key fix for mobile where background JS is suspended.
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        fetchInbox(currentUser!.id);
+        fetchMessagesCount(currentUser!.id);
+        checkSentAccepted();
+        // Also resubscribe realtime channels in case they dropped while backgrounded
+        realtimeChannelsRef.current.forEach(ch => {
+          try { ch.subscribe(); } catch { /* ignore */ }
+        });
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Also re-fetch when the window regains focus (covers laptop tab switching too)
+    function handleFocus() {
+      fetchInbox(currentUser!.id);
+      fetchMessagesCount(currentUser!.id);
+      checkSentAccepted();
+    }
+    window.addEventListener("focus", handleFocus);
+
     // Realtime: new incoming meet_requests
     const inboxChannel = supabase
       .channel(`inbox:${currentUser.id}`)
@@ -3163,6 +3187,8 @@ export default function App() {
     return () => {
       if (inboxPollRef.current) clearInterval(inboxPollRef.current);
       clearInterval(msgPollInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
       realtimeChannelsRef.current.forEach(ch => ch.unsubscribe());
       realtimeChannelsRef.current = [];
     };
