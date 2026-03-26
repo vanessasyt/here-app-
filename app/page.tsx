@@ -3037,7 +3037,9 @@ export default function App() {
   const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
   const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
 
-  // Poll Supabase for real incoming meet_requests
+  // ── Realtime + fallback polling for inbox and messages badge ──
+  const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
+
   const fetchInbox = useCallback(async (userId: string) => {
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data } = await supabase
@@ -3047,7 +3049,6 @@ export default function App() {
       .eq("status", "pending")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
-
     if (!data) return;
     const mapped: InboxRequest[] = data.map((r: any) => {
       const sender = r.profiles as UserProfile;
@@ -3055,60 +3056,148 @@ export default function App() {
       const mins   = Math.floor(ageMs / 60_000);
       const timeLabel = mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
       return {
-        id:        r.id,
-        name:      `${sender.name}, ${sender.age}`,
-        photo_url: sender.photo_url,
-        bg:        sender.bg,
-        gender:    "m" as const,
-        meta:      sender.occupation,
-        tags:      sender.interests ?? [],
-        reqLabel:  r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
-        time:      timeLabel,
-        isNew:     true,
-        from_id:   r.from_id,
-        hint:      r.hint,
+        id: r.id, name: `${sender.name}, ${sender.age}`,
+        photo_url: sender.photo_url, bg: sender.bg, gender: "m" as const,
+        meta: sender.occupation, tags: sender.interests ?? [],
+        reqLabel: r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
+        time: timeLabel, isNew: true, from_id: r.from_id, hint: r.hint,
       };
     });
     setInbox(mapped.filter(r => !declinedIdsRef.current.has(r.id)));
+  }, []);
+
+  // Compute messages badge count directly from Supabase
+  const fetchMessagesCount = useCallback(async (userId: string) => {
+    // Fetch all mutual-yes request IDs
+    const { data: maRows } = await supabase
+      .from("meet_again")
+      .select("request_id")
+      .or(`request_id.in.(select request_id from meet_again where user_id=eq.${userId})`);
+
+    // Simpler: fetch meet_again rows for this user, then check if partner also said yes
+    const { data: myYes } = await supabase
+      .from("meet_again")
+      .select("request_id")
+      .eq("user_id", userId);
+
+    if (!myYes || myYes.length === 0) { setMessagesCount(0); return; }
+    const myReqIds = myYes.map((r: any) => r.request_id as string);
+
+    // Check which of those also have the other party's yes
+    const { data: partnerYes } = await supabase
+      .from("meet_again")
+      .select("request_id")
+      .in("request_id", myReqIds)
+      .neq("user_id", userId);
+
+    const mutualIds = new Set((partnerYes ?? []).map((r: any) => r.request_id as string));
+    if (mutualIds.size === 0) { setMessagesCount(0); return; }
+
+    // For each mutual thread, check if there are unread messages OR it's brand new (no read key)
+    let count = 0;
+    for (const reqId of mutualIds) {
+      const lastReadKey = `here_read_${userId}_${reqId}`;
+      const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+      if (!lastRead) { count++; continue; } // brand new, never opened
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("created_at, sender_id")
+        .eq("request_id", reqId)
+        .gt("created_at", lastRead)
+        .neq("sender_id", userId)
+        .limit(1);
+      if (msgs && msgs.length > 0) count++;
+    }
+    setMessagesCount(count);
   }, []);
 
   // Start polling when user is known
   useEffect(() => {
     if (!currentUser) return;
     fetchInbox(currentUser.id);
-    inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 10_000);
-    return () => { if (inboxPollRef.current) clearInterval(inboxPollRef.current); };
-  }, [currentUser, fetchInbox]);
+    fetchMessagesCount(currentUser.id);
+
+    // Fallback polls
+    inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 30_000);
+    const msgPollInterval = setInterval(() => fetchMessagesCount(currentUser.id), 30_000);
+
+    // Realtime: new incoming meet_requests
+    const inboxChannel = supabase
+      .channel(`inbox:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "meet_requests",
+        filter: `to_id=eq.${currentUser.id}`,
+      }, () => fetchInbox(currentUser.id))
+      .subscribe();
+
+    // Realtime: new messages in any chat
+    const messagesChannel = supabase
+      .channel(`msg_badge:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+      }, () => fetchMessagesCount(currentUser.id))
+      .subscribe();
+
+    // Realtime: new meet_again rows (chat unlock)
+    const meetAgainChannel = supabase
+      .channel(`meet_again:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "meet_again",
+      }, () => fetchMessagesCount(currentUser.id))
+      .subscribe();
+
+    // Realtime: accepted requests (green light banner)
+    const acceptedChannel = supabase
+      .channel(`accepted:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "meet_requests",
+        filter: `from_id=eq.${currentUser.id}`,
+      }, () => {
+        if (sentPollRef.current) clearInterval(sentPollRef.current);
+        checkSentAccepted();
+      })
+      .subscribe();
+
+    realtimeChannelsRef.current = [inboxChannel, messagesChannel, meetAgainChannel, acceptedChannel];
+
+    return () => {
+      if (inboxPollRef.current) clearInterval(inboxPollRef.current);
+      clearInterval(msgPollInterval);
+      realtimeChannelsRef.current.forEach(ch => ch.unsubscribe());
+      realtimeChannelsRef.current = [];
+    };
+  }, [currentUser, fetchInbox, fetchMessagesCount]);
 
   // Poll for sender's own outgoing requests that got accepted
   const seenAcceptedIdsRef = useRef<Set<string>>(new Set());
+
+  async function checkSentAccepted() {
+    if (!currentUser) return;
+    const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data } = await supabase
+      .from("meet_requests")
+      .select("*, profiles!meet_requests_to_id_fkey(*)")
+      .eq("from_id", currentUser.id)
+      .eq("status", "accepted")
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (
+      data &&
+      !declinedIdsRef.current.has(data.id) &&
+      !seenAcceptedIdsRef.current.has(data.id)
+    ) {
+      seenAcceptedIdsRef.current.add(data.id);
+      const recipient = data.profiles as UserProfile;
+      setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
+    }
+  }
+
   useEffect(() => {
     if (!currentUser) return;
-    async function checkSentAccepted() {
-      // Only surface accepted requests from the last 30 min, older ones are stale / hint-expired
-      const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-      const { data } = await supabase
-        .from("meet_requests")
-        .select("*, profiles!meet_requests_to_id_fkey(*)")
-        .eq("from_id", currentUser!.id)
-        .eq("status", "accepted")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (
-        data &&
-        !declinedIdsRef.current.has(data.id) &&
-        !seenAcceptedIdsRef.current.has(data.id)
-      ) {
-        seenAcceptedIdsRef.current.add(data.id);
-        const recipient = data.profiles as UserProfile;
-        setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
-        // Keep polling, don't clearInterval, so new matches surface without a page refresh
-      }
-    }
     checkSentAccepted();
-    sentPollRef.current = setInterval(checkSentAccepted, 6_000);
+    sentPollRef.current = setInterval(checkSentAccepted, 30_000);
     return () => { if (sentPollRef.current) clearInterval(sentPollRef.current); };
   }, [currentUser]);
   // Auto-turn-off location access timer
