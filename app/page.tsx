@@ -3237,7 +3237,8 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     checkSentAccepted();
-    sentPollRef.current = setInterval(checkSentAccepted, 30_000);
+    // Poll every 5 seconds so the green light banner appears quickly
+    sentPollRef.current = setInterval(checkSentAccepted, 5_000);
     return () => { if (sentPollRef.current) clearInterval(sentPollRef.current); };
   }, [currentUser]);
   // Auto-turn-off location access timer
@@ -3288,21 +3289,21 @@ export default function App() {
 
   // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
-    // Safety timeout, if getSession hangs (e.g. flaky network), fall through to login
-    const splashTimeout = setTimeout(() => navigate("login"), 6_000);
+    let sessionHandled = false;
+    const splashTimeout = setTimeout(() => { if (!sessionHandled) navigate("login"); }, 6_000);
 
     supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
       clearTimeout(splashTimeout);
+      sessionHandled = true;
       if (sessErr || !session?.user) { navigate("login"); return; }
       try {
-        const { data:p, error: profErr } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+        const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
         if (p) {
           setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
           if (wasLive) {
             try { await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id); } catch { /* ignore */ }
           }
-          // Check for overdue follow-up prompts (met someone 3+ hours ago, not yet answered)
           const metKey = `here_met_${session.user.id}`;
           const metRaw = localStorage.getItem(metKey);
           if (metRaw) {
@@ -3321,7 +3322,6 @@ export default function App() {
           navigate("onboarding");
         }
       } catch {
-        // Profile fetch failed, sign out stale session so login screen starts clean
         await supabase.auth.signOut().catch(() => {});
         navigate("login");
       }
@@ -3330,24 +3330,23 @@ export default function App() {
       navigate("login");
     });
 
-    // Listen for auth events triggered by link clicks only
-    // (magic link, email confirmation, password reset)
+    // Only handle link-based auth events (magic link, email confirmation)
+    // Guard with sessionHandled to avoid racing with getSession above
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        navigate("login");
-        return;
-      }
-      // Only handle SIGNED_IN for link-based flows, not password or signup flows
-      // Signup handles its own navigation — if the user is on signup screen, ignore
+      if (event === "PASSWORD_RECOVERY") { navigate("login"); return; }
       const currentScreen = (window as any).__hereScreen as string | undefined;
-      if (event === "SIGNED_IN" && session?.user && !currentUserRef.current && currentScreen !== "signup") {
+      if (
+        event === "SIGNED_IN" &&
+        session?.user &&
+        !currentUserRef.current &&
+        !sessionHandled &&
+        currentScreen !== "signup"
+      ) {
         try {
           const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
           if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
           else navigate("onboarding");
-        } catch {
-          navigate("login");
-        }
+        } catch { navigate("login"); }
       }
     });
 
