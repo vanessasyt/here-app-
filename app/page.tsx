@@ -1932,8 +1932,8 @@ function ChatScreen({
         )}
 
         {!loading && messages.length === 0 && (
-          <div className="py-6 text-center text-[12px]" style={{ color: C.warmMid }}>
-            Say hello to {firstName} 👋
+          <div className="py-6 text-center text-[12px] leading-relaxed px-4" style={{ color: C.warmMid }}>
+            Chat unlocked — you both wanted to meet again!
           </div>
         )}
 
@@ -2370,6 +2370,7 @@ interface ChatThread {
   lastMessage: string;
   lastAt: string;
   unread: boolean;
+  isNew: boolean;
   unlockedAt: string;
 }
 
@@ -2437,9 +2438,12 @@ function MessagesScreen({
 
         const lastMsg = msgs?.[0] as { content: string; created_at: string; sender_id: string } | undefined;
 
-        // Compute unread: last message is from the other person and newer than our last-read timestamp
+        // isNew: no messages yet and this chat has never been opened
         const lastReadKey = `here_read_${currentUser.id}_${r.id}`;
         const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+        const isNew = !lastMsg && !lastRead;
+
+        // unread: there is a message from the other person newer than last read
         const unread = !!lastMsg
           && lastMsg.sender_id !== currentUser.id
           && (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
@@ -2450,6 +2454,7 @@ function MessagesScreen({
           lastMessage: lastMsg?.content ?? "Chat unlocked — say hello",
           lastAt: lastMsg?.created_at ?? r.created_at,
           unread,
+          isNew,
           unlockedAt: r.created_at,
         });
       }
@@ -2462,7 +2467,7 @@ function MessagesScreen({
       });
 
       setThreads(built);
-      onUnreadCount(built.filter(t => t.unread).length);
+      onUnreadCount(built.filter(t => t.unread || t.isNew).length);
       setLoading(false);
     }
     load();
@@ -2509,24 +2514,35 @@ function MessagesScreen({
           const note = typeof window !== "undefined"
             ? localStorage.getItem(`here_note_${currentUser.id}_${t.person.id}`)
             : null;
+          const borderColor = t.isNew ? C.green : t.unread ? C.accent : C.border;
+          const boxShadow = t.isNew
+            ? "0 2px 12px rgba(74,124,89,0.2)"
+            : t.unread ? "0 2px 12px rgba(196,120,58,0.15)" : "0 1px 8px rgba(26,20,16,0.06)";
           return (
             <div key={t.requestId}
               className="mx-[22px] mb-2.5 p-4 rounded-[18px] bg-white cursor-pointer active:scale-[0.98] transition-transform"
-              style={{ boxShadow: t.unread ? "0 2px 12px rgba(196,120,58,0.15)" : "0 1px 8px rgba(26,20,16,0.06)", border:`1px solid ${t.unread ? C.accent : C.border}` }}
+              style={{ boxShadow, border:`1.5px solid ${borderColor}` }}
               onClick={() => onNavigate("chat", { person: t.person, requestId: t.requestId, unlockedAt: t.unlockedAt })}>
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <AvatarCircle user={t.person} size={46} />
-                  {t.unread && (
+                  {t.isNew && (
+                    <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: C.green }} />
+                  )}
+                  {!t.isNew && t.unread && (
                     <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: C.accent }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
                     <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
-                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color: t.unread ? C.accent : C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
+                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color: (t.isNew || t.unread) ? C.green : C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
                   </div>
-                  <div className="text-[12px] mt-0.5 truncate" style={{ color: t.unread ? C.ink : C.warmMid, fontWeight: t.unread ? 600 : 400 }}>{t.lastMessage}</div>
+                  {t.isNew ? (
+                    <div className="text-[11px] mt-0.5 font-medium" style={{ color: C.green }}>New chat unlocked ✓</div>
+                  ) : (
+                    <div className="text-[12px] mt-0.5 truncate" style={{ color: t.unread ? C.ink : C.warmMid, fontWeight: t.unread ? 600 : 400 }}>{t.lastMessage}</div>
+                  )}
                   {note && (
                     <div className="text-[10px] mt-1 truncate" style={{ color:"rgba(139,115,85,0.55)", fontStyle:"italic" }}>
                       📝 {note}
