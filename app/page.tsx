@@ -1326,8 +1326,11 @@ function RequestScreen({
   const [sent, setSent]       = useState(false);
   const [error, setError]     = useState("");
   const firstName = person.name.split(",")[0];
+  const submittingRef = useRef(false); // hard guard against double-tap race condition
 
   async function sendRequest() {
+    if (submittingRef.current) return; // block any second call immediately
+    submittingRef.current = true;
     setSending(true); setError("");
     const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
     const { data: existing } = await supabase
@@ -1340,6 +1343,7 @@ function RequestScreen({
     if (existing) {
       setError("You have already expressed interest in this person today.");
       setSending(false);
+      submittingRef.current = false;
       return;
     }
     const sentAt = new Date().toISOString();
@@ -1351,7 +1355,7 @@ function RequestScreen({
       created_at: sentAt,
     });
     setSending(false);
-    if (err) { setError("Something went wrong. Please try again."); return; }
+    if (err) { setError("Something went wrong. Please try again."); submittingRef.current = false; return; }
     setSent(true);
     setTimeout(() => onNavigate("pending", { person, sentAt }), 1200);
   }
