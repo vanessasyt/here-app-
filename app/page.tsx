@@ -442,6 +442,8 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     if (pass!==confirm)         { setError("Passwords don't match"); return; }
     if (pass.length<6)          { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
+    // Clear any previous session first so it doesn't interfere with signup
+    await supabase.auth.signOut().catch(() => {});
     const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
     if (err) { setError(err.message); setLoading(false); return; }
     setLoading(false);
@@ -1578,7 +1580,7 @@ function InboxScreen({
                 <div key={m.personId}
                   className="mx-[22px] mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
                   style={{ background: isOverdue ? "rgba(196,120,58,0.06)" : "rgba(139,115,85,0.05)", border:`1.5px solid ${isOverdue ? C.accent : C.border}` }}
-                  onClick={() => onNavigate("followup", { person: m.person })}>
+                  onClick={() => onNavigate("followup", { person: m.person, requestId: m.requestId ?? null })}>
                   <div className="flex items-center gap-3">
                     <AvatarCircle user={m.person} size={42} />
                     <div className="flex-1 min-w-0">
@@ -2286,8 +2288,8 @@ function MatchScreen({
 
 // ── Follow-up Screen ─────────────────────────────────────
 function FollowUpScreen({
-  person, onNavigate, inboxCount, msgCount, currentUser,
-}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; currentUser: UserProfile }) {
+  person, onNavigate, inboxCount, msgCount, currentUser, requestId,
+}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; currentUser: UserProfile; requestId: string | null }) {
   const [choice, setChoice] = useState<string | null>(null);
   const firstName = person.name.split(",")[0];
   const pr = getPronouns(person);
@@ -2301,19 +2303,14 @@ function FollowUpScreen({
 
   async function confirm() {
     if (!choice) return;
-    // Mark as answered in localStorage
     const key = `here_met_${currentUser.id}`;
     const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
-    // Find the requestId for this person
-    const metRecord = existing.find((e: any) => e.personId === person.id);
-    const requestId = metRecord?.requestId ?? null;
     const updated = existing.map((e: any) =>
       e.personId === person.id ? { ...e, answered: true, choice } : e
     );
     localStorage.setItem(key, JSON.stringify(updated));
 
     if (choice === "yes" && requestId) {
-      // Write mutual-yes intent to Supabase
       await supabase.from("meet_again").upsert({
         user_id: currentUser.id,
         request_id: requestId,
@@ -3022,6 +3019,7 @@ export default function App() {
   const [chatUnlockedAt,  setChatUnlockedAt]  = useState<string|null>(null);
   const [messagesCount,   setMessagesCount]   = useState(0);
   const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
+  const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
 
   // Poll Supabase for real incoming meet_requests
   const fetchInbox = useCallback(async (userId: string) => {
@@ -3164,11 +3162,11 @@ export default function App() {
           const metRaw = localStorage.getItem(metKey);
           if (metRaw) {
             try {
-              const metList = JSON.parse(metRaw) as { personId:string; person:UserProfile; metAt:string; answered:boolean }[];
+              const metList = JSON.parse(metRaw) as { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean }[];
               const overdue = metList.find(e => !e.answered && (Date.now() - new Date(e.metAt).getTime()) >= 3 * 3_600_000);
               if (overdue) {
                 setFollowUpPerson(overdue.person);
-                navigate("followup", { person: overdue.person });
+                navigate("followup", { person: overdue.person, requestId: overdue.requestId ?? null });
                 return;
               }
             } catch { /* ignore */ }
@@ -3194,9 +3192,10 @@ export default function App() {
         navigate("login");
         return;
       }
-      // Only handle SIGNED_IN for link-based flows, not password logins
-      // which are handled directly in LoginScreen to avoid a race condition
-      if (event === "SIGNED_IN" && session?.user && !currentUserRef.current) {
+      // Only handle SIGNED_IN for link-based flows, not password or signup flows
+      // Signup handles its own navigation — if the user is on signup screen, ignore
+      const currentScreen = (window as any).__hereScreen as string | undefined;
+      if (event === "SIGNED_IN" && session?.user && !currentUserRef.current && currentScreen !== "signup") {
         try {
           const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
           if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
@@ -3213,6 +3212,7 @@ export default function App() {
 
   async function navigate(to: Screen, data?: unknown) {
     setData(data??null); setScreen(to); setAnimKey(k=>k+1);
+    if (typeof window !== "undefined") (window as any).__hereScreen = to;
     // When navigating to request screen, fetch the real user profile by id
     if (to === "request" && typeof data === "string") {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
@@ -3237,6 +3237,7 @@ export default function App() {
     if (to === "followup" && data && typeof data === "object") {
       const pd = data as any;
       if (pd.person) setFollowUpPerson(pd.person as UserProfile);
+      if (pd.requestId !== undefined) setFollowUpRequestId(pd.requestId as string | null);
     }
   }
 
@@ -3333,7 +3334,7 @@ export default function App() {
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
-            {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
+            {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
             {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} />}
             {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
