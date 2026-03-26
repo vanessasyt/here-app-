@@ -3146,12 +3146,22 @@ export default function App() {
     window.addEventListener("focus", handleFocus);
 
     // Realtime: new incoming meet_requests
+    // Listen for all inserts/updates and filter in the handler to avoid
+    // needing REPLICA IDENTITY FULL on the table.
     const inboxChannel = supabase
       .channel(`inbox:${currentUser.id}`)
       .on("postgres_changes", {
-        event: "*", schema: "public", table: "meet_requests",
-        filter: `to_id=eq.${currentUser.id}`,
-      }, () => fetchInbox(currentUser.id))
+        event: "INSERT", schema: "public", table: "meet_requests",
+      }, (payload) => {
+        const row = payload.new as any;
+        if (row.to_id === currentUser.id) fetchInbox(currentUser.id);
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "meet_requests",
+      }, (payload) => {
+        const row = payload.new as any;
+        if (row.to_id === currentUser.id) fetchInbox(currentUser.id);
+      })
       .subscribe();
 
     // Realtime: new messages in any chat
@@ -3171,14 +3181,18 @@ export default function App() {
       .subscribe();
 
     // Realtime: accepted requests (green light banner)
+    // No column filter on UPDATE — Supabase needs REPLICA IDENTITY FULL for that.
+    // Instead listen for all meet_requests updates and check in the handler.
     const acceptedChannel = supabase
       .channel(`accepted:${currentUser.id}`)
       .on("postgres_changes", {
         event: "UPDATE", schema: "public", table: "meet_requests",
-        filter: `from_id=eq.${currentUser.id}`,
-      }, () => {
-        if (sentPollRef.current) clearInterval(sentPollRef.current);
-        checkSentAccepted();
+      }, (payload) => {
+        const row = payload.new as any;
+        // Only act if this is one of our sent requests being accepted
+        if (row.from_id === currentUser.id && row.status === "accepted") {
+          checkSentAccepted();
+        }
       })
       .subscribe();
 
