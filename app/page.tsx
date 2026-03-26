@@ -1523,7 +1523,7 @@ function InboxScreen({
 }: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; currentUser?:UserProfile; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
 
   // Load pending met records from localStorage
-  const pendingMet: { personId:string; person:UserProfile; metAt:string; answered:boolean }[] = (() => {
+  const pendingMet: { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean }[] = (() => {
     if (!currentUser || typeof window === "undefined") return [];
     const raw = localStorage.getItem(`here_met_${currentUser.id}`);
     if (!raw) return [];
