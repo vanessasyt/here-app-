@@ -1533,13 +1533,27 @@ function InboxScreen({
   requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch, msgCount, currentUser,
 }: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; currentUser?:UserProfile; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
 
-  // Load pending met records from localStorage
-  const pendingMet: { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean }[] = (() => {
+  // Load pending met records from localStorage — reactive so it updates when
+  // "Met them ✓" writes to localStorage from MatchScreen
+  type PendingMetEntry = { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean };
+  function readPendingMet(): PendingMetEntry[] {
     if (!currentUser || typeof window === "undefined") return [];
     const raw = localStorage.getItem(`here_met_${currentUser.id}`);
     if (!raw) return [];
     try { return (JSON.parse(raw) as any[]).filter(e => !e.answered); } catch { return []; }
-  })();
+  }
+  const [pendingMet, setPendingMet] = useState<PendingMetEntry[]>(readPendingMet);
+  useEffect(() => {
+    // Re-read whenever storage changes (covers same-tab writes too via custom event)
+    function onStorage() { setPendingMet(readPendingMet()); }
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("here_met_updated", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("here_met_updated", onStorage);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   // IDs of people already in pendingMet — exclude them from INCOMING to prevent
   // the same person appearing in both sections simultaneously
@@ -2191,6 +2205,8 @@ function MatchScreen({
                 answered: false,
               });
               localStorage.setItem(key, JSON.stringify(existing));
+              // Notify InboxScreen to re-read pendingMet (same-tab storage events don't fire natively)
+              window.dispatchEvent(new Event("here_met_updated"));
             }
           }
           setShowNotes(true);
@@ -3532,7 +3548,18 @@ export default function App() {
             {screen==="inbox"    && currentUser && <InboxScreen requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} msgCount={messagesCount} currentUser={currentUser} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
             {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
-            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>{
+                    setInteractedIds(prev=>[...prev,id]);
+                    // Remove their incoming request from inbox state immediately
+                    // and decline it in the DB so it doesn't reappear on next poll
+                    setInbox(prev => {
+                      const toRemove = prev.filter(r => r.from_id === id);
+                      toRemove.forEach(r => {
+                        supabase.from("meet_requests").update({ status: "declined" }).eq("id", r.id).then(() => {});
+                      });
+                      return prev.filter(r => r.from_id !== id);
+                    });
+                  }} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
             {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
             {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} />}
