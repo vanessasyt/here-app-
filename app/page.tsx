@@ -1332,13 +1332,14 @@ function RequestScreen({
     if (submittingRef.current) return; // block any second call immediately
     submittingRef.current = true;
     setSending(true); setError("");
-    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    const cutoff30 = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data: existing } = await supabase
       .from("meet_requests")
       .select("id")
       .eq("from_id", currentUser.id)
       .eq("to_id", person.id)
-      .gte("created_at", startOfDay.toISOString())
+      .gte("created_at", cutoff30)
+      .in("status", ["pending", "accepted"])
       .maybeSingle();
     if (existing) {
       setError("You have already expressed interest in this person today.");
@@ -1644,7 +1645,7 @@ function InboxScreen({
         </div>
         <div className="h-2" />
       </div>
-      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={requests.length} />
+      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={requests.length + (acceptedSent ? 1 : 0)} />
     </div>
   );
 }
@@ -3054,19 +3055,25 @@ export default function App() {
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
     if (!data) return;
-    const mapped: InboxRequest[] = data.map((r: any) => {
+    // Deduplicate by from_id — keep only the most-recent request per sender
+    // (guards against race-condition double-inserts or realtime replay duplicates)
+    const seenSenders = new Set<string>();
+    const mapped: InboxRequest[] = [];
+    for (const r of data) {
+      if (seenSenders.has(r.from_id)) continue; // already have a newer one (data is DESC)
+      seenSenders.add(r.from_id);
       const sender = r.profiles as UserProfile;
       const ageMs  = Date.now() - new Date(r.created_at).getTime();
       const mins   = Math.floor(ageMs / 60_000);
       const timeLabel = mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
-      return {
+      mapped.push({
         id: r.id, name: `${sender.name}, ${sender.age}`,
         photo_url: sender.photo_url, bg: sender.bg, gender: "m" as const,
         meta: sender.occupation, tags: sender.interests ?? [],
         reqLabel: r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
         time: timeLabel, isNew: true, from_id: r.from_id, hint: r.hint,
-      };
-    });
+      });
+    }
     setInbox(mapped.filter(r => !declinedIdsRef.current.has(r.id)));
   }, []);
 
@@ -3289,7 +3296,8 @@ export default function App() {
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
   // Full profile of the person on the match screen
   const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
-  const newCount = inbox.filter(r=>r.isNew).length;
+  // Inbox badge = pending incoming requests + 1 if there is an unviewed accepted (green light) banner
+  const newCount = inbox.filter(r=>r.isNew).length + (acceptedSent ? 1 : 0);
 
   // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
