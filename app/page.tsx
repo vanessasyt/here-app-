@@ -1541,6 +1541,11 @@ function InboxScreen({
     try { return (JSON.parse(raw) as any[]).filter(e => !e.answered); } catch { return []; }
   })();
 
+  // IDs of people already in pendingMet — exclude them from INCOMING to prevent
+  // the same person appearing in both sections simultaneously
+  const pendingMetPersonIds = new Set(pendingMet.map(m => m.personId));
+  const filteredRequests = requests.filter(r => !r.from_id || !pendingMetPersonIds.has(r.from_id));
+
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
       <div className="px-[22px] pt-5 flex-shrink-0">
@@ -1612,19 +1617,19 @@ function InboxScreen({
           {/* ── Incoming requests ── */}
           <div className="px-[22px] mb-2 flex items-center justify-between">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming</div>
-            {requests.length > 0 && (
+            {filteredRequests.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
-                <span className="text-[11px] font-semibold" style={{ color:C.green }}>{requests.length} new</span>
+                <span className="text-[11px] font-semibold" style={{ color:C.green }}>{filteredRequests.length} new</span>
               </div>
             )}
           </div>
 
-          {requests.length === 0 ? (
+          {filteredRequests.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px]" style={{ color:C.warmMid }}>
               {acceptedSent ? "No other incoming requests" : "No requests yet"}
             </div>
-          ) : requests.map(r=>(
+          ) : filteredRequests.map(r=>(
             <div key={r.id} className="mx-5 mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
               style={{ background:"rgba(196,120,58,0.04)", border:`1.5px solid ${C.accent}`, boxShadow:"0 2px 14px rgba(26,20,16,0.07)" }}
               onClick={()=>onNavigate("incoming",r.id)}>
@@ -1651,7 +1656,7 @@ function InboxScreen({
         </div>
         <div className="h-2" />
       </div>
-      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={requests.length + (acceptedSent ? 1 : 0)} />
+      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={filteredRequests.length + (acceptedSent ? 1 : 0)} />
     </div>
   );
 }
@@ -3308,7 +3313,16 @@ export default function App() {
   // Full profile of the person on the match screen
   const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
   // Inbox badge = pending incoming requests + 1 if there is an unviewed accepted (green light) banner
-  const newCount = inbox.filter(r=>r.isNew).length + (acceptedSent ? 1 : 0);
+  // Exclude from badge any incoming requests from people already in the "met" pending list
+  const pendingMetIds: Set<string> = (() => {
+    if (!currentUser || typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(`here_met_${currentUser.id}`);
+      if (!raw) return new Set();
+      return new Set((JSON.parse(raw) as any[]).filter((e:any) => !e.answered).map((e:any) => e.personId as string));
+    } catch { return new Set(); }
+  })();
+  const newCount = inbox.filter(r => r.isNew && (!r.from_id || !pendingMetIds.has(r.from_id))).length + (acceptedSent ? 1 : 0);
 
   // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
