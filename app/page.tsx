@@ -349,6 +349,7 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
   async function handle() {
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
+    (window as any).__hereAuthInProgress = true;
     try {
       const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
@@ -356,13 +357,16 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
           ? "Incorrect email or password. Please try again."
           : err.message);
         setLoading(false);
+        (window as any).__hereAuthInProgress = false;
         return;
       }
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
       setLoading(false);
+      (window as any).__hereAuthInProgress = false;
       if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
     } catch {
       setLoading(false);
+      (window as any).__hereAuthInProgress = false;
       setError("Something went wrong. Please try again.");
     }
   }
@@ -442,9 +446,11 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     if (pass!==confirm)         { setError("Passwords don't match"); return; }
     if (pass.length<6)          { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
+    (window as any).__hereAuthInProgress = true;
     // Clear any previous session first so it doesn't interfere with signup
     await supabase.auth.signOut().catch(() => {});
     const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
+    (window as any).__hereAuthInProgress = false;
     if (err) { setError(err.message); setLoading(false); return; }
     setLoading(false);
     // If email confirmation is enabled, user.identities will be populated but
@@ -3045,7 +3051,11 @@ export default function App() {
   // ── Realtime + fallback polling for inbox and messages badge ──
   const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
+  const fetchInboxInFlightRef = useRef(false);
   const fetchInbox = useCallback(async (userId: string) => {
+    // Prevent concurrent fetches from racing and producing duplicates in state
+    if (fetchInboxInFlightRef.current) return;
+    fetchInboxInFlightRef.current = true;
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data } = await supabase
       .from("meet_requests")
@@ -3054,6 +3064,7 @@ export default function App() {
       .eq("status", "pending")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
+    fetchInboxInFlightRef.current = false;
     if (!data) return;
     // Deduplicate by from_id — keep only the most-recent request per sender
     // (guards against race-condition double-inserts or realtime replay duplicates)
@@ -3302,12 +3313,26 @@ export default function App() {
   // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
     let sessionHandled = false;
+    // Flag set the moment signUp() or signInWithPassword() is called from within the app
+    // so the onAuthStateChange handler knows to stay out of the way
+    (window as any).__hereAuthInProgress = false;
+
+    // Minimum splash display time — prevents the jarring flash where splash shows
+    // for only ~200ms before getSession() resolves and navigates to login
+    const SPLASH_MIN_MS = 1800;
+    const splashStart = Date.now();
+    function navigateAfterSplash(to: Screen, data?: unknown) {
+      const elapsed = Date.now() - splashStart;
+      const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+      setTimeout(() => navigate(to, data), remaining);
+    }
+
     const splashTimeout = setTimeout(() => { if (!sessionHandled) navigate("login"); }, 6_000);
 
     supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
       clearTimeout(splashTimeout);
       sessionHandled = true;
-      if (sessErr || !session?.user) { navigate("login"); return; }
+      if (sessErr || !session?.user) { navigateAfterSplash("login"); return; }
       try {
         const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
         if (p) {
@@ -3324,42 +3349,47 @@ export default function App() {
               const overdue = metList.find(e => !e.answered && (Date.now() - new Date(e.metAt).getTime()) >= 3 * 3_600_000);
               if (overdue) {
                 setFollowUpPerson(overdue.person);
-                navigate("followup", { person: overdue.person, requestId: overdue.requestId ?? null });
+                navigateAfterSplash("followup", { person: overdue.person, requestId: overdue.requestId ?? null });
                 return;
               }
             } catch { /* ignore */ }
           }
-          navigate("events");
+          navigateAfterSplash("events");
         } else {
-          navigate("onboarding");
+          navigateAfterSplash("onboarding");
         }
       } catch {
         await supabase.auth.signOut().catch(() => {});
-        navigate("login");
+        navigateAfterSplash("login");
       }
     }).catch(() => {
       clearTimeout(splashTimeout);
-      navigate("login");
+      navigateAfterSplash("login");
     });
 
-    // Only handle link-based auth events (magic link, email confirmation)
-    // Guard with sessionHandled to avoid racing with getSession above
+    // onAuthStateChange is ONLY used for link-based flows (magic link, email confirmation link).
+    // All in-app sign-in/sign-up flows set __hereAuthInProgress=true to suppress this handler,
+    // preventing the double-navigation race that caused the signup→onboarding→events flash
+    // and the signup→login regression.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY") { navigate("login"); return; }
-      const currentScreen = (window as any).__hereScreen as string | undefined;
+
+      // Suppress if: an in-app auth action is in progress, or initial session check already ran,
+      // or a user is already loaded, or no session exists
       if (
-        event === "SIGNED_IN" &&
-        session?.user &&
-        !currentUserRef.current &&
-        !sessionHandled &&
-        currentScreen !== "signup"
-      ) {
-        try {
-          const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-          if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
-          else navigate("onboarding");
-        } catch { navigate("login"); }
-      }
+        (window as any).__hereAuthInProgress ||
+        sessionHandled ||
+        currentUserRef.current ||
+        !session?.user ||
+        event !== "SIGNED_IN"
+      ) return;
+
+      // Only reach here for link-based SIGNED_IN (magic link, email confirm redirect)
+      try {
+        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+        if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
+        else navigate("onboarding");
+      } catch { navigate("login"); }
     });
 
     return () => { clearTimeout(splashTimeout); subscription.unsubscribe(); };
