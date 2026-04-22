@@ -20,8 +20,6 @@ The app is a single-page Next.js / React application (`page.tsx`) backed by **Su
 
 **Mutual confirmation.** Incoming requests surface in the recipient's Requests tab within 10 seconds of being sent. The recipient can accept now, accept in 15 minutes, accept in 30 minutes, or decline. Delayed accepts prompt an optional free-text area hint (*"near the tube exit"*, *"by the bar"*) which is surfaced to the sender on the Match screen. Once accepted, both parties see a dark green-light screen with a countdown timer; the green light expires at the 15- or 30-minute mark and the request is effectively dead.
 
-**Photo freshness.** Profile photos must be taken with the device camera (`capture="user"`, no gallery upload path). A green tick renders next to photos taken today; a red cross renders if the user's photo is older. This is enforced visually rather than technically to encourage accurate same-day representation — the core premise of `here.` is that you look like your photo right now, because you and the other person are about to meet.
-
 **Safety.** Every Match screen has a Report button that writes to a `reports` table, inserts a bidirectional row into `blocked_users`, and removes the associated request. The block list is evaluated on every Nearby fetch so blocked users never resurface in either direction. An auto-off timer (30 min / 1 hour / 2 hours / never) in the Profile screen force-disables discoverability after a period of inactivity so users aren't accidentally broadcasting their location.
 
 ### Data model
