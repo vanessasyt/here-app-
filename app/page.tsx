@@ -2343,13 +2343,13 @@ function FollowUpScreen({
     localStorage.setItem(key, JSON.stringify(updated));
 
     if (choice === "yes" && requestId) {
-      await supabase.from("meet_again").upsert({
-        user_id: currentUser.id,
-        request_id: requestId,
-        created_at: new Date().toISOString(),
-      });
+      await supabase.from("meet_again").upsert(
+        { user_id: currentUser.id, request_id: requestId, created_at: new Date().toISOString() },
+        { onConflict: "user_id,request_id" }
+      );
     }
-    onNavigate("inbox");
+    // Navigate to messages after answering — if both said yes, the chat will appear
+    onNavigate("messages");
   }
 
   return (
@@ -2407,8 +2407,8 @@ interface ChatThread {
 }
 
 function MessagesScreen({
-  currentUser, onNavigate, inboxCount, msgCount, onUnreadCount,
-}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; onUnreadCount: (n: number) => void }) {
+  currentUser, onNavigate, inboxCount, msgCount, onUnreadCount, refreshKey,
+}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; onUnreadCount: (n: number) => void; refreshKey?: number }) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -2499,11 +2499,14 @@ function MessagesScreen({
       });
 
       setThreads(built);
-      onUnreadCount(built.filter(t => t.unread || t.isNew).length);
+      // Do NOT call onUnreadCount here — the root fetchMessagesCount is the
+      // single source of truth for the badge. Having two independent counters
+      // was the root cause of the badge oscillating between 0 and 1.
       setLoading(false);
     }
     load();
-  }, [currentUser.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, refreshKey]);
 
   function formatThreadTime(iso: string) {
     const d = new Date(iso);
@@ -3066,6 +3069,7 @@ export default function App() {
   const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
   const [chatUnlockedAt,  setChatUnlockedAt]  = useState<string|null>(null);
   const [messagesCount,   setMessagesCount]   = useState(0);
+  const [messagesRefreshKey, setMessagesRefreshKey] = useState(0);
   const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
   const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
 
@@ -3109,49 +3113,53 @@ export default function App() {
     setInbox(mapped.filter(r => !declinedIdsRef.current.has(r.id)));
   }, []);
 
-  // Compute messages badge count directly from Supabase
+  // Compute messages badge count directly from Supabase.
+  // Badge shows a count only when there are genuinely unread messages
+  // from the other person — NOT for "brand new" threads with no messages.
+  // This prevents the badge oscillating between 0 and 1.
+  const msgCountInFlightRef = useRef(false);
   const fetchMessagesCount = useCallback(async (userId: string) => {
-    // Fetch all mutual-yes request IDs
-    const { data: maRows } = await supabase
-      .from("meet_again")
-      .select("request_id")
-      .or(`request_id.in.(select request_id from meet_again where user_id=eq.${userId})`);
+    if (msgCountInFlightRef.current) return;
+    msgCountInFlightRef.current = true;
+    try {
+      // Step 1: find request_ids where I said "yes"
+      const { data: myYes } = await supabase
+        .from("meet_again")
+        .select("request_id")
+        .eq("user_id", userId);
+      if (!myYes || myYes.length === 0) { setMessagesCount(0); return; }
+      const myReqIds = myYes.map((r: any) => r.request_id as string);
 
-    // Simpler: fetch meet_again rows for this user, then check if partner also said yes
-    const { data: myYes } = await supabase
-      .from("meet_again")
-      .select("request_id")
-      .eq("user_id", userId);
+      // Step 2: of those, find which ones the other party also said "yes"
+      const { data: partnerYes } = await supabase
+        .from("meet_again")
+        .select("request_id")
+        .in("request_id", myReqIds)
+        .neq("user_id", userId);
+      const mutualIds = new Set((partnerYes ?? []).map((r: any) => r.request_id as string));
+      if (mutualIds.size === 0) { setMessagesCount(0); return; }
 
-    if (!myYes || myYes.length === 0) { setMessagesCount(0); return; }
-    const myReqIds = myYes.map((r: any) => r.request_id as string);
-
-    // Check which of those also have the other party's yes
-    const { data: partnerYes } = await supabase
-      .from("meet_again")
-      .select("request_id")
-      .in("request_id", myReqIds)
-      .neq("user_id", userId);
-
-    const mutualIds = new Set((partnerYes ?? []).map((r: any) => r.request_id as string));
-    if (mutualIds.size === 0) { setMessagesCount(0); return; }
-
-    // For each mutual thread, check if there are unread messages OR it's brand new (no read key)
-    let count = 0;
-    for (const reqId of mutualIds) {
-      const lastReadKey = `here_read_${userId}_${reqId}`;
-      const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
-      if (!lastRead) { count++; continue; } // brand new, never opened
-      const { data: msgs } = await supabase
-        .from("messages")
-        .select("created_at, sender_id")
-        .eq("request_id", reqId)
-        .gt("created_at", lastRead)
-        .neq("sender_id", userId)
-        .limit(1);
-      if (msgs && msgs.length > 0) count++;
+      // Step 3: for each mutual thread, check for unread messages only
+      let count = 0;
+      for (const reqId of mutualIds) {
+        const lastReadKey = `here_read_${userId}_${reqId}`;
+        const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+        // If never opened, check if there are any messages from the other person at all
+        // (empty threads don't produce a badge — only actual messages do)
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("created_at, sender_id")
+          .eq("request_id", reqId)
+          .neq("sender_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (!msgs || msgs.length === 0) continue; // no messages from them — no badge
+        if (!lastRead || new Date(msgs[0].created_at) > new Date(lastRead)) count++;
+      }
+      setMessagesCount(count);
+    } finally {
+      msgCountInFlightRef.current = false;
     }
-    setMessagesCount(count);
   }, []);
 
   // Start polling when user is known
@@ -3220,7 +3228,7 @@ export default function App() {
       .channel(`meet_again:${currentUser.id}`)
       .on("postgres_changes", {
         event: "INSERT", schema: "public", table: "meet_again",
-      }, () => fetchMessagesCount(currentUser.id))
+      }, () => { fetchMessagesCount(currentUser.id); setMessagesRefreshKey(k => k + 1); })
       .subscribe();
 
     // Realtime: accepted requests (green light banner)
@@ -3455,6 +3463,11 @@ export default function App() {
       if (pd.person) setFollowUpPerson(pd.person as UserProfile);
       if (pd.requestId !== undefined) setFollowUpRequestId(pd.requestId as string | null);
     }
+    // Refresh badge when leaving chat/messages (user may have read messages)
+    if ((to === "messages" || to === "inbox" || to === "events" || to === "nearby" || to === "profile") && currentUser) {
+      // Small delay to let ChatScreen's read-mark localStorage write settle
+      setTimeout(() => fetchMessagesCount(currentUser.id), 500);
+    }
   }
 
   function declineRequest(id: string) {
@@ -3550,19 +3563,15 @@ export default function App() {
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
             {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>{
                     setInteractedIds(prev=>[...prev,id]);
-                    // Remove their incoming request from inbox state immediately
-                    // and decline it in the DB so it doesn't reappear on next poll
-                    setInbox(prev => {
-                      const toRemove = prev.filter(r => r.from_id === id);
-                      toRemove.forEach(r => {
-                        supabase.from("meet_requests").update({ status: "declined" }).eq("id", r.id).then(() => {});
-                      });
-                      return prev.filter(r => r.from_id !== id);
-                    });
+                    // Remove from local inbox state only — do NOT update DB status here.
+                    // The accepted meet_requests row must stay "accepted" so
+                    // MessagesScreen can find it for the chat thread list.
+                    // Pending rows from this person expire naturally after 30 min.
+                    setInbox(prev => prev.filter(r => r.from_id !== id));
                   }} />}
             {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
             {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
-            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} />}
+            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} refreshKey={messagesRefreshKey} />}
             {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
             {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
           </div>
