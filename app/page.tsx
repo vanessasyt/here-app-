@@ -5,15 +5,16 @@ import { createClient } from "@supabase/supabase-js";
 
 // ── Supabase ──────────────────────────────────────────────
 const supabase = createClient(
-  "https://rxpqlfxdsoduncihomta.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cHFsZnhkc29kdW5jaWhvbXRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzcxMDcsImV4cCI6MjA4ODkxMzEwN30.NAhwFU4ydOML0MEaySHn4So20FjnMwPgQC4LUZwzYi8"
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // ── Types ──────────────────────────────────────────────────
 type Screen =
   | "splash" | "login" | "signup" | "onboarding"
   | "events" | "eventdetail" | "nearby" | "request"
-  | "inbox"  | "incoming"    | "match" | "profile" | "pending";
+  | "inbox"  | "incoming"    | "match" | "profile" | "pending"
+  | "messages" | "chat" | "followup";
 
 type IncResponse  = "accept" | "15min" | "30min";
 
@@ -32,6 +33,8 @@ interface UserProfile {
   checked_in_at: string | null;  // ISO timestamp – used for time-at-event
   lat: number | null;           // GPS latitude
   lng: number | null;           // GPS longitude
+  pronouns?: "he/him" | "she/her" | "they/them"; // optional, shown on match screen
+  ask_me_prompts?: string[]; // 3 user-written "Ask me about" prompts
 }
 
 // NearbyUser extends UserProfile with client-side display fields
@@ -49,7 +52,7 @@ interface HereEvent {
 }
 
 interface InboxRequest {
-  id: number; name: string; photo_url: string | null; bg: string;
+  id: string; name: string; photo_url: string | null; bg: string;
   gender: "m" | "f"; meta: string; tags: string[];
   reqLabel: string; time: string; isNew: boolean;
   from_id?: string; hint?: string | null;
@@ -57,43 +60,80 @@ interface InboxRequest {
 
 // ── Design tokens ──────────────────────────────────────────
 const C = {
-  cream: "#F5F0E8", ink: "#1A1410", inkSoft: "#3D3530",
-  warmMid: "#8B7355", accent: "#C4783A", green: "#4A7C59",
-  border: "rgba(139,115,85,0.2)",
+  // Base — warm paper / warm near-black
+  cream:   "#F6F1E9",
+  surface: "#FFFFFF",
+  ink:     "#1C1714",
+  inkSoft: "#564B42",
+  warmMid: "#938373",
+  // One brand colour, used only on primary actions — refined terracotta
+  accent:     "#C25A33",
+  accentDark: "#A84A28",
+  accentSoft: "rgba(194,90,51,0.10)",
+  // Secondary — quiet sage, for live / verified status only
+  green:     "#3F7355",
+  greenSoft: "rgba(63,115,85,0.12)",
+  // Hairlines
+  border:       "rgba(28,23,20,0.08)",
+  borderStrong: "rgba(28,23,20,0.16)",
+  // Elevation
+  shadowCard: "0 1px 2px rgba(28,23,20,0.04), 0 10px 28px -12px rgba(28,23,20,0.16)",
+  shadowPop:  "0 1px 2px rgba(28,23,20,0.05), 0 24px 48px -16px rgba(28,23,20,0.28)",
 };
 
 // ── Static data ────────────────────────────────────────────
 const EVENTS: HereEvent[] = [
-  { id:0, emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"classical", name:"LSO — An Evening of Brahms", venue:"Barbican Centre", area:"Barbican", meta:"Tonight 7:30pm · from £35", members:34, time:"Starts 7:30pm", sponsored:true, buyTicket:true, section:"tonight", desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's great concert series." },
-  { id:1, emoji:"🍷", gradientFrom:"#1a2535", gradientTo:"#243045", category:"wine",      name:"Terroirs Natural Wine Evening",      venue:"Terroirs Wine Bar",    area:"Strand",        meta:"Tonight · until 11pm · Free",     members:27, time:"Until 11pm",     section:"tonight", desc:"The best natural wine bar in London opens its doors for an evening of exceptional low-intervention wines." },
-  { id:2, emoji:"🎨", gradientFrom:"#1e1a30", gradientTo:"#2d1e3a", category:"art",       name:"Tate Modern Late — After Hours",     venue:"Tate Modern",          area:"Bankside",      meta:"Tonight until 10pm · £12",        members:42, time:"Until 10pm",      section:"tonight", desc:"Private evening access to the galleries with a specially curated DJ set." },
-  { id:3, emoji:"🎷", gradientFrom:"#182a1e", gradientTo:"#223828", category:"music",     name:"Jazz at Ronnie Scott's",             venue:"Ronnie Scott's",       area:"Soho",          meta:"Tonight 9:30pm · from £30",       members:38, time:"Starts 9:30pm",  buyTicket:true, section:"tonight", desc:"The world-famous jazz club presents a late set with some of London's finest jazz musicians." },
-  { id:4, emoji:"💃", gradientFrom:"#2a1035", gradientTo:"#4a1060", category:"dance",     name:"Bachata Social Night",               venue:"Café Salsa",           area:"Covent Garden", meta:"Tonight 9pm–2am",                 members:31, time:"9pm–2am",         section:"tonight", desc:"A vibrant bachata social night in the heart of Covent Garden. All levels welcome." },
-  { id:5, emoji:"🎭", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"classical", name:"ENO — La Traviata Opening Night",    venue:"London Coliseum",      area:"West End",      meta:"Friday 8pm · from £25",           members:25, time:"Fri 8pm",         sponsored:true, buyTicket:true, section:"week", desc:"English National Opera's new production of Verdi's La Traviata." },
-  { id:6, emoji:"🖼️", gradientFrom:"#1a2535", gradientTo:"#243045", category:"art",       name:"National Portrait Gallery Members Evening", venue:"NPG",           area:"St Martin's Place", meta:"Thursday 6:30pm · Members free", members:29, time:"Thu",          section:"week", desc:"Exclusive after-hours access for members." },
-  { id:7, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"wine",      name:"Borough Market — After Dark",        venue:"Borough Market",       area:"Borough",       meta:"Saturday 6pm · Free",             members:46, time:"Sat",             section:"week", desc:"London's most iconic food market stays open late." },
+  // ── TONIGHT ───────────────────────────────────────────────────────────────
+  { id:0,  emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"music",   name:"LSO: An Evening of Brahms",               venue:"Barbican Centre",          area:"Barbican",         meta:"Tonight 7:30pm · from £35",       members:34, time:"7:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's finest concert series, a full house and an electric atmosphere." },
+  { id:1,  emoji:"🍷", gradientFrom:"#1a2535", gradientTo:"#243045", category:"food",    name:"Terroirs Natural Wine Evening",            venue:"Terroirs Wine Bar",         area:"Strand",           meta:"Tonight · until 11pm · Free",     members:27, time:"Until 11pm", sponsored:false, buyTicket:false, section:"tonight", desc:"The best natural wine bar in London, an evening of exceptional low-intervention wines poured at the bar." },
+  { id:2,  emoji:"🎨", gradientFrom:"#1e1a30", gradientTo:"#2d1e3a", category:"art",     name:"Tate Modern Late: After Hours",           venue:"Tate Modern",               area:"Bankside",         meta:"Tonight until 10pm · £12",        members:42, time:"Until 10pm", sponsored:false, buyTicket:true,  section:"tonight", desc:"After-hours access to the Tate galleries with a live DJ set and the riverside bar open late." },
+  { id:3,  emoji:"🎷", gradientFrom:"#182a1e", gradientTo:"#223828", category:"music",   name:"Jazz at Ronnie Scott's",                   venue:"Ronnie Scott's",            area:"Soho",             meta:"Tonight 9:30pm · from £30",       members:38, time:"9:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The world-famous jazz club. Tonight's late set features some of London's finest musicians , standing room only." },
+  { id:4,  emoji:"💃", gradientFrom:"#2a1035", gradientTo:"#4a1060", category:"dance",   name:"Bachata Social Night",                     venue:"Café Salsa",                area:"Covent Garden",    meta:"Tonight 9pm–2am · £10",           members:31, time:"9pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's most popular bachata social. All levels welcome so the dance floor does the introducing." },
+  { id:5,  emoji:"😂", gradientFrom:"#2a1a10", gradientTo:"#3a2810", category:"comedy",  name:"Comedy Store: Late Show",                 venue:"The Comedy Store",          area:"Leicester Square", meta:"Tonight 9:45pm · from £16",       members:29, time:"9:45pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"London's most iconic comedy club. Tonight's late show brings the UK's best stand-up talent to one stage." },
+  { id:6,  emoji:"🍜", gradientFrom:"#2a1208", gradientTo:"#3a2010", category:"food",    name:"Maltby Street Market: Evening Edition",   venue:"Maltby Street",             area:"Bermondsey",       meta:"Tonight 5pm–10pm · Free",         members:37, time:"5pm–10pm",   sponsored:false, buyTicket:false, section:"tonight", desc:"Over 30 of London's best street food traders in the arches under London Bridge , an evening edition." },
+  { id:7,  emoji:"🎬", gradientFrom:"#10101a", gradientTo:"#1a1a2a", category:"film",    name:"Rooftop Cinema Club: Brief Encounter",    venue:"Roof East",                 area:"Stratford",        meta:"Tonight 8pm · £19",               members:33, time:"8pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"Classic British romance under the stars on Roof East's open-air screen. Blankets provided." },
+  { id:8,  emoji:"🏃", gradientFrom:"#1a2a1a", gradientTo:"#243824", category:"fitness", name:"Run Dem Crew: Thursday Run",              venue:"Regent's Park",             area:"Regent's Park",    meta:"Tonight 6:30pm · Free",           members:22, time:"6:30pm",     sponsored:false, buyTicket:false, section:"tonight", desc:"London's most sociable running crew. 5k through Regent's Park, all paces welcome, drinks after at the pub." },
+  { id:9,  emoji:"🥊", gradientFrom:"#2a1010", gradientTo:"#3a1818", category:"fitness", name:"BXR London: Boxing Evening Class",        venue:"BXR London",                area:"Marylebone",       meta:"Tonight 7pm · £25",               members:18, time:"7pm",        sponsored:false, buyTicket:true,  section:"tonight", desc:"London's best boxing gym runs an open evening class. Gloves provided. All fitness levels , come prepared to work." },
+  { id:10, emoji:"🎵", gradientFrom:"#1a1028", gradientTo:"#2a1838", category:"music",   name:"Electric Brixton: Club Night",            venue:"Electric Brixton",          area:"Brixton",          meta:"Tonight 10pm · £15",              members:51, time:"10pm",       sponsored:true,  buyTicket:true,  section:"tonight", desc:"One of London's best live music venues. Tonight's resident DJs play disco, house, and soul until 4am." },
+
+  // ── THIS WEEK ─────────────────────────────────────────────────────────────
+  { id:11, emoji:"🎭", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"art",     name:"ENO: La Traviata Opening Night",          venue:"London Coliseum",           area:"West End",         meta:"Friday 8pm · from £25",           members:25, time:"Fri 8pm",    sponsored:true,  buyTicket:true,  section:"week",    desc:"English National Opera's acclaimed new production of Verdi's La Traviata. Opening night." },
+  { id:12, emoji:"🖼️", gradientFrom:"#1a2535", gradientTo:"#243045", category:"art",     name:"National Portrait Gallery Members Evening",venue:"NPG",                       area:"St Martin's Place",meta:"Thursday 6:30pm · Members free",  members:29, time:"Thu 6:30pm", sponsored:false, buyTicket:false, section:"week",    desc:"Exclusive after-hours access to the galleries with wine and live music." },
+  { id:13, emoji:"🌿", gradientFrom:"#182a1e", gradientTo:"#223828", category:"food",    name:"Borough Market: After Dark",              venue:"Borough Market",            area:"Borough",          meta:"Saturday 6pm · Free",             members:46, time:"Sat 6pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most celebrated food market stays open late with evening-only traders and street food." },
+  { id:14, emoji:"🎸", gradientFrom:"#1a1020", gradientTo:"#281830", category:"music",   name:"Moth Club: Indie Night",                  venue:"Moth Club",                 area:"Hackney",          meta:"Friday 9pm · £12",                members:28, time:"Fri 9pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"Hackney's best-kept secret. Indie and alternative DJ sets in the most characterful venue in East London." },
+  { id:15, emoji:"🧗", gradientFrom:"#1a1010", gradientTo:"#282010", category:"fitness", name:"Castle Climbing: Evening Session",        venue:"Castle Climbing Centre",    area:"Stoke Newington",  meta:"Thursday 6pm · £18",              members:17, time:"Thu 6pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"One of London's most celebrated climbing walls. Evening sessions are open to all abilities , shoes for hire." },
+  { id:16, emoji:"🍳", gradientFrom:"#2a1808", gradientTo:"#3a2010", category:"food",    name:"Ottolenghi: Saturday Masterclass",        venue:"Ottolenghi NOPI",           area:"Soho",             meta:"Saturday 11am · £95",             members:12, time:"Sat 11am",   sponsored:true,  buyTicket:true,  section:"week",    desc:"A hands-on morning with Ottolenghi's chefs. Learn four signature dishes, then sit down together to eat them." },
+  { id:17, emoji:"🎤", gradientFrom:"#1a0a28", gradientTo:"#2a1038", category:"comedy",  name:"Soho Theatre: Stand-Up Night",            venue:"Soho Theatre",              area:"Soho",             meta:"Wednesday 8pm · £15",             members:21, time:"Wed 8pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The most respected comedy venue in London. Tonight's bill features three rising stand-ups at the top of their game." },
+  { id:18, emoji:"🚣", gradientFrom:"#0a1a2a", gradientTo:"#102030", category:"fitness", name:"Paddleboarding on the Thames",             venue:"Thames Paddle Co.",         area:"Richmond",         meta:"Sunday 10am · £35",               members:16, time:"Sun 10am",   sponsored:false, buyTicket:true,  section:"week",    desc:"Guided paddleboard session on the Thames at Richmond. Equipment and full instruction included. Beginners welcome." },
+  { id:19, emoji:"🌅", gradientFrom:"#1a1410", gradientTo:"#2a2018", category:"food",    name:"Skylight Rooftop Bar: Sunset Session",    venue:"Skylight Tobacco Dock",     area:"Wapping",          meta:"Saturday 5pm · Free entry",       members:39, time:"Sat 5pm",    sponsored:false, buyTicket:false, section:"week",    desc:"London's most loved rooftop bar and games space. Cocktails, croquet, and a view of the city at golden hour." },
+  { id:20, emoji:"🏊", gradientFrom:"#0a1a28", gradientTo:"#101e30", category:"fitness", name:"London Fields Lido: Social Swim",         venue:"London Fields Lido",        area:"Hackney",          meta:"Sunday 8am · £5",                 members:23, time:"Sun 8am",    sponsored:false, buyTicket:true,  section:"week",    desc:"The heated outdoor lido at London Fields. Sunday morning swims followed by coffee and pastries at the poolside café." },
+  { id:21, emoji:"📖", gradientFrom:"#1a1818", gradientTo:"#282020", category:"art",     name:"Waterstones: Author Reading & Q&A",       venue:"Waterstones Piccadilly",    area:"Piccadilly",       meta:"Tuesday 7pm · £10",               members:14, time:"Tue 7pm",    sponsored:false, buyTicket:true,  section:"week",    desc:"The world's largest bookshop hosts an evening reading and Q&A with one of this year's most talked-about authors." },
+  { id:22, emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#2e1a40", category:"music",   name:"Wigmore Hall: Piano Recital",             venue:"Wigmore Hall",              area:"Marylebone",       meta:"Thursday 7:30pm · from £18",      members:19, time:"Thu 7:30pm", sponsored:false, buyTicket:true,  section:"week",    desc:"The finest chamber music venue in the world. This Thursday's recital features a rising pianist performing Schubert." },
+  { id:23, emoji:"🏃", gradientFrom:"#182a18", gradientTo:"#223820", category:"fitness", name:"Parkrun, Victoria Park",                  venue:"Victoria Park",             area:"Hackney",          meta:"Saturday 9am · Free",             members:31, time:"Sat 9am",    sponsored:false, buyTicket:false, section:"week",    desc:"The world's largest free weekly run. 5k around Victoria Park, all paces welcome, no registration needed on the day." },
 ];
 
-// 18 interests — each user picks up to 3
+// 18 interests, each user picks up to 3
 const INTERESTS: { id: string; emoji: string; label: string }[] = [
-  { id:"art",          emoji:"", label:"Art"          },
-  { id:"comedy",       emoji:"", label:"Comedy"       },
-  { id:"cooking",      emoji:"", label:"Cooking"      },
-  { id:"fashion",      emoji:"", label:"Fashion"      },
-  { id:"film",         emoji:"", label:"Film"         },
-  { id:"fitness",      emoji:"", label:"Fitness"      },
-  { id:"food",         emoji:"", label:"Food"         },
-  { id:"gaming",       emoji:"", label:"Gaming"       },
-  { id:"hiking",       emoji:"", label:"Hiking"       },
-  { id:"museums",      emoji:"", label:"Museums"      },
-  { id:"music",        emoji:"", label:"Music"        },
-  { id:"photography",  emoji:"", label:"Photography"  },
-  { id:"podcasts",     emoji:"", label:"Podcasts"     },
-  { id:"reading",      emoji:"", label:"Reading"      },
-  { id:"tech",         emoji:"", label:"Tech"         },
-  { id:"theatre",      emoji:"", label:"Theatre"      },
-  { id:"travel",       emoji:"", label:"Travel"       },
-  { id:"wine",         emoji:"", label:"Wine"         },
+  { id:"art",           emoji:"", label:"Art"           },
+  { id:"comedy",        emoji:"", label:"Comedy"        },
+  { id:"cooking",       emoji:"", label:"Cooking"       },
+  { id:"fashion",       emoji:"", label:"Fashion"       },
+  { id:"film",          emoji:"", label:"Film"          },
+  { id:"fitness",       emoji:"", label:"Fitness"       },
+  { id:"food",          emoji:"", label:"Food"          },
+  { id:"gaming",        emoji:"", label:"Gaming"        },
+  { id:"hiking",        emoji:"", label:"Hiking"        },
+  { id:"museums",       emoji:"", label:"Museums"       },
+  { id:"music",         emoji:"", label:"Music"         },
+  { id:"photography",   emoji:"", label:"Photography"   },
+  { id:"podcasts",      emoji:"", label:"Podcasts"      },
+  { id:"racket_sports", emoji:"", label:"Racket Sports" },
+  { id:"reading",       emoji:"", label:"Reading"       },
+  { id:"team_sports",   emoji:"", label:"Team Sports"   },
+  { id:"tech",          emoji:"", label:"Tech"          },
+  { id:"theatre",       emoji:"", label:"Theatre"       },
+  { id:"travel",        emoji:"", label:"Travel"        },
+  { id:"wine",          emoji:"", label:"Wine"          },
 ];
 
 const MAX_INTERESTS = 3;
@@ -114,35 +154,7 @@ const BG_OPTIONS = [
   "linear-gradient(160deg,#d4d4a5,#c4c46b)",
 ];
 
-const INTEREST_STYLE: Record<string, { background: string; color: string }> = {
-  art:          { background:"rgba(60,120,160,0.1)",    color:"#3C78A0" },
-  comedy:       { background:"rgba(220,160,40,0.12)",   color:"#b08010" },
-  cooking:      { background:"rgba(196,140,40,0.12)",   color:"#c48c28" },
-  fashion:      { background:"rgba(200,80,120,0.1)",    color:"#c85078" },
-  film:         { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
-  fitness:      { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
-  food:         { background:"rgba(196,120,58,0.12)",   color:"#C4783A" },
-  gaming:       { background:"rgba(40,140,180,0.1)",    color:"#288cb4" },
-  hiking:       { background:"rgba(60,160,80,0.1)",     color:"#3a9a50" },
-  museums:      { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
-  music:        { background:"rgba(100,80,160,0.1)",    color:"#6450A0" },
-  photography:  { background:"rgba(40,100,160,0.1)",    color:"#2864A0" },
-  podcasts:     { background:"rgba(140,60,200,0.1)",    color:"#8c3cc8" },
-  reading:      { background:"rgba(80,80,80,0.1)",      color:"#505050" },
-  tech:         { background:"rgba(60,80,180,0.1)",     color:"#3c50b4" },
-  theatre:      { background:"rgba(120,40,120,0.1)",    color:"#782878" },
-  travel:       { background:"rgba(60,160,120,0.1)",    color:"#3CA078" },
-  wine:         { background:"rgba(160,60,80,0.1)",     color:"#A03C50" },
-  // legacy aliases so old profiles still render
-  gym:          { background:"rgba(80,140,80,0.12)",    color:"#3a8a3a" },
-  movies:       { background:"rgba(160,100,40,0.12)",   color:"#a06428" },
-  sports:       { background:"rgba(58,100,196,0.12)",   color:"#3a60c4" },
-  dance:        { background:"rgba(196,58,160,0.1)",    color:"#c43aa0" },
-  architecture: { background:"rgba(100,80,60,0.1)",     color:"#64503c" },
-  volunteering: { background:"rgba(60,160,100,0.1)",    color:"#3ca064" },
-};
-
-// No dummy inbox — all requests come from Supabase
+// No dummy inbox, all requests come from Supabase
 
 // ── Round-robin rotation ───────────────────────────────────
 // Every ROTATION_MS we advance the top slot by 1, giving each person
@@ -176,9 +188,80 @@ function timeAtEventLabel(mins: number) {
   return m ? `${h}h ${m}m here` : `${h}h here`;
 }
 
+// ── Icon system ────────────────────────────────────────────
+// Clean line icons (currentColor stroke). Replaces emoji used as chrome
+// so the interface reads like a designed product, not a prototype.
+type IconName =
+  | "back" | "search" | "close" | "check" | "chevron" | "pin" | "ticket"
+  | "calendar" | "camera" | "clock" | "mail" | "spark" | "heart" | "message"
+  | "user" | "radar" | "star" | "send" | "shield" | "compass"
+  | "music" | "art" | "food" | "comedy" | "fitness" | "film" | "note" | "qr";
+
+const ICON_PATHS: Record<IconName, { d: string; fill?: boolean; extra?: string }> = {
+  back:     { d: "M19 12H5 M12 19l-7-7 7-7" },
+  search:   { d: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M16.5 16.5L21 21" },
+  close:    { d: "M6 6l12 12 M18 6L6 18" },
+  check:    { d: "M4 12.5l5 5L20 6" },
+  chevron:  { d: "M9 5l7 7-7 7" },
+  pin:      { d: "M12 21s-6.5-6-6.5-10.5a6.5 6.5 0 1 1 13 0C18.5 15 12 21 12 21z", extra: "M12 8.2a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" },
+  ticket:   { d: "M4 8.5A1.5 1.5 0 0 1 5.5 7h13A1.5 1.5 0 0 1 20 8.5v2a2 2 0 0 0 0 3v2A1.5 1.5 0 0 1 18.5 17h-13A1.5 1.5 0 0 1 4 15.5v-2a2 2 0 0 0 0-3v-2z", extra: "M13 7.5v9" },
+  calendar: { d: "M5 6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5v-11z", extra: "M5 9.5h14 M9 3.5v3 M15 3.5v3" },
+  camera:   { d: "M4.5 8.5A1.5 1.5 0 0 1 6 7h1.6l1.2-1.7a1 1 0 0 1 .8-.4h4.8a1 1 0 0 1 .8.4L16.4 7H18a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 18 18H6a1.5 1.5 0 0 1-1.5-1.5v-8z", extra: "M12 9.8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" },
+  clock:    { d: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", extra: "M12 8v4.2l2.8 1.8" },
+  mail:     { d: "M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-9z", extra: "M4.5 8l7.5 5 7.5-5" },
+  spark:    { d: "M12 2.5c.7 4.8 3 7.1 7.5 7.5-4.5.5-6.8 2.8-7.5 7.5-.7-4.7-3-7-7.5-7.5C9 9.6 11.3 7.3 12 2.5z", fill: true },
+  heart:    { d: "M12 20.3l-1.3-1.2C5.5 14.4 2.2 11.4 2.2 7.8 2.2 5.2 4.2 3.2 6.7 3.2c1.6 0 3.2.9 4 2.2l1.3 1.9 1.3-1.9c.8-1.3 2.4-2.2 4-2.2 2.5 0 4.5 2 4.5 4.6 0 3.6-3.3 6.6-8.5 11.3L12 20.3z", fill: true },
+  message:  { d: "M20.5 11.5a8 8 0 0 1-11.5 7.2L4 20.5l1.4-4.6A8 8 0 1 1 20.5 11.5z" },
+  user:     { d: "M12 4.5a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2z", extra: "M5.5 19.5c0-3.6 2.9-5.6 6.5-5.6s6.5 2 6.5 5.6" },
+  radar:    { d: "M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z", fill: true, extra: "M8.8 8.8a4.5 4.5 0 0 0 0 6.4 M15.2 8.8a4.5 4.5 0 0 1 0 6.4 M6 6a8 8 0 0 0 0 12 M18 6a8 8 0 0 1 0 12" },
+  star:     { d: "M12 3.6l2.5 5.1 5.6.8-4 3.9 1 5.6L12 16.4 6.9 19l1-5.6-4-3.9 5.6-.8L12 3.6z", fill: true },
+  send:     { d: "M12 20V5 M5.5 11.5L12 5l6.5 6.5" },
+  shield:   { d: "M12 3l7 2.8v5.4c0 4.4-3 7.8-7 8.8-4-1-7-4.4-7-8.8V5.8L12 3z", extra: "M9 12l2 2 4-4" },
+  compass:  { d: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", extra: "M15.2 8.8l-1.7 4.7-4.7 1.7 1.7-4.7 4.7-1.7z" },
+  music:    { d: "M9 17V6l9-1.8V15", extra: "M9 17a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z M18 15a2.3 2.3 0 1 1-4.6 0 2.3 2.3 0 0 1 4.6 0z" },
+  art:      { d: "M4.5 5.5h15v13h-15z", extra: "M8.3 10.3a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6z M4.5 16l4.3-3.6L13 16l3-2.2 2.5 2.2" },
+  food:     { d: "M6 4v6a2 2 0 0 0 4 0V4 M8 10v10", extra: "M16 4c-1.4 1-2 3-2 5s.6 3.2 2 4.2V20" },
+  comedy:   { d: "M12 4a2.6 2.6 0 0 1 2.6 2.6V11a2.6 2.6 0 0 1-5.2 0V6.6A2.6 2.6 0 0 1 12 4z", extra: "M6.5 11a5.5 5.5 0 0 0 11 0 M12 16.5V20 M9 20h6" },
+  fitness:  { d: "M3 12h3.5l2 5.5L12 6l2 6h7" },
+  film:     { d: "M4.5 5.5h15v13h-15z", extra: "M8 5.5v13 M16 5.5v13 M4.5 9.2h3.5 M16 9.2h3.5 M4.5 14.8h3.5 M16 14.8h3.5" },
+  note:     { d: "M16.5 4.5l3 3-9.5 9.5-3.8.8.8-3.8 9.5-9.5z", extra: "M14.5 6.5l3 3" },
+  qr:       { d: "M5 5h5v5H5z M14 5h5v5h-5z M5 14h5v5H5z", extra: "M14 14h2v2h-2z M18 14h1 M14 18v1 M18 18h1" },
+};
+
+function Icon({ name, size = 22, stroke = 1.75, className, style }:
+  { name: IconName; size?: number; stroke?: number; className?: string; style?: React.CSSProperties }) {
+  const ic = ICON_PATHS[name];
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      className={className} style={{ display: "block", flexShrink: 0, ...style }}>
+      <path d={ic.d}
+        fill={ic.fill ? "currentColor" : "none"}
+        stroke={ic.fill && !ic.extra ? "none" : "currentColor"}
+        strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+      {ic.extra && <path d={ic.extra} fill="none" stroke="currentColor"
+        strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>
+  );
+}
+
+const CATEGORY_ICON: Record<string, IconName> = {
+  music: "music", art: "art", food: "food", comedy: "comedy",
+  fitness: "fitness", dance: "music", film: "film", theatre: "comedy",
+};
+function categoryIcon(cat: string): IconName { return CATEGORY_ICON[cat] ?? "spark"; }
+
+/** The "here." wordmark — terracotta full stop is the one piece of brand colour */
+function Wordmark({ size = 40, light = true }: { size?: number; light?: boolean }) {
+  return (
+    <span style={{ fontWeight: 800, letterSpacing: "-0.04em", fontSize: size, lineHeight: 1, color: light ? C.cream : C.ink }}>
+      here<span style={{ color: C.accent }}>.</span>
+    </span>
+  );
+}
+
 // ── Shared UI atoms ────────────────────────────────────────
 
-/** Shows uploaded photo or a gradient-initial fallback — round */
+/** Shows uploaded photo or a gradient-initial fallback, round */
 function AvatarCircle({
   user, size = 52,
 }: { user: { photo_url?: string | null; bg: string; name: string }; size?: number }) {
@@ -203,7 +286,7 @@ function AvatarCircle({
   );
 }
 
-/** Shows photo or gradient initial — fills a rectangular container */
+/** Shows photo or gradient initial, fills a rectangular container */
 function AvatarFill({
   user,
 }: { user: { photo_url?: string | null; bg: string; name: string } }) {
@@ -219,11 +302,16 @@ function AvatarFill({
 }
 
 function InterestTag({ interest }: { interest: string }) {
-  const s    = INTEREST_STYLE[interest] ?? { background: "rgba(139,115,85,0.1)", color: C.inkSoft };
   const meta = INTERESTS.find(i => i.id === interest);
   const display = meta ? meta.label : interest;
+  // One calm, consistent treatment rather than 20 competing colours
   return (
-    <span className="text-[10px] px-1.5 py-0.5 rounded-lg" style={s}>{display}</span>
+    <span
+      className="text-[11px] font-medium px-2 py-[3px] rounded-full"
+      style={{ background: "rgba(28,23,20,0.05)", color: C.inkSoft, letterSpacing: "0.01em" }}
+    >
+      {display}
+    </span>
   );
 }
 
@@ -231,12 +319,13 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   return (
     <button
       onClick={onClick}
-      className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-all duration-200 flex-shrink-0"
+      className="px-4 py-2 rounded-full text-[13px] whitespace-nowrap cursor-pointer transition-all duration-200 flex-shrink-0"
       style={{
-        border: `1px solid ${active ? C.ink : C.border}`,
-        background: active ? C.ink : "transparent",
+        border: `1.5px solid ${active ? C.ink : C.border}`,
+        background: active ? C.ink : C.surface,
         color: active ? C.cream : C.inkSoft,
-        fontFamily: "'DM Sans',sans-serif",
+        fontWeight: active ? 600 : 500,
+        fontFamily:"'Hanken Grotesk',sans-serif",
       }}
     >
       {label}
@@ -248,44 +337,53 @@ function BackBtn({ onClick, dark }: { onClick: () => void; dark?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="w-9 h-9 rounded-full flex items-center justify-center text-base cursor-pointer flex-shrink-0 border-0"
-      style={{ background: dark ? "rgba(245,240,232,0.1)" : "rgba(139,115,85,0.14)", color: dark ? C.cream : C.ink }}
-    >←</button>
+      className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer flex-shrink-0 border-0 transition-colors"
+      style={{ background: dark ? "rgba(246,241,233,0.12)" : "rgba(28,23,20,0.06)", color: dark ? C.cream : C.ink }}
+      aria-label="Back"
+    ><Icon name="back" size={20} /></button>
   );
 }
 
-type NavTab = "events" | "nearby" | "inbox" | "profile";
+type NavTab = "events" | "nearby" | "inbox" | "messages" | "profile";
 function BottomNav({
-  active, onNavigate, dark, inboxCount,
-}: { active: NavTab; onNavigate: (s: Screen) => void; dark?: boolean; inboxCount?: number }) {
-  const items: { id: NavTab; dest: Screen; icon: string; label: string }[] = [
-    { id:"events",  dest:"events",  icon:"🎭", label:"Events"   },
-    { id:"nearby",  dest:"nearby",  icon:"📡", label:"Nearby"   },
-    { id:"inbox",   dest:"inbox",   icon:"💬", label:"Requests" },
-    { id:"profile", dest:"profile", icon:"👤", label:"Profile"  },
+  active, onNavigate, dark, inboxCount, messagesCount,
+}: { active: NavTab; onNavigate: (s: Screen) => void; dark?: boolean; inboxCount?: number; messagesCount?: number }) {
+  const items: { id: NavTab; dest: Screen; icon: IconName; label: string }[] = [
+    { id:"events",   dest:"events",   icon:"calendar", label:"Events"   },
+    { id:"nearby",   dest:"nearby",   icon:"radar",    label:"Nearby"   },
+    { id:"inbox",    dest:"inbox",    icon:"heart",    label:"Requests" },
+    { id:"messages", dest:"messages", icon:"message",  label:"Messages" },
+    { id:"profile",  dest:"profile",  icon:"user",     label:"Profile"  },
   ];
+  const idle = dark ? "rgba(246,241,233,0.5)" : C.warmMid;
+  const onColor = dark ? C.cream : C.ink;
   return (
     <div
-      className="h-20 flex items-center justify-around px-2 pb-3 flex-shrink-0"
-      style={{ background: dark ? C.ink : C.cream, borderTop: `1px solid ${dark ? "rgba(245,240,232,0.08)" : C.border}` }}
+      className="flex items-center justify-around px-2 pt-2 pb-3 flex-shrink-0"
+      style={{ background: dark ? C.ink : C.surface, borderTop: `1px solid ${dark ? "rgba(246,241,233,0.08)" : C.border}` }}
     >
       {items.map((item) => {
         const on = active === item.id;
+        const badge = item.id === "inbox" ? (inboxCount ?? 0) : item.id === "messages" ? (messagesCount ?? 0) : 0;
         return (
           <button
             key={item.id}
             onClick={() => onNavigate(item.dest)}
-            className="flex flex-col items-center gap-[3px] px-2.5 py-[5px] rounded-xl border-0 bg-transparent cursor-pointer relative"
+            className="flex flex-col items-center gap-1 px-2.5 py-1.5 border-0 bg-transparent cursor-pointer relative transition-all"
+            style={{ color: on ? onColor : idle }}
           >
-            <span className="text-xl" style={{ opacity: on ? 1 : 0.38 }}>{item.icon}</span>
-            <span className="text-[10px] font-medium" style={{ color: on ? (dark ? C.cream : C.ink) : (dark ? "rgba(245,240,232,0.4)" : C.warmMid), opacity: on ? 1 : 0.55 }}>
+            <span className="relative">
+              <Icon name={item.icon} size={23} stroke={on ? 2 : 1.75} />
+              {badge > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+                  style={{ background: C.accent, boxShadow: `0 0 0 2px ${dark ? C.ink : C.surface}` }}>
+                  {badge}
+                </span>
+              )}
+            </span>
+            <span className="text-[10px]" style={{ fontWeight: on ? 700 : 500, letterSpacing: "0.01em" }}>
               {item.label}
             </span>
-            {item.id === "inbox" && (inboxCount ?? 0) > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: C.accent }}>
-                {inboxCount}
-              </span>
-            )}
           </button>
         );
       })}
@@ -301,9 +399,11 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   useEffect(() => { const t = setTimeout(onDone, 2000); return () => clearTimeout(t); }, [onDone]);
   return (
     <div className="flex-1 flex flex-col items-center justify-center" style={{ background: C.ink }}>
-      <div className="text-[64px] mb-4" style={{ animation: "float 3s ease-in-out infinite" }}>✦</div>
-      <div className="text-[40px] font-light tracking-tight" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color: C.cream }}>here.</div>
-      <div className="text-sm mt-3" style={{ color: "rgba(245,240,232,0.45)" }}>Meet in the moment</div>
+      <div style={{ color: C.accent, marginBottom: 22, animation: "float 3s ease-in-out infinite" }}>
+        <Icon name="spark" size={54} />
+      </div>
+      <Wordmark size={46} />
+      <div className="text-sm mt-3.5" style={{ color: "rgba(246,241,233,0.5)", letterSpacing: "0.04em" }}>Meet in the moment</div>
     </div>
   );
 }
@@ -321,11 +421,26 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
   async function handle() {
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setLoading(true); setError("");
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) { setError(err.message); setLoading(false); return; }
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
-    if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
-    setLoading(false);
+    (window as any).__hereAuthInProgress = true;
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        setError(err.message === "Invalid login credentials"
+          ? "Incorrect email or password. Please try again."
+          : err.message);
+        setLoading(false);
+        (window as any).__hereAuthInProgress = false;
+        return;
+      }
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+      setLoading(false);
+      (window as any).__hereAuthInProgress = false;
+      if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
+    } catch {
+      setLoading(false);
+      (window as any).__hereAuthInProgress = false;
+      setError("Something went wrong. Please try again.");
+    }
   }
 
   async function handleForgotPassword() {
@@ -340,12 +455,12 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
   }
 
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
-  const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'DM Sans',sans-serif" };
+  const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'Hanken Grotesk',sans-serif" };
 
   return (
     <div className="flex-1 flex flex-col" style={{ background: C.ink }}>
       <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8">
-        <div className="text-[36px] mb-2" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>here.</div>
+        <div className="mb-2"><Wordmark size={42} /></div>
         <div className="text-sm mb-10" style={{ color:"rgba(245,240,232,0.45)" }}>Meet in the moment</div>
         <div className="w-full space-y-3">
           <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="Email address" className={inp} style={inpStyle} />
@@ -356,7 +471,7 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
               className={inp} style={{ ...inpStyle, paddingRight:48 }}
               onKeyDown={e=>e.key==="Enter"&&handle()} />
             <button onClick={()=>setShowPass(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer text-xs font-medium"
-              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'DM Sans',sans-serif" }}>
+              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'Hanken Grotesk',sans-serif" }}>
               {showPass ? "Hide" : "Show"}
             </button>
           </div>
@@ -372,16 +487,16 @@ function LoginScreen({ onNavigate, onLogin }: { onNavigate:(s:Screen)=>void; onL
               Password reset email sent. Check your inbox and follow the link to set a new password.
             </div>
           )}
-          <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+          <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
             {loading ? "Signing in…" : "Sign in"}
           </button>
-          <button onClick={handleForgotPassword} disabled={resetLoading} className="w-full text-center text-sm border-0 bg-transparent cursor-pointer py-1" style={{ color:"rgba(245,240,232,0.4)", fontFamily:"'DM Sans',sans-serif" }}>
+          <button onClick={handleForgotPassword} disabled={resetLoading} className="w-full text-center text-sm border-0 bg-transparent cursor-pointer py-1" style={{ color:"rgba(245,240,232,0.4)", fontFamily:"'Hanken Grotesk',sans-serif" }}>
             {resetLoading ? "Sending…" : "Forgot password?"}
           </button>
         </div>
         <div className="mt-4 text-sm" style={{ color:"rgba(245,240,232,0.45)" }}>
           New here?{" "}
-          <button onClick={()=>onNavigate("signup")} className="border-0 bg-transparent cursor-pointer font-semibold" style={{ color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>Create account</button>
+          <button onClick={()=>onNavigate("signup")} className="border-0 bg-transparent cursor-pointer font-semibold" style={{ color:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>Create account</button>
         </div>
       </div>
     </div>
@@ -403,11 +518,15 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     if (pass!==confirm)         { setError("Passwords don't match"); return; }
     if (pass.length<6)          { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
+    (window as any).__hereAuthInProgress = true;
+    // Clear any previous session first so it doesn't interfere with signup
+    await supabase.auth.signOut().catch(() => {});
     const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
+    (window as any).__hereAuthInProgress = false;
     if (err) { setError(err.message); setLoading(false); return; }
     setLoading(false);
     // If email confirmation is enabled, user.identities will be populated but
-    // session will be null — show the confirm-your-email screen.
+    // session will be null, show the confirm-your-email screen.
     // If confirmation is disabled, sign in immediately and proceed to onboarding.
     if (!data.session) {
       setConfirmed(true);
@@ -417,14 +536,16 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
   }
 
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
-  const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'DM Sans',sans-serif" };
+  const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'Hanken Grotesk',sans-serif" };
 
   // ── Email confirmation sent screen ──
   if (confirmed) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8" style={{ background:C.ink }}>
-        <div className="text-[48px] mb-5">📬</div>
-        <div className="text-[26px] text-center leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background:"rgba(246,241,233,0.08)", color:C.accent }}>
+          <Icon name="mail" size={30} />
+        </div>
+        <div className="text-[26px] text-center leading-snug mb-3" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>
           Check your inbox
         </div>
         <div className="text-sm text-center leading-relaxed mb-8" style={{ color:"rgba(245,240,232,0.55)" }}>
@@ -432,7 +553,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
         </div>
         <button onClick={()=>onNavigate("login")}
           className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-          style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+          style={{ background:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>
           Go to sign in
         </button>
         <div className="mt-4 text-xs text-center leading-relaxed" style={{ color:"rgba(245,240,232,0.3)" }}>
@@ -446,7 +567,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
     <div className="flex-1 flex flex-col" style={{ background: C.ink }}>
       <div className="flex-1 flex flex-col px-8 pt-14 pb-8">
         <div className="mb-8">
-          <div className="text-[28px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>Create account</div>
+          <div className="text-[28px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>Create account</div>
           <div className="text-sm mt-1.5" style={{ color:"rgba(245,240,232,0.45)" }}>Join here. and meet people around you</div>
         </div>
         <div className="space-y-3">
@@ -457,7 +578,7 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
               type={showPass ? "text" : "password"} placeholder="Password (min 6 chars)"
               className={inp} style={{ ...inpStyle, paddingRight:48 }} />
             <button onClick={()=>setShowPass(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer text-xs font-medium"
-              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'DM Sans',sans-serif" }}>
+              style={{ color:"rgba(245,240,232,0.45)", fontFamily:"'Hanken Grotesk',sans-serif" }}>
               {showPass ? "Hide" : "Show"}
             </button>
           </div>
@@ -475,20 +596,20 @@ function SignupScreen({ onNavigate }: { onNavigate:(s:Screen)=>void }) {
             Show password
           </label>
           {error && <div className="text-xs text-center" style={{ color:"#f87171" }}>{error}</div>}
-          <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+          <button onClick={handle} disabled={loading} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity" style={{ background:C.accent, opacity:loading?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
             {loading ? "Creating account…" : "Create account"}
           </button>
         </div>
         <div className="mt-6 text-sm text-center" style={{ color:"rgba(245,240,232,0.45)" }}>
           Already have an account?{" "}
-          <button onClick={()=>onNavigate("login")} className="border-0 bg-transparent cursor-pointer font-semibold" style={{ color:C.accent, fontFamily:"'DM Sans',sans-serif" }}>Sign in</button>
+          <button onClick={()=>onNavigate("login")} className="border-0 bg-transparent cursor-pointer font-semibold" style={{ color:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>Sign in</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Onboarding — 4 steps ───────────────────────────────────
+// ── Onboarding, 5 steps ───────────────────────────────────
 function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [step, setStep]           = useState(1);
   const [name, setName]           = useState("");
@@ -497,12 +618,15 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   const [interests, setInterests] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>(["English"]);
   const [langInput,  setLangInput] = useState("");
+  const [pronouns,   setPronouns] = useState<"he/him"|"she/her"|"they/them">("she/her");
+  const [askMePrompts, setAskMePrompts] = useState<string[]>(["", "", ""]);
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [photoPreview, setPreview]= useState<string|null>(null);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
   const fileRef                   = useRef<HTMLInputElement>(null);
-  const bg = BG_OPTIONS[Math.floor(Math.random() * BG_OPTIONS.length)];
+  const bgRef = useRef(BG_OPTIONS[Math.floor(Math.random() * BG_OPTIONS.length)]);
+  const bg = bgRef.current;
 
   function toggleLanguage(lang: string) {
     setLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
@@ -525,79 +649,97 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   async function finish() {
     if (!interests.length) { setError("Pick at least one interest"); return; }
     setLoading(true); setError("");
-    const { data:{ user } } = await supabase.auth.getUser();
-    if (!user) { setError("Not logged in"); setLoading(false); return; }
-    let photo_url: string|null = null;
-    if (photoFile) {
-      const ext  = photoFile.name.split(".").pop() ?? "jpg";
-      const path = `avatars/${user.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true, contentType: photoFile.type });
-      if (upErr) { setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      photo_url = urlData.publicUrl + `?v=${Date.now()}`;
-      localStorage.setItem(`selfie_date_${user.id}`, new Date().toDateString());
+
+    // Safety timeout, if saving takes more than 12 seconds, show an error
+    const timeout = setTimeout(() => {
+      setLoading(false);
+      setError("Saving is taking too long. Please check your connection and try again.");
+    }, 12_000);
+
+    try {
+      const { data:{ user } } = await supabase.auth.getUser();
+      if (!user) { clearTimeout(timeout); setError("Not logged in. Please go back and sign in again."); setLoading(false); return; }
+
+      let photo_url: string|null = null;
+      if (photoFile) {
+        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const path = `avatars/${user.id}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("avatars").upload(path, photoFile, { upsert: true, contentType: photoFile.type });
+        if (upErr) { clearTimeout(timeout); setError("Photo upload failed: " + upErr.message); setLoading(false); return; }
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        photo_url = urlData.publicUrl + `?v=${Date.now()}`;
+      }
+
+      const profile: UserProfile = {
+        id: user.id, email: user.email ?? "", name, age: parseInt(age),
+        occupation: occ, interests, languages: languages ?? [], photo_url, bg,
+        pronouns,
+        ask_me_prompts: askMePrompts.filter(p => p.trim()),
+        open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
+      };
+
+      const { error: dbErr } = await supabase.from("profiles").upsert(profile);
+      clearTimeout(timeout);
+      if (dbErr) { setError("Could not save profile: " + dbErr.message); setLoading(false); return; }
+      setLoading(false);
+      onDone(profile);
+    } catch (e: any) {
+      clearTimeout(timeout);
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
-    const profile: UserProfile = {
-      id: user.id, email: user.email ?? "", name, age: parseInt(age),
-      occupation: occ, interests, languages: languages ?? [], photo_url, bg,
-      open_to_meet: false, checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
-    };
-    const { error: dbErr } = await supabase.from("profiles").upsert(profile);
-    if (dbErr) { setError(dbErr.message); setLoading(false); return; }
-    setLoading(false);
-    onDone(profile);
   }
   const canStep1 = name.trim() && age && parseInt(age)>=18 && occ.trim();
 
   return (
     <div className="flex flex-col" style={{ background: C.cream, height:"100vh", overflow:"hidden" }}>
-      {/* Progress bar — 4 steps */}
+      {/* Progress bar, 4 steps */}
       <div className="px-6 pt-10 flex-shrink-0">
         <div className="flex gap-1.5 mb-1">
-          {[1,2,3,4].map(s=>(
+          {[1,2,3,4,5].map(s=>(
             <div key={s} className="h-1 flex-1 rounded-full transition-all duration-300"
               style={{ background: s<=step ? C.accent : "rgba(139,115,85,0.2)" }} />
           ))}
         </div>
-        <div className="text-[11px] mt-2 mb-3" style={{ color:C.warmMid }}>Step {step} of 4</div>
+        <div className="text-[11px] mt-2 mb-3" style={{ color:C.warmMid }}>Step {step} of 5</div>
       </div>
 
       {/* ─── Step 1: Photo + basics ─── */}
       {step===1 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div className="mb-3 flex-shrink-0">
-            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>About you</div>
+            <div className="text-[22px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>About you</div>
             <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>This is what others will see</div>
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
             <div className="mb-4">
-              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Today's Photo</div>
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your Photo</div>
               <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:`1px solid rgba(196,120,58,0.18)`, color:C.inkSoft }}>
-                <strong style={{ color:C.ink }}>here.</strong> is built for same-day, same-place connections. Your profile photo must be taken daily to accurately represent how you look today. A green tick next to a profile photo indicates the photo has been updated today.
+                Your photo is how people find you in person, so please use a clear, unedited photo that looks like you today.
               </div>
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center relative"
                   style={{ background: photoPreview ? "transparent" : "rgba(139,115,85,0.1)", border:`2px solid ${photoPreview ? C.green : C.border}` }}>
                   {photoPreview
                     ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-                    : <span className="text-2xl opacity-30">📷</span>}
+                    : <span style={{ color:C.warmMid, opacity:0.5 }}><Icon name="camera" size={26} /></span>}
                   {photoPreview && (
                     <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                      style={{ background:C.green, color:"white", border:"2px solid white" }}>✓</div>
+                      style={{ background:C.green, color:"white", border:"2px solid white" }}><Icon name="check" size={11} stroke={2.8} /></div>
                   )}
                 </div>
                 <div className="flex-1">
                   <button onClick={()=>fileRef.current?.click()}
                     className="w-full py-3 rounded-2xl text-sm font-semibold cursor-pointer border-0"
-                    style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                    style={{ background: photoPreview ? "rgba(74,124,89,0.12)" : C.ink, color: photoPreview ? C.green : C.cream, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                     {photoPreview ? "Retake photo" : "Take photo now"}
                   </button>
                   <div className="text-[11px] mt-1.5" style={{ color:C.warmMid }}>
-                    {photoPreview ? "Looks good — retake if needed" : "Opens your camera"}
+                    {photoPreview ? "Looks good, retake if needed" : "Camera or gallery"}
                   </div>
                 </div>
               </div>
-              <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={pickPhoto} />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
             </div>
             <div className="space-y-3 mb-3">
               {([
@@ -609,7 +751,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                   <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>{label}</div>
                   <input value={val} onChange={e=>set(e.target.value)} type={type} placeholder={placeholder} min={type==="number"?"18":undefined}
                     className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none"
-                    style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+                    style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }} />
                 </div>
               ))}
             </div>
@@ -618,7 +760,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           </div>
           <button onClick={()=>canStep1&&setStep(2)} disabled={!canStep1}
             className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity flex-shrink-0"
-            style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'DM Sans',sans-serif", marginTop:12 }}>
+            style={{ background:C.accent, opacity:canStep1?1:0.4, fontFamily:"'Hanken Grotesk',sans-serif", marginTop:12 }}>
             Next
           </button>
         </div>
@@ -628,11 +770,11 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
       {step===2 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div className="mb-2 flex-shrink-0">
-            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your interests</div>
-            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} — shown as conversation starters</div>
+            <div className="text-[22px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Your interests</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS}, shown as conversation starters</div>
           </div>
           <div className="mb-2 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
-            These tags don't affect who sees you or in what order — purely for starting conversations.
+            These tags don't affect who sees you or in what order, they're purely for starting conversations.
           </div>
           <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div className="text-xs font-semibold" style={{ color:C.inkSoft }}>
@@ -641,7 +783,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                 : <span style={{ color:C.warmMid }}>{interests.length} / {MAX_INTERESTS}</span>}
             </div>
             {interests.length > 0 && (
-              <button onClick={()=>setInterests([])} className="text-xs border-0 bg-transparent cursor-pointer" style={{ color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>Clear</button>
+              <button onClick={()=>setInterests([])} className="text-xs border-0 bg-transparent cursor-pointer" style={{ color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>Clear</button>
             )}
           </div>
           <div className="flex flex-wrap gap-2 overflow-y-auto flex-1" style={{ minHeight:0 }}>
@@ -651,7 +793,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
               return (
                 <button key={item.id} onClick={()=>{ if (!maxed) toggleInterest(item.id); }}
                   className="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border"
-                  style={{ background:on?C.ink:maxed?"rgba(139,115,85,0.04)":"white", borderColor:on?C.ink:maxed?"rgba(139,115,85,0.1)":C.border, color:on?C.cream:maxed?"rgba(139,115,85,0.28)":C.inkSoft, cursor:maxed?"not-allowed":"pointer", fontFamily:"'DM Sans',sans-serif", opacity:maxed?0.55:1, alignSelf:"flex-start" }}>
+                  style={{ background:on?C.ink:maxed?"rgba(139,115,85,0.04)":"white", borderColor:on?C.ink:maxed?"rgba(139,115,85,0.1)":C.border, color:on?C.cream:maxed?"rgba(139,115,85,0.28)":C.inkSoft, cursor:maxed?"not-allowed":"pointer", fontFamily:"'Hanken Grotesk',sans-serif", opacity:maxed?0.55:1, alignSelf:"flex-start" }}>
                   {item.label}
                 </button>
               );
@@ -659,10 +801,10 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
           </div>
           {error && <div className="text-xs mt-2 text-center flex-shrink-0" style={{ color:"#ef4444" }}>{error}</div>}
           <div className="flex gap-3 flex-shrink-0 mt-3">
-            <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(1)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>Back</button>
             <button onClick={()=>interests.length>0&&setStep(3)} disabled={!interests.length}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
-              style={{ background:C.accent, opacity:interests.length?1:0.4, fontFamily:"'DM Sans',sans-serif" }}>
+              style={{ background:C.accent, opacity:interests.length?1:0.4, fontFamily:"'Hanken Grotesk',sans-serif" }}>
               Next
             </button>
           </div>
@@ -673,7 +815,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
       {step===3 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div className="mb-2 flex-shrink-0">
-            <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Languages you speak</div>
+            <div className="text-[22px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Languages you speak</div>
             <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Helps others know they can approach you</div>
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
@@ -681,7 +823,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {languages.map(l => (
                   <span key={l} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
-                    style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                    style={{ background:C.ink, color:C.cream, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                     {l}
                     <button onClick={()=>toggleLanguage(l)} className="border-0 bg-transparent cursor-pointer" style={{ color:"rgba(245,240,232,0.55)", fontSize:14, lineHeight:1 }}>×</button>
                   </span>
@@ -691,12 +833,12 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <input value={langInput} onChange={e=>setLangInput(e.target.value)}
               placeholder="Search languages…"
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
-              style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+              style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }} />
             <div className="rounded-2xl overflow-hidden" style={{ border:`1px solid ${C.border}`, maxHeight:300, overflowY:"auto" }}>
               {filteredLangs.slice(0,25).map((l,idx) => (
                 <button key={l} onClick={()=>{ toggleLanguage(l); setLangInput(""); }}
                   className="w-full px-4 py-3 text-left text-sm cursor-pointer border-0"
-                  style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
+                  style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
                   {l}
                 </button>
               ))}
@@ -705,22 +847,81 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <div style={{ height:8 }} />
           </div>
           <div className="flex gap-3 flex-shrink-0 mt-3">
-            <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(2)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>Back</button>
             <button onClick={()=>setStep(4)}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-              style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>
+              style={{ background:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>
               Next
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── Step 4: Preview ─── */}
+      {/* ─── Step 4: Ask me about prompts ─── */}
       {step===4 && (
+        <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
+          <div className="mb-2 flex-shrink-0">
+            <div className="text-[22px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Ask me about…</div>
+            <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>3 topics others can use to start a conversation with you</div>
+          </div>
+          <div className="mb-3 p-3 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(196,120,58,0.07)", color:C.inkSoft, border:`1px solid rgba(196,120,58,0.15)` }}>
+            These appear on the match screen when someone meets you, so they have a natural way in.
+          </div>
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
+            {[0,1,2].map(i => (
+              <div key={i} className="mb-3">
+                <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Prompt {i+1}</div>
+                <input
+                  value={askMePrompts[i]}
+                  onChange={e => {
+                    const next = [...askMePrompts];
+                    next[i] = e.target.value;
+                    setAskMePrompts(next);
+                  }}
+                  maxLength={60}
+                  placeholder={[
+                    "e.g. my pottery hobby",
+                    "e.g. the best spots in Hackney",
+                    "e.g. why I left finance",
+                  ][i]}
+                  className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none"
+                  style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }}
+                />
+                <div className="text-[10px] text-right mt-0.5" style={{ color:"rgba(139,115,85,0.5)" }}>{askMePrompts[i].length}/60</div>
+              </div>
+            ))}
+            {/* Pronouns, compact, within step 4 */}
+            <div className="mt-2 mb-3">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Your pronouns</div>
+              <div className="flex gap-2">
+                {(["she/her","he/him","they/them"] as const).map(p => (
+                  <button key={p} onClick={()=>setPronouns(p)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                    style={{ border:`1.5px solid ${pronouns===p ? C.ink : C.border}`, background: pronouns===p ? C.ink : "white", color: pronouns===p ? C.cream : C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ height:8 }} />
+          </div>
+          <div className="flex gap-3 flex-shrink-0 mt-3">
+            <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(5)}
+              className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+              style={{ background:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Step 5: Preview ─── */}
+      {step===5 && (
         <div className="flex flex-col px-6 pb-6" style={{ flex:1, overflow:"hidden" }}>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" as any }}>
             <div className="mb-4">
-              <div className="text-[22px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>You're all set</div>
+              <div className="text-[22px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>You're all set</div>
               <div className="text-sm mt-0.5" style={{ color:C.warmMid }}>Here's how others will see your card</div>
             </div>
             <div className="rounded-[20px] overflow-hidden mb-4" style={{ boxShadow:"0 4px 24px rgba(26,20,16,0.12)", border:`2px solid ${C.green}`, maxWidth:180, alignSelf:"center", width:"100%" }}>
@@ -729,7 +930,7 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
                   ? <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
                   : <div className="w-full h-full flex items-center justify-center font-bold text-white text-6xl" style={{ background:bg }}>{name[0]?.toUpperCase()}</div>}
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>Active</div>
-                {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] font-bold" style={{ color:C.green, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>✓</div>}
+                {photoPreview && <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] font-bold" style={{ color:C.green, boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}><Icon name="check" size={11} stroke={2.8} /></div>}
                 <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center"
                   style={{ background:"linear-gradient(to top,rgba(26,20,16,0.75),transparent)" }}>Just arrived</div>
               </div>
@@ -753,10 +954,10 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
             <div style={{ height:8 }} />
           </div>
           <div className="flex gap-3 flex-shrink-0 mt-3">
-            <button onClick={()=>setStep(3)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'DM Sans',sans-serif" }}>Back</button>
+            <button onClick={()=>setStep(4)} className="flex-1 py-4 rounded-2xl text-[15px] font-medium cursor-pointer border" style={{ background:"transparent", borderColor:C.border, color:C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>Back</button>
             <button onClick={finish} disabled={loading}
               className="flex-[2] py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
-              style={{ background:C.green, opacity:loading?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+              style={{ background:C.green, opacity:loading?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
               {loading ? "Saving…" : "Enter here."}
             </button>
           </div>
@@ -766,50 +967,61 @@ function OnboardingScreen({ onDone }: { onDone:(p:UserProfile)=>void }) {
   );
 }
 
+// ── EventRow, defined outside EventsScreen to prevent remounts ──────────────
+function EventRow({ e, onNavigate }: { e:HereEvent; onNavigate:(s:Screen,d?:unknown)=>void }) {
+  return (
+    <div className="flex items-center gap-3.5 px-5 py-3.5 cursor-pointer transition-colors"
+      style={{ borderTop:`1px solid ${C.border}` }}
+      onClick={()=>onNavigate("eventdetail",e.id)}
+      onMouseEnter={ev=>((ev.currentTarget as HTMLDivElement).style.background="rgba(28,23,20,0.03)")}
+      onMouseLeave={ev=>((ev.currentTarget as HTMLDivElement).style.background="transparent")}>
+      <div className="w-[52px] h-[52px] rounded-[16px] flex items-center justify-center flex-shrink-0 text-white"
+        style={{ background:`linear-gradient(145deg,${e.gradientFrom},${e.gradientTo})` }}>
+        <Icon name={categoryIcon(e.category)} size={24} stroke={1.9} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[15px] truncate" style={{ color:C.ink, fontWeight:600, letterSpacing:"-0.01em" }}>{e.name}</div>
+        <div className="text-[12.5px] mt-0.5 truncate" style={{ color:C.warmMid }}>{e.venue} · {e.area}</div>
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color:C.green }}>
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:C.green }} />
+            {e.members} here
+          </span>
+          <span className="text-[11px]" style={{ color:C.warmMid }}>· {e.time}</span>
+          {e.sponsored && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background:C.accentSoft, color:C.accent }}>Sponsored</span>}
+        </div>
+      </div>
+      <span style={{ color:C.warmMid, opacity:0.5 }}><Icon name="chevron" size={18} /></span>
+    </div>
+  );
+}
+
 // ── Events ─────────────────────────────────────────────────
-function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
+function EventsScreen({ onNavigate, inboxCount, msgCount }: { onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number }) {
   const [cat, setCat] = useState("all");
-  const cats = ["all","classical","wine","art","music","dance"];
+  const cats = ["all","music","art","food","comedy","fitness","dance","film"];
+  const catLabels: Record<string,string> = { all:"All", music:"Live Music", art:"Art & Culture", food:"Food & Drink", comedy:"Comedy", fitness:"Fitness", dance:"Dance", film:"Film" };
   const hero    = EVENTS[0];
   const heroVis = cat==="all" || hero.category===cat;
   const tonight = EVENTS.filter(e=>e.section==="tonight"&&(cat==="all"||e.category===cat));
   const week    = EVENTS.filter(e=>e.section==="week"   &&(cat==="all"||e.category===cat));
 
-  function EventRow({ e }: { e:HereEvent }) {
-    return (
-      <div className="flex items-center gap-3.5 px-5 py-3 cursor-pointer"
-        style={{ borderTop:`1px solid ${C.border}` }}
-        onClick={()=>onNavigate("eventdetail",e.id)}
-        onMouseEnter={ev=>((ev.currentTarget as HTMLDivElement).style.background="rgba(139,115,85,0.05)")}
-        onMouseLeave={ev=>((ev.currentTarget as HTMLDivElement).style.background="transparent")}>
-        <div className="w-[50px] h-[50px] rounded-[14px] flex items-center justify-center text-[22px] flex-shrink-0"
-          style={{ background:`linear-gradient(135deg,${e.gradientFrom},${e.gradientTo})` }}>{e.emoji}</div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm truncate" style={{ color:C.ink }}>{e.name}</div>
-          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{e.venue} · {e.area}</div>
-          {e.buyTicket && <div className="text-xs mt-0.5 font-semibold" style={{ color:C.accent }}>Buy ticket here</div>}
-        </div>
-        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <div className="text-[11px] font-semibold" style={{ color:C.green }}>{e.members} members</div>
-          <div className="text-[11px]" style={{ color:C.warmMid }}>{e.time}</div>
-          {e.sponsored && <div className="text-[10px] font-semibold" style={{ color:C.accent }}>Sponsored</div>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
-      <div className="flex justify-between items-end px-5 pt-4 pb-0 flex-shrink-0">
+      <div className="flex justify-between items-center px-5 pt-5 pb-1 flex-shrink-0">
         <div>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>London </div>
-          <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Discover Events</div>
+          <div className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[1.6px] font-bold" style={{ color:C.warmMid }}>
+            <Icon name="pin" size={13} stroke={2} /> London
+          </div>
+          <div className="text-[26px] mt-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.035em", color:C.ink }}>Discover</div>
         </div>
-        <div className="text-[22px] cursor-pointer" style={{ opacity:0.6 }}>🔍</div>
+        <button className="w-10 h-10 rounded-full flex items-center justify-center border-0 cursor-pointer" style={{ background:"rgba(28,23,20,0.06)", color:C.ink }} aria-label="Search">
+          <Icon name="search" size={20} />
+        </button>
       </div>
 
       <div className="flex gap-2 px-5 pt-3 overflow-x-auto flex-shrink-0" style={{ scrollbarWidth:"none" }}>
-        {cats.map(c=><Chip key={c} label={c==="all"?"All":c==="wine"?"Wine & Food":c==="music"?"Live Music":c.charAt(0).toUpperCase()+c.slice(1)} active={cat===c} onClick={()=>setCat(c)} />)}
+        {cats.map(c=><Chip key={c} label={catLabels[c]??c} active={cat===c} onClick={()=>setCat(c)} />)}
       </div>
 
 
@@ -817,74 +1029,92 @@ function EventsScreen({ onNavigate, inboxCount }: { onNavigate:(s:Screen,d?:unkn
         {tonight.length>0 && (<>
           <div className="px-5 pt-[18px] flex justify-between items-center">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Tonight near you</div>
-            <div className="text-xs font-medium cursor-pointer" style={{ color:C.accent }}>See all →</div>
+            <div className="inline-flex items-center gap-0.5 text-[12px] font-semibold cursor-pointer" style={{ color:C.accent }}>See all<Icon name="chevron" size={13} stroke={2.2} /></div>
           </div>
-          <div className="mt-2.5">{tonight.map(e=><EventRow key={e.id} e={e} />)}</div>
+          <div className="mt-2.5">{tonight.map(e=><EventRow key={e.id} e={e} onNavigate={onNavigate} />)}</div>
         </>)}
         {week.length>0 && (<>
           <div className="px-5 pt-[18px] flex justify-between items-center">
             <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>This week</div>
-            <div className="text-xs font-medium cursor-pointer" style={{ color:C.accent }}>See all →</div>
+            <div className="inline-flex items-center gap-0.5 text-[12px] font-semibold cursor-pointer" style={{ color:C.accent }}>See all<Icon name="chevron" size={13} stroke={2.2} /></div>
           </div>
-          <div className="mt-2.5">{week.map(e=><EventRow key={e.id} e={e} />)}</div>
+          <div className="mt-2.5">{week.map(e=><EventRow key={e.id} e={e} onNavigate={onNavigate} />)}</div>
         </>)}
         <div className="h-2" />
       </div>
-      <BottomNav active="events" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="events" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
-// ── Nearby card (exact visual hierarchy from spec) ─────────
+// ── Nearby card ────────────────────────────────────────────
 function NearbyCard({
   user, onSayHi, onDismiss,
 }: { user:NearbyUser; onSayHi:()=>void; onDismiss:()=>void }) {
+  const timeLabel = timeAtEventLabel(user.minutes_at_event);
+  const langs = (user.languages ?? []).slice(0, 3);
   return (
-    <div className="rounded-[20px] overflow-hidden bg-white" style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)", border:`2px solid ${C.green}` }}>
+    <div className="rounded-[22px] overflow-hidden flex flex-col"
+      style={{ background:C.surface, boxShadow:C.shadowCard, border:`1px solid ${C.border}` }}>
 
-      {/* Photo / avatar */}
-      <div className="h-[152px] relative overflow-hidden">
+      {/* Photo with name overlaid */}
+      <div className="relative overflow-hidden" style={{ aspectRatio:"1 / 1.12" }}>
         <AvatarFill user={user} />
 
-        {/* (1) Open-to-meet status — top-left badge */}
-        <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ background:C.green }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" style={{ animation:"pulse 2s infinite" }} />
+        {/* Active status */}
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-full text-[10.5px] font-bold text-white"
+          style={{ background:"rgba(28,23,20,0.42)", backdropFilter:"blur(8px)" }}>
+          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background:"#6FD08C", animation:"pulse 2s infinite" }} />
           Active
         </div>
-        {/* Verified tick — only shown when user has an uploaded photo */}
+        {/* Verified */}
         {user.photo_url && (
-          <div className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px]" style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.2)", color:C.green }}>✓</div>
+          <div className="absolute top-2.5 right-2.5 w-[22px] h-[22px] rounded-full flex items-center justify-center text-white"
+            style={{ background:C.green, boxShadow:"0 2px 6px rgba(0,0,0,0.25)" }}>
+            <Icon name="check" size={13} stroke={2.6} />
+          </div>
         )}
 
-        {/* (2) Time at event — bottom gradient strip */}
-        <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 text-[10px] font-semibold text-white text-center leading-none"
-          style={{ background:"linear-gradient(to top,rgba(26,20,16,0.8) 0%,transparent 100%)" }}>
-          {timeAtEventLabel(user.minutes_at_event)}
+        {/* Name + time, on a gradient scrim */}
+        <div className="absolute inset-x-0 bottom-0 px-3 pt-8 pb-2.5"
+          style={{ background:"linear-gradient(to top,rgba(20,16,12,0.82) 0%,rgba(20,16,12,0.32) 55%,transparent 100%)" }}>
+          <div className="text-white text-[16px] leading-tight" style={{ fontWeight:700, letterSpacing:"-0.02em" }}>
+            {user.name} <span style={{ fontWeight:500, opacity:0.92 }}>{user.age}</span>
+          </div>
+          {timeLabel && (
+            <div className="text-[11px] mt-0.5" style={{ color:"rgba(255,255,255,0.75)" }}>{timeLabel}</div>
+          )}
         </div>
       </div>
 
-      {/* (3) Brief info */}
-      <div className="px-2.5 pt-2 pb-1">
-        <div className="font-semibold text-sm leading-tight" style={{ color:C.ink }}>{user.name}, {user.age}</div>
-        <div className="text-[11px] mt-0.5 truncate" style={{ color:C.warmMid }}>{user.occupation}</div>
-      </div>
+      {/* Details */}
+      <div className="px-3 pt-2.5 flex-1 flex flex-col">
+        <div className="text-[12.5px] truncate" style={{ color:C.inkSoft, fontWeight:500 }}>{user.occupation}</div>
 
-      {/* (4) Interest tags — conversation starters, no ranking */}
-      <div className="px-2.5 pb-1 flex flex-wrap gap-1 min-h-[20px]">
-        {user.interests.slice(0,3).map(i=><InterestTag key={i} interest={i} />)}
-      </div>
-      {/* (5) Languages */}
-      {(user.languages ?? []).length > 0 && (
-        <div className="px-2.5 pb-1.5 flex flex-wrap gap-1">
-          {(user.languages ?? []).slice(0,3).map(l=>(
-            <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
-          ))}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {user.interests.slice(0,3).map(i=><InterestTag key={i} interest={i} />)}
         </div>
-      )}
 
-      <div className="flex gap-1.5 px-2.5 pb-2.5">
-        <button onClick={onSayHi}   className="flex-1 py-1.5 rounded-[10px] text-[11px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green }}>Say hi →</button>
-        <button onClick={onDismiss} className="w-8 py-1.5 rounded-[10px] text-[13px] cursor-pointer flex items-center justify-center" style={{ border:`1px solid ${C.border}`, background:"transparent" }}>✕</button>
+        {langs.length > 0 && (
+          <div className="text-[11px] mt-2 truncate" style={{ color:C.warmMid }}>
+            Speaks {langs.join(", ")}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-auto pt-3 pb-3">
+          <button onClick={onSayHi}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-[13px] text-[13px] font-bold text-white border-0 cursor-pointer transition-transform active:scale-[0.97]"
+            style={{ background:C.accent }}>
+            <Icon name="heart" size={15} /> Say hi
+          </button>
+          <button onClick={onDismiss}
+            className="w-10 rounded-[13px] cursor-pointer flex items-center justify-center transition-colors"
+            style={{ border:`1.5px solid ${C.border}`, background:C.surface, color:C.warmMid }}
+            aria-label="Dismiss">
+            <Icon name="close" size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -898,8 +1128,8 @@ function haversineMetres(lat1:number,lng1:number,lat2:number,lng2:number):number
 }
 // ── Nearby screen ──────────────────────────────────────────
 function NearbyScreen({
-  currentUser, onNavigate, inboxCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive, interactedIds, setInteractedIds,
-}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void; interactedIds:string[]; setInteractedIds:React.Dispatch<React.SetStateAction<string[]>> }) {
+  currentUser, onNavigate, inboxCount, msgCount, locationGranted, onForceTurnOff, blockedIds, isLive, setIsLive, interactedIds, setInteractedIds,
+}: { currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; locationGranted:boolean; onForceTurnOff:(fn:()=>void)=>void; blockedIds:string[]; isLive:boolean; setIsLive:(v:boolean)=>void; interactedIds:string[]; setInteractedIds:React.Dispatch<React.SetStateAction<string[]>> }) {
   const [locOn,      setLocOn]     = useState(isLive);
   const [rawUsers,   setRawUsers]  = useState<UserProfile[]>([]);
   const [dismissed,  setDismissed] = useState<string[]>([]);
@@ -962,7 +1192,7 @@ function NearbyScreen({
     const { data } = await q;
     let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
 
-    // Distance filter — only show users within RADIUS_M who are open_to_meet
+    // Distance filter, only show users within RADIUS_M who are open_to_meet
     // Rely on open_to_meet=false to remove people who have left, not on timestamp staleness
     const myLat = myLatRef.current;
     const myLng = myLngRef.current;
@@ -972,7 +1202,7 @@ function NearbyScreen({
         return haversineMetres(myLat, myLng, u.lat, u.lng) <= RADIUS_M;
       });
     } else {
-      // No coords yet — show nobody rather than everyone
+      // No coords yet, show nobody rather than everyone
       candidates = [];
     }
 
@@ -992,7 +1222,7 @@ function NearbyScreen({
       return;
     }
 
-    // Turn ON — use cached coords if location already granted
+    // Turn ON, use cached coords if location already granted
     setLoading(true);
     setLocError(null);
 
@@ -1083,7 +1313,7 @@ function NearbyScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Round-robin all open users (no distance filter — page ranks by proximity already)
+  // Round-robin all open users (no distance filter, page ranks by proximity already)
   const ordered = applyRoundRobin(rawUsers, offset);
   const visible = ordered.filter(u=>!dismissed.includes(u.id) && !blockedIds.includes(u.id) && !interactedIds.includes(u.id));
 
@@ -1101,15 +1331,15 @@ function NearbyScreen({
               At {eventName}
             </div>
           )}
-          <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Nearby</div>
+          <div className="text-[22px] mt-0.5" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Nearby</div>
           {locOn && (
             <div className="text-[11px] mt-0.5 font-medium" style={{ color:C.warmMid }}>
-              Within <strong style={{ color:C.ink }}>500 m</strong> · open to meet only
+              Within <strong style={{ color:C.ink }}>500 m</strong>
             </div>
           )}
         </div>
 
-        {/* Compact discoverability toggle — top-right corner */}
+        {/* Compact discoverability toggle, top-right corner */}
         <button
           onClick={locationGranted ? toggleLoc : undefined}
           disabled={loading || !locationGranted}
@@ -1142,16 +1372,7 @@ function NearbyScreen({
       {/* Location error banner */}
       {locError && (
         <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex-shrink-0" style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#dc2626" }}>
-          📍 {locError}
-        </div>
-      )}
-
-      {/* Fairness note — only when live */}
-      {locOn && (
-        <div className="mx-5 mt-3 px-3 py-2.5 rounded-xl text-xs leading-relaxed flex gap-2 flex-shrink-0"
-          style={{ background:"rgba(74,124,89,0.07)", border:"1px solid rgba(74,124,89,0.15)", color:C.inkSoft }}>
-          <span>📍</span>
-          <span>Showing only people <strong>within 500 m</strong> who are open to meet.</span>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Icon name="pin" size={14} stroke={2} /> {locError}</span>
         </div>
       )}
 
@@ -1160,9 +1381,9 @@ function NearbyScreen({
         <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
           <div className="px-5 pt-3 flex justify-between items-center">
             <div className="text-[13px] font-semibold" style={{ color:C.ink }}>
-              {loading ? "Finding people…" : `${visible.length} open to meet nearby`}
+              {loading ? "Finding people…" : `${visible.length} members open to meet`}
             </div>
-            {eventName && <div className="text-[11px] font-medium" style={{ color:C.accent }}>🎟 Same event</div>}
+            {eventName && <div className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color:C.accent }}><Icon name="ticket" size={13} stroke={2} /> Same event</div>}
           </div>
 
           {loading ? (
@@ -1171,7 +1392,7 @@ function NearbyScreen({
             </div>
           ) : visible.length===0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-8 text-center">
-              <div className="text-4xl mb-3 opacity-30">🔍</div>
+              <div className="mb-3" style={{ color:C.warmMid, opacity:0.45 }}><Icon name="search" size={40} stroke={1.5} /></div>
               <div className="text-[14px] font-semibold" style={{ color:C.ink }}>No one else is open to meet yet</div>
             </div>
           ) : (
@@ -1187,112 +1408,151 @@ function NearbyScreen({
             </div>
           )}
 
-          <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed flex gap-2" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
-            <span>🔒</span><span>Others only see your approximate area, never your exact location. Your visibility ends when you turn off the Go live button or your location access.</span>
+          <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
+            Your visibility ends when you turn off the Go live button or your location access.
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-8">
-          <div className="text-[48px] opacity-30 mb-4">📡</div>
+          <div className="mb-4" style={{ color:C.warmMid, opacity:0.4 }}><Icon name="radar" size={52} stroke={1.4} /></div>
           <div className="text-[15px] font-semibold mb-2" style={{ color:C.ink }}>Discover people around you</div>
           <div className="text-[13px] leading-relaxed" style={{ color:C.warmMid }}>Tap <strong>Go live</strong> in the top-right to become discoverable and see who else is open to meet right now.</div>
         </div>
       )}
 
-      <BottomNav active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
 // ── Send request ───────────────────────────────────────────
 function RequestScreen({
-  person, currentUser, onNavigate, inboxCount,
-}: { person:UserProfile; currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number }) {
-  const [hint, setHint] = useState("");
+  person, currentUser, onNavigate, inboxCount, msgCount,
+}: { person:UserProfile; currentUser:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number }) {
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
+  const [sent, setSent]       = useState(false);
+  const [error, setError]     = useState("");
   const firstName = person.name.split(",")[0];
+  const submittingRef = useRef(false); // hard guard against double-tap race condition
 
   async function sendRequest() {
+    if (submittingRef.current) return; // block any second call immediately
+    submittingRef.current = true;
     setSending(true); setError("");
-    // Guard: check if a request was already sent to this person today
-    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    const cutoff30 = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data: existing } = await supabase
       .from("meet_requests")
       .select("id")
       .eq("from_id", currentUser.id)
       .eq("to_id", person.id)
-      .gte("created_at", startOfDay.toISOString())
-      .maybeSingle(); // maybeSingle() returns null if no row — .single() throws an error
+      .gte("created_at", cutoff30)
+      .in("status", ["pending", "accepted"])
+      .maybeSingle();
     if (existing) {
-      setError("You've already sent a request to this person today.");
+      setError("You have already expressed interest in this person today.");
       setSending(false);
+      submittingRef.current = false;
       return;
     }
     const sentAt = new Date().toISOString();
     const { error: err } = await supabase.from("meet_requests").insert({
       from_id:    currentUser.id,
       to_id:      person.id,
-      hint:       hint.trim() || null,
+      hint:       null,
       status:     "pending",
       created_at: sentAt,
     });
     setSending(false);
-    if (err) { setError("Failed to send: " + err.message); return; }
-    onNavigate("pending", { person, sentAt });
+    if (err) { setError("Something went wrong. Please try again."); submittingRef.current = false; return; }
+    setSent(true);
+    setTimeout(() => onNavigate("pending", { person, sentAt }), 1200);
   }
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
+      {/* Header */}
       <div className="px-[22px] pt-5 flex items-center gap-3.5 flex-shrink-0">
         <BackBtn onClick={()=>onNavigate("nearby")} />
         <AvatarCircle user={person} size={52} />
         <div>
-          <div className="text-[19px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{person.name}, {person.age}</div>
-          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation} · Verified · Open to meet</div>
+          <div className="text-[19px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>{person.name}, {person.age}</div>
+          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation} · Verified</div>
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        <div className="px-[22px] pt-[18px]">
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2.5" style={{ color:C.warmMid }}>Say hi to {firstName}</div>
-          <div className="p-3.5 rounded-[14px] text-[13px] leading-relaxed" style={{ background:"rgba(196,120,58,0.07)", border:"1px solid rgba(196,120,58,0.2)", color:C.inkSoft }}>
-            👋 Sending a <strong style={{ color:C.ink }}>Say Hi</strong> request lets them know you&apos;d like to meet.
+        {/* Profile card */}
+        <div className="bg-white mx-[22px] mt-4 rounded-[18px] px-4 pt-4 pb-4" style={{ boxShadow:"0 2px 14px rgba(26,20,16,0.06)" }}>
+
+          {/* Interests */}
+          <div className="text-[10px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>Interests</div>
+          <div className="flex flex-wrap gap-1.5">
+            {person.interests.map(i=><InterestTag key={i} interest={i} />)}
           </div>
+
+          {/* Conversation starter */}
+          {person.interests.length > 0 && (
+            <div className="mt-3 px-3 py-2.5 rounded-xl text-[12px] leading-relaxed" style={{ background:"rgba(74,124,89,0.06)", color:C.inkSoft }}>
+              Ask about{" "}
+              {person.interests.slice(0,2).map((id, idx, arr) => {
+                const meta = INTERESTS.find(x => x.id === id);
+                return (
+                  <span key={id}>
+                    <strong style={{ color:C.ink }}>{meta?.label ?? id}</strong>
+                    {idx < arr.length - 1 ? " or " : ""}
+                  </span>
+                );
+              })}
+              {" "}to break the ice.
+            </div>
+          )}
+
+          {/* Languages */}
+          {(person.languages ?? []).length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-[1.5px] font-semibold mt-3 mb-2" style={{ color:C.warmMid }}>Languages</div>
+              <div className="flex flex-wrap gap-1.5">
+                {(person.languages ?? []).map(l => (
+                  <span key={l} className="text-[11px] px-2 py-0.5 rounded-lg" style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft }}>{l}</span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-        <div className="px-[22px] pt-3.5">
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
-            Your identifying hint <span className="normal-case text-[10px] font-normal">(so they can spot you)</span>
+
+        {/* Privacy note */}
+        <div className="mx-[22px] mt-3 px-4 py-3 rounded-xl text-[12px] leading-relaxed" style={{ background:"rgba(139,115,85,0.07)", color:C.warmMid }}>
+          You will only receive a notification if <strong style={{ color:C.inkSoft }}>{firstName}</strong> is also open to meet. If they accept, that is your green light to find each other in person.
+        </div>
+
+        {/* Button */}
+        {!sent ? (
+          <button onClick={sendRequest} disabled={sending}
+            className="mx-[22px] mt-4 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
+            style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+            {sending ? "Sending…" : "Express interest"}
+          </button>
+        ) : (
+          <div className="mx-[22px] mt-4 py-4 rounded-2xl text-center text-[14px] font-semibold" style={{ background:"rgba(74,124,89,0.1)", color:C.green }}>
+            Interest sent — you will hear back in Requests
           </div>
-          <textarea value={hint} onChange={e=>setHint(e.target.value)} maxLength={120}
-            placeholder="e.g. I'm wearing a red jacket near the bar…"
-            className="w-full p-3 rounded-[14px] text-[13px] resize-none outline-none leading-relaxed"
-            style={{ border:`1.5px solid ${C.border}`, fontFamily:"'DM Sans',sans-serif", color:C.ink, background:"white", height:72 }} />
-          <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{hint.length} / 120</div>
-        </div>
-        <button onClick={sendRequest} disabled={sending}
-          className="mx-[22px] mt-3.5 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:C.ink, width:"calc(100% - 44px)", opacity:sending?0.6:1 }}>
-          {sending ? "Sending…" : "Send meet request →"}
-        </button>
+        )}
         {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
-        <div className="text-xs text-center mt-2 px-[22px] leading-relaxed" style={{ color:C.warmMid }}>
-          {firstName} is only notified if they also marked you as open to meet. Two-step consent.
-        </div>
         <div className="h-4" />
       </div>
-      <BottomNav active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="nearby" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
 
 // ── Pending Screen (request sent, waiting for other party) ─
 function PendingScreen({
-  person, onNavigate, inboxCount, currentUser, sentAt,
-}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; currentUser:UserProfile; sentAt:string }) {
+  person, onNavigate, inboxCount, msgCount, currentUser, sentAt,
+}: { person:UserProfile; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; currentUser:UserProfile; sentAt:string }) {
   const firstName = person.name.split(",")[0];
   const pollRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
-  // No auto-navigation — sender stays here until they tap a button.
+  // No auto-navigation, sender stays here until they tap a button.
   // We just stop polling silently when a final status is reached.
   useEffect(() => {
     async function checkStatus() {
@@ -1304,9 +1564,9 @@ function PendingScreen({
         .gte("created_at", sentAt)
         .in("status", ["accepted", "declined"])
         .limit(1)
-        .single();
+        .maybeSingle();
       if (data) {
-        // Stop polling — but don't navigate. User taps the button themselves.
+        // Stop polling, but don't navigate. User taps the button themselves.
         clearInterval(pollRef.current!);
       }
     }
@@ -1323,17 +1583,17 @@ function PendingScreen({
       <div className="px-6 pt-6 flex items-center gap-3 flex-shrink-0">
         <button onClick={()=>onNavigate("inbox")}
           className="w-9 h-9 rounded-full flex items-center justify-center text-base cursor-pointer flex-shrink-0 border-0"
-          style={{ background:"rgba(245,240,232,0.1)", color:C.cream }}>✕</button>
+          style={{ background:"rgba(246,241,233,0.1)", color:C.cream }}><Icon name="close" size={18} /></button>
         <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:"rgba(245,240,232,0.45)" }}>Request sent</div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="text-[54px] mb-5" style={{ animation:"float 3s ease-in-out infinite" }}>⏳</div>
-        <div className="text-[28px] leading-snug mb-3" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
+        <div className="mb-5" style={{ color:C.accent, animation:"float 3s ease-in-out infinite" }}><Icon name="clock" size={50} stroke={1.6} /></div>
+        <div className="text-[28px] leading-snug mb-3" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>
           Request sent to<br /><em style={{ color:C.accent }}>{firstName}</em>
         </div>
         <div className="text-[13px] leading-relaxed mb-6 max-w-[280px]" style={{ color:"rgba(245,240,232,0.55)" }}>
-          Waiting for <strong style={{ color:"rgba(245,240,232,0.8)" }}>{firstName}</strong> to respond. If they accept, you&apos;ll see it in your <strong style={{ color:"rgba(245,240,232,0.8)" }}>Meet Requests</strong> inbox — tap it to see the match screen.
+          Waiting for <strong style={{ color:"rgba(245,240,232,0.8)" }}>{firstName}</strong> to respond.
         </div>
 
         {/* Animated waiting indicator */}
@@ -1346,22 +1606,22 @@ function PendingScreen({
         <div className="w-full p-4 rounded-[18px] mb-4 text-left" style={{ background:"rgba(196,120,58,0.08)", border:"1px solid rgba(196,120,58,0.2)" }}>
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.accent }}>What happens next</div>
           <div className="text-[13px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
-            When {firstName} accepts, their request will appear in your <strong style={{ color:"rgba(245,240,232,0.75)" }}>Meet Requests</strong> inbox. Open it to see the mutual match screen and their identifying hint.
+            If {firstName} accepts, you will see a notification in your <strong style={{ color:"rgba(245,240,232,0.75)" }}>Requests</strong> tab. Open it to get the green light and go find them.
           </div>
         </div>
 
         <div className="text-xs leading-relaxed" style={{ color:"rgba(245,240,232,0.35)" }}>
-          🔒 Hints auto-erase after 30 min · location never shared
+          Location is never shared. This is an in-person introduction only.
         </div>
       </div>
 
       <div className="px-6 pb-6 flex flex-col gap-2.5">
         <button onClick={()=>onNavigate("nearby")} className="w-full py-3.5 rounded-2xl text-[15px] font-semibold cursor-pointer border-0"
-          style={{ background:C.accent, color:"white", fontFamily:"'DM Sans',sans-serif" }}>
+          style={{ background:C.accent, color:"white", fontFamily:"'Hanken Grotesk',sans-serif" }}>
           ← Back to Nearby
         </button>
         <button onClick={()=>onNavigate("inbox")} className="w-full py-3.5 rounded-2xl text-[14px] font-medium cursor-pointer border-0"
-          style={{ background:"rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.55)", fontFamily:"'DM Sans',sans-serif" }}>
+          style={{ background:"rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.55)", fontFamily:"'Hanken Grotesk',sans-serif" }}>
           View Meet Requests
         </button>
       </div>
@@ -1371,22 +1631,49 @@ function PendingScreen({
 
 // ── Inbox ──────────────────────────────────────────────────
 function InboxScreen({
-  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch,
-}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:number)=>void; onDismiss:(id:number)=>void; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+  requests, onNavigate, onDecline, onDismiss, acceptedSent, onViewMatch, msgCount, currentUser,
+}: { requests:InboxRequest[]; onNavigate:(s:Screen,d?:unknown)=>void; onDecline:(id:string)=>void; onDismiss:(id:string)=>void; msgCount?:number; currentUser?:UserProfile; acceptedSent?: { person:UserProfile; recipientHint:string|null } | null; onViewMatch?:()=>void }) {
+
+  // Load pending met records from localStorage — reactive so it updates when
+  // "Met them ✓" writes to localStorage from MatchScreen
+  type PendingMetEntry = { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean };
+  function readPendingMet(): PendingMetEntry[] {
+    if (!currentUser || typeof window === "undefined") return [];
+    const raw = localStorage.getItem(`here_met_${currentUser.id}`);
+    if (!raw) return [];
+    try { return (JSON.parse(raw) as any[]).filter(e => !e.answered); } catch { return []; }
+  }
+  const [pendingMet, setPendingMet] = useState<PendingMetEntry[]>(readPendingMet);
+  useEffect(() => {
+    // Re-read whenever storage changes (covers same-tab writes too via custom event)
+    function onStorage() { setPendingMet(readPendingMet()); }
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("here_met_updated", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("here_met_updated", onStorage);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  // IDs of people already in pendingMet — exclude them from INCOMING to prevent
+  // the same person appearing in both sections simultaneously
+  const pendingMetPersonIds = new Set(pendingMet.map(m => m.personId));
+  const filteredRequests = requests.filter(r => !r.from_id || !pendingMetPersonIds.has(r.from_id));
 
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
       <div className="px-[22px] pt-5 flex-shrink-0">
-        <div className="text-[22px] mt-0.5" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Meet Requests</div>
+        <div className="text-[22px] mt-0.5" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Meet Requests</div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
         <div className="pt-3">
 
-          {/* ── They said yes (acceptance banner) ── */}
+          {/* ── Acceptance banner ── */}
           {acceptedSent && (<>
             <div className="px-[22px] mb-2">
-              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.green }}>They said yes</div>
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.green }}>Green light</div>
             </div>
             <div className="mx-[22px] mb-4 rounded-[18px] overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
               style={{ background:"linear-gradient(135deg,#1a3a28,#2a5a3a)", border:"2px solid rgba(74,124,89,0.6)", boxShadow:"0 4px 24px rgba(74,124,89,0.25)" }}
@@ -1397,36 +1684,67 @@ function InboxScreen({
                 <div className="flex items-center gap-3">
                   <div className="relative flex-shrink-0">
                     <AvatarCircle user={acceptedSent.person} size={44} />
-                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px]" style={{ background:C.green, border:"2px solid #1a3a28" }}>✓</div>
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px]" style={{ background:C.green, border:"2px solid #1a3a28", color:"white" }}><Icon name="check" size={11} stroke={2.8} /></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-semibold" style={{ color:"#e8f5ee", fontFamily:"'DM Serif Display',Georgia,serif" }}>
-                      {acceptedSent.person.name.split(",")[0]} said yes!
+                    <div className="text-[15px] font-semibold" style={{ color:"#e8f5ee", fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em" }}>
+                      {acceptedSent.person.name.split(",")[0]} accepted
                     </div>
-                    <div className="text-[12px] mt-0.5" style={{ color:"rgba(232,245,238,0.65)" }}>Tap to reveal their identifying hint →</div>
+                    <div className="text-[12px] mt-0.5" style={{ color:"rgba(232,245,238,0.65)" }}>Tap to get the green light and go find them</div>
                   </div>
-                  <div className="text-[22px]" style={{ animation:"float 2s ease-in-out infinite" }}>✨</div>
                 </div>
               </div>
             </div>
           </>)}
 
+          {/* ── Pending, met but not yet answered ── */}
+          {pendingMet.length > 0 && (<>
+            <div className="px-[22px] mb-2 mt-1">
+              <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Pending</div>
+            </div>
+            {pendingMet.map(m => {
+              const firstName = m.person.name.split(",")[0];
+              const metDate = new Date(m.metAt);
+              const hoursAgo = Math.floor((Date.now() - metDate.getTime()) / 3_600_000);
+              const isOverdue = hoursAgo >= 3;
+              return (
+                <div key={m.personId}
+                  className="mx-[22px] mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
+                  style={{ background: isOverdue ? "rgba(196,120,58,0.06)" : "rgba(139,115,85,0.05)", border:`1.5px solid ${isOverdue ? C.accent : C.border}` }}
+                  onClick={() => onNavigate("followup", { person: m.person, requestId: m.requestId ?? null })}>
+                  <div className="flex items-center gap-3">
+                    <AvatarCircle user={m.person} size={42} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm" style={{ color:C.ink }}>{firstName}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
+                        {isOverdue ? "Waiting for your answer" : `Met ${hoursAgo < 1 ? "just now" : `${hoursAgo}h ago`}`}
+                      </div>
+                    </div>
+                    <div className="text-[11px] font-semibold flex-shrink-0" style={{ color: isOverdue ? C.accent : C.warmMid }}>
+                      {isOverdue ? "Answer now →" : "How did it go? →"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </>)}
+
           {/* ── Incoming requests ── */}
           <div className="px-[22px] mb-2 flex items-center justify-between">
-            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming requests</div>
-            {requests.length > 0 && (
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming</div>
+            {filteredRequests.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background:C.green, animation:"pulse 2s infinite" }} />
-                <span className="text-[11px] font-semibold" style={{ color:C.green }}>{requests.length} new</span>
+                <span className="text-[11px] font-semibold" style={{ color:C.green }}>{filteredRequests.length} new</span>
               </div>
             )}
           </div>
 
-          {requests.length === 0 ? (
+          {filteredRequests.length === 0 ? (
             <div className="px-5 py-8 text-center text-[13px]" style={{ color:C.warmMid }}>
               {acceptedSent ? "No other incoming requests" : "No requests yet"}
             </div>
-          ) : requests.map(r=>(
+          ) : filteredRequests.map(r=>(
             <div key={r.id} className="mx-5 mb-3 p-4 rounded-[18px] cursor-pointer active:scale-[0.98] transition-transform"
               style={{ background:"rgba(196,120,58,0.04)", border:`1.5px solid ${C.accent}`, boxShadow:"0 2px 14px rgba(26,20,16,0.07)" }}
               onClick={()=>onNavigate("incoming",r.id)}>
@@ -1434,7 +1752,7 @@ function InboxScreen({
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background:C.accent }} />
                 <AvatarCircle user={{ photo_url:r.photo_url, bg:r.bg, name:r.name }} size={44} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm" style={{ color:C.ink }}>{r.name} <span className="text-[10px] font-semibold ml-1" style={{ color:C.green }}>✓ Verified</span></div>
+                  <div className="font-semibold text-sm" style={{ color:C.ink }}>{r.name} <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold ml-1 align-middle" style={{ color:C.green }}><Icon name="check" size={11} stroke={2.6} /> Verified</span></div>
                   <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{r.meta}</div>
                   <div className="text-[11px] font-semibold mt-1" style={{ color:C.accent }}>{r.reqLabel}</div>
                 </div>
@@ -1448,48 +1766,54 @@ function InboxScreen({
           ))}
 
           <div className="mx-5 mt-2 p-3.5 rounded-[14px] text-xs leading-relaxed" style={{ background:"rgba(139,115,85,0.07)", color:C.warmMid }}>
-            🔒 You&apos;re only notified when both parties are open to meet. Requests expire in 30 min.
+            You are only notified when both parties are open to meet. Requests expire after 30 minutes.
           </div>
         </div>
         <div className="h-2" />
       </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={requests.length} />
+      <BottomNav messagesCount={msgCount ?? 0} active="inbox" onNavigate={onNavigate} inboxCount={filteredRequests.length + (acceptedSent ? 1 : 0)} />
     </div>
   );
 }
 
 // ── Incoming ───────────────────────────────────────────────
 function IncomingScreen({
-  request, onNavigate, inboxCount, onDecline,
-}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; onDecline:(id:number)=>void }) {
-  const [response, setResponse] = useState<IncResponse>("accept");
-  const [hint, setHint]         = useState("");
-  const [sending, setSending]   = useState(false);
+  request, onNavigate, inboxCount, msgCount, onDecline,
+}: { request:InboxRequest; onNavigate:(s:Screen,d?:unknown)=>void; inboxCount:number; msgCount:number; onDecline:(id:string)=>void }) {
+  const [response,  setResponse]  = useState<IncResponse>("accept");
+  const [areaHint,  setAreaHint]  = useState("");
+  const [sending,   setSending]   = useState(false);
   const [declining, setDeclining] = useState(false);
-  const [error, setError]       = useState("");
-  const firstName               = request.name.split(",")[0];
-  const options: { id:IncResponse; icon:string; label:string; sub:string }[] = [
-    { id:"accept", icon:"✅", label:"Accept — meet now",  sub:"I'll come find you"       },
-    { id:"15min",  icon:"⏱️", label:"Meet in 15 min",     sub:"I'll be with you shortly" },
-    { id:"30min",  icon:"🕐", label:"Meet in 30 min",     sub:"See you in a bit"         },
+  const [error,     setError]     = useState("");
+  const firstName                 = request.name.split(",")[0];
+
+  const options: { id:IncResponse; label:string; sub:string }[] = [
+    { id:"accept", label:"Accept — meet now",        sub:"Give them the green light to approach you" },
+    { id:"15min",  label:"Accept — meet in 15 min",  sub:"I will be with you shortly"                },
+    { id:"30min",  label:"Accept — meet in 30 min",  sub:"I will see you in a bit"                   },
   ];
+
+  const showAreaHint = response === "15min" || response === "30min";
 
   async function confirm() {
     setSending(true); setError("");
     const { error: err } = await supabase
       .from("meet_requests")
-      .update({ status: "accepted", recipient_hint: hint.trim() || null, response_timing: response })
+      .update({
+        status:           "accepted",
+        recipient_hint:   areaHint.trim() || null,
+        response_timing:  response,
+      })
       .eq("id", request.id);
     setSending(false);
     if (err) { setError("Failed: " + err.message); return; }
-    onNavigate("match", { request, response, fromIncoming: true, recipientHint: hint.trim() });
+    onNavigate("match", { request, response, fromIncoming: true, recipientHint: areaHint.trim() || null, requestId: request.id });
   }
 
   async function handleDecline() {
     setDeclining(true);
     await supabase.from("meet_requests").update({ status: "declined" }).eq("id", request.id);
     onDecline(request.id);
-    // onDecline already navigates away to inbox, so no need to set local declined state
     setDeclining(false);
   }
 
@@ -1497,33 +1821,35 @@ function IncomingScreen({
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
       <div className="px-[22px] pt-[22px] flex items-center gap-3 flex-shrink-0">
         <BackBtn onClick={()=>onNavigate("inbox")} />
-        <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Meet request</div>
+        <div className="text-xs uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>Incoming interest</div>
       </div>
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
         <div className="mx-[22px] mt-4 flex items-center gap-4">
           <AvatarCircle user={{ photo_url:request.photo_url, bg:request.bg, name:request.name }} size={58} />
           <div>
-            <div className="text-[20px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{request.name}</div>
+            <div className="text-[20px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>{request.name}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{request.meta}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{request.tags.map(t=><InterestTag key={t} interest={t} />)}</div>
           </div>
         </div>
-        {/* Show sender's hint */}
-        <div className="mx-[22px] mt-3.5 p-[14px_18px] rounded-2xl" style={{ background:"rgba(196,120,58,0.15)", border:"1px solid rgba(196,120,58,0.3)" }}>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>Their identifying hint</div>
-          {request.hint
-            ? <div className="text-[15px] font-semibold" style={{ color:C.ink }}>👋 &ldquo;{request.hint}&rdquo;</div>
-            : <div className="text-[14px]" style={{ color:C.inkSoft }}>👋 {firstName} wants to meet — no hint provided</div>
-          }
-          <div className="text-xs mt-1 leading-relaxed" style={{ color:C.inkSoft }}>Accepting will share your hint with {firstName}.</div>
+
+        {/* Interest notification */}
+        <div className="mx-[22px] mt-3.5 p-[14px_18px] rounded-2xl" style={{ background:"rgba(74,124,89,0.08)", border:"1px solid rgba(74,124,89,0.25)" }}>
+          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.green }}>Expressed interest in meeting you</div>
+          <div className="text-[14px] leading-relaxed" style={{ color:C.inkSoft }}>{firstName} would like to meet you in person. Accept to give them the green light to approach you.</div>
         </div>
+
+        {/* Response options */}
         <div className="px-[22px] pt-3.5">
           <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2.5" style={{ color:C.warmMid }}>Your response</div>
           {options.map(opt=>(
             <div key={opt.id} onClick={()=>setResponse(opt.id)}
               className="flex items-center gap-3.5 p-3.5 rounded-2xl mb-2.5 cursor-pointer transition-all duration-200"
-              style={{ border:`1.5px solid ${response===opt.id?C.accent:C.border}`, background:response===opt.id?"rgba(196,120,58,0.15)":"transparent" }}>
-              <span className="text-[22px] w-[34px] text-center">{opt.icon}</span>
+              style={{ border:`1.5px solid ${response===opt.id?C.green:C.border}`, background:response===opt.id?"rgba(74,124,89,0.08)":"transparent" }}>
+              <div className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                style={{ borderColor:response===opt.id?C.green:C.border, background:response===opt.id?C.green:"transparent" }}>
+                {response===opt.id && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
               <div>
                 <div className="text-sm font-semibold" style={{ color:C.ink }}>{opt.label}</div>
                 <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{opt.sub}</div>
@@ -1531,51 +1857,412 @@ function IncomingScreen({
             </div>
           ))}
         </div>
-        <div className="px-[22px] pt-1">
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
-            Your identifying hint <span className="normal-case text-[10px] font-normal">(so they can spot you)</span>
+
+        {/* Area hint, only shown for 15min / 30min */}
+        {showAreaHint && (
+          <div className="px-[22px] pt-1 pb-1">
+            <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-2" style={{ color:C.warmMid }}>
+              Where will you be? <span className="normal-case font-normal" style={{ textTransform:"none", letterSpacing:0 }}>(optional)</span>
+            </div>
+            <input
+              value={areaHint}
+              onChange={e=>setAreaHint(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. near the tube exit, by the bar…"
+              className="w-full px-4 py-3 rounded-[14px] text-[13px] outline-none"
+              style={{ border:`1.5px solid ${C.border}`, fontFamily:"'Hanken Grotesk',sans-serif", color:C.ink, background:"white" }}
+            />
+            <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{areaHint.length} / 80</div>
           </div>
-          <textarea value={hint} onChange={e=>setHint(e.target.value)} maxLength={120}
-            placeholder="e.g. I'm in a green top near the entrance…"
-            className="w-full p-3 rounded-[14px] text-[13px] resize-none outline-none leading-relaxed"
-            style={{ border:`1.5px solid ${C.border}`, fontFamily:"'DM Sans',sans-serif", color:C.ink, background:"white", height:72 }} />
-          <div className="text-[11px] text-right mt-1" style={{ color:C.warmMid }}>{hint.length} / 120</div>
-        </div>
+        )}
+
         {error && <div className="text-xs text-center mt-2 px-[22px]" style={{ color:"#ef4444" }}>{error}</div>}
         <button onClick={confirm} disabled={sending}
           className="mx-[22px] mt-3 py-[15px] rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
-          {sending ? "Confirming…" : "Confirm response →"}
+          style={{ background:C.green, width:"calc(100% - 44px)", opacity:sending?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+          {sending ? "Confirming…" : "Accept"}
         </button>
-        {/* Decline button */}
         <button onClick={handleDecline} disabled={declining}
           className="mx-[22px] mt-2.5 py-[13px] rounded-2xl text-[14px] cursor-pointer active:scale-[0.98] transition-transform"
-          style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.warmMid, width:"calc(100% - 44px)", fontFamily:"'DM Sans',sans-serif", opacity:declining?0.5:1 }}>
-          {declining ? "Declining…" : "Decline request"}
+          style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.warmMid, width:"calc(100% - 44px)", fontFamily:"'Hanken Grotesk',sans-serif", opacity:declining?0.5:1 }}>
+          {declining ? "Declining…" : "Decline"}
         </button>
         <div className="h-6" />
       </div>
-      <BottomNav active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="inbox" onNavigate={onNavigate} inboxCount={inboxCount} />
+    </div>
+  );
+}
+
+// ── Pronoun helper ────────────────────────────────────────
+function getPronouns(person?: UserProfile | null) {
+  // Explicit string type prevents TypeScript narrowing "they/them" comparison to never
+  const p: string = person?.pronouns ?? ((person as any)?.gender === "m" ? "he/him" : "she/her");
+  if (p === "he/him")    return { sub: "He",   obj: "him",  goFind: "Go find him"  };
+  if (p === "they/them") return { sub: "They", obj: "them", goFind: "Go find them" };
+  return                         { sub: "She",  obj: "her",  goFind: "Go find her"  };
+}
+
+// ── Chat message type ─────────────────────────────────────
+interface ChatMessage {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+// ── Real-time Chat Screen ─────────────────────────────────
+function ChatScreen({
+  person, requestId, currentUser, onNavigate, inboxCount, unlockedAt,
+}: {
+  person: UserProfile;
+  requestId: string | null;
+  currentUser: UserProfile;
+  onNavigate: (s: Screen, d?: unknown) => void;
+  inboxCount: number;
+  unlockedAt?: string;
+}) {
+  const firstName = person.name.split(",")[0];
+  const [messages,  setMessages]  = useState<ChatMessage[]>([]);
+  const [draft,     setDraft]     = useState("");
+  const [sending,   setSending]   = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [showNotes, setShowNotes] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [notesText, setNotesText] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(`here_note_${currentUser.id}_${person.id}`) ?? "";
+    }
+    return "";
+  });
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Mark this thread as read when screen mounts
+  useEffect(() => {
+    if (requestId && typeof window !== "undefined") {
+      localStorage.setItem(`here_read_${currentUser.id}_${requestId}`, new Date().toISOString());
+    }
+  }, [requestId, currentUser.id]);
+
+  // Also mark read whenever new messages arrive while chat is open
+  useEffect(() => {
+    if (requestId && typeof window !== "undefined" && messages.length > 0) {
+      localStorage.setItem(`here_read_${currentUser.id}_${requestId}`, new Date().toISOString());
+    }
+  }, [messages, requestId, currentUser.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!requestId) { setLoading(false); return; }
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("request_id", requestId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) setMessages(data as ChatMessage[]);
+        setLoading(false);
+      });
+    const channel = supabase
+      .channel(`chat:${requestId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `request_id=eq.${requestId}` },
+        (payload) => {
+          const incoming = payload.new as ChatMessage;
+          setMessages(prev => {
+            if (incoming.sender_id === currentUser.id) return prev;
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+        }
+      )
+      .subscribe();
+    channelRef.current = channel;
+    return () => { channel.unsubscribe(); };
+  }, [requestId]);
+
+  async function sendMessage() {
+    const text = draft.trim();
+    if (!text || !requestId || sending) return;
+    setSending(true);
+    setDraft("");
+    const optimistic: ChatMessage = {
+      id: `optimistic-${Date.now()}`,
+      request_id: requestId,
+      sender_id: currentUser.id,
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+    const { error } = await supabase.from("messages").insert({
+      request_id: requestId,
+      sender_id:  currentUser.id,
+      content:    text,
+    });
+    if (error) {
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      setDraft(text);
+    }
+    setSending(false);
+  }
+
+  function formatTime(iso: string) {
+    return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatDayLabel(iso: string) {
+    const d = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString())     return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long" });
+  }
+
+  function isSameDay(a: string, b: string) {
+    return new Date(a).toDateString() === new Date(b).toDateString();
+  }
+
+  const unlockedLabel = unlockedAt
+    ? new Date(unlockedAt).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" })
+    : null;
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.cream }}>
+      {/* Header */}
+      <div className="px-[22px] pt-4 pb-3 flex items-center gap-3 flex-shrink-0"
+        style={{ borderBottom: `1px solid ${C.border}` }}>
+        <BackBtn onClick={() => onNavigate("messages")} />
+        <div className="flex items-center gap-2.5 flex-1 cursor-pointer" onClick={() => setShowNotes(true)}>
+          <div onClick={e => { e.stopPropagation(); setShowProfile(true); }}>
+            <AvatarCircle user={person} size={38} />
+          </div>
+          <div>
+            <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
+            <div className="text-[11px]" style={{ color: C.green }}>
+              Chat unlocked{unlockedLabel ? ` · ${unlockedLabel}` : ""}
+            </div>
+          </div>
+        </div>
+        <button onClick={() => setShowNotes(true)}
+          className="px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer"
+          style={{ borderColor: C.border, color: C.warmMid, background: "transparent", fontFamily:"'Hanken Grotesk',sans-serif" }}>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="note" size={13} stroke={2} /> Notes</span>
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-[18px] py-3 flex flex-col gap-1.5" style={{ minHeight: 0 }}>
+        {loading && (
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-[24px]" style={{ animation: "spin 1s linear infinite" }}>⟳</div>
+          </div>
+        )}
+
+        {!loading && messages.length === 0 && (
+          <div className="py-6 text-center text-[12px] leading-relaxed px-4" style={{ color: C.warmMid }}>
+            Chat unlocked — you both wanted to meet again!
+          </div>
+        )}
+
+        {!loading && messages.map((msg, i) => {
+          const isMine = msg.sender_id === currentUser.id;
+          const prevMsg = messages[i - 1];
+          const showDayLabel = !prevMsg || !isSameDay(msg.created_at, prevMsg.created_at);
+          const showTime = !showDayLabel && (!prevMsg || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime()) > 5 * 60_000);
+          return (
+            <div key={msg.id}>
+              {showDayLabel && (
+                <div className="text-[11px] text-center py-2 my-1 font-medium" style={{ color: C.warmMid }}>
+                  {formatDayLabel(msg.created_at)}
+                </div>
+              )}
+              {showTime && !showDayLabel && (
+                <div className="text-[10px] text-center py-1.5" style={{ color: C.warmMid }}>
+                  {formatTime(msg.created_at)}
+                </div>
+              )}
+              <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`px-3 py-2.5 text-[13px] max-w-[80%] leading-relaxed ${
+                    isMine ? "rounded-[14px_14px_4px_14px]" : "rounded-[14px_14px_14px_4px]"
+                  }`}
+                  style={isMine
+                    ? { background: C.ink, color: C.cream }
+                    : { background: "white", color: C.ink, border: `0.5px solid rgba(139,115,85,0.15)` }
+                  }
+                >
+                  {msg.content}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="px-[18px] pb-6 pt-2 flex-shrink-0 flex gap-2 items-end"
+        style={{ borderTop: `1px solid ${C.border}` }}>
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
+          placeholder={`Message ${firstName}…`}
+          rows={1}
+          className="flex-1 px-4 py-3 rounded-3xl text-[13px] outline-none resize-none"
+          style={{
+            background: "white",
+            border: `1px solid ${C.border}`,
+            color: C.ink,
+            fontFamily:"'Hanken Grotesk',sans-serif",
+            maxHeight: 100,
+            overflowY: "auto",
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          disabled={!draft.trim() || sending}
+          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-0 cursor-pointer transition-opacity"
+          style={{
+            background: draft.trim() ? C.green : "rgba(139,115,85,0.15)",
+            opacity: sending ? 0.5 : 1,
+          }}
+        >
+          <span style={{ color: draft.trim() ? "white" : C.warmMid, display:"flex" }}><Icon name="send" size={18} stroke={2.2} /></span>
+        </button>
+      </div>
+
+      {/* Private notes modal, only visible to current user */}
+      {showNotes && (
+        <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.45)" }}>
+          <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+            <div className="flex items-center gap-3 mb-1">
+              <AvatarCircle user={person} size={36} />
+              <div>
+                <div className="text-[17px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>{firstName}, your notes</div>
+                <div className="text-[11px]" style={{ color:C.warmMid }}>Private · {firstName} cannot see this</div>
+              </div>
+            </div>
+            <div className="text-xs mt-3 mb-3 leading-relaxed" style={{ color:C.warmMid }}>
+              Keep a record of your impressions, things they mentioned, or anything you want to remember if you meet again.
+            </div>
+            <textarea
+              value={notesText}
+              onChange={e => setNotesText(e.target.value)}
+              rows={6}
+              placeholder={`Your notes about ${firstName}…`}
+              className="w-full px-4 py-3 rounded-2xl text-[13px] outline-none resize-none mb-4"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", fontFamily:"'Hanken Grotesk',sans-serif", color:C.ink }}
+            />
+            <button onClick={()=>{
+              localStorage.setItem(`here_note_${currentUser.id}_${person.id}`, notesText);
+              setShowNotes(false);
+            }} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mb-2"
+              style={{ background:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Save notes
+            </button>
+            <button onClick={()=>setShowNotes(false)}
+              className="w-full py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+              style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile sheet — tap avatar to open */}
+      {showProfile && (
+        <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.45)" }}
+          onClick={() => setShowProfile(false)}>
+          <div className="w-full rounded-[28px_28px_0_0] pb-9 pt-5 px-6 overflow-y-auto" style={{ background:C.cream, maxWidth:430, maxHeight:"85vh" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-5" style={{ background:C.border }} />
+
+            {/* Avatar + name */}
+            <div className="flex items-center gap-4 mb-5">
+              <AvatarCircle user={person} size={60} />
+              <div>
+                <div className="text-[22px] leading-tight" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>
+                  {person.name}{person.age ? `, ${person.age}` : ""}
+                </div>
+                {person.occupation && (
+                  <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{person.occupation}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Day you met */}
+            {unlockedLabel && (
+              <div className="flex items-center gap-2 mb-4 px-3.5 py-3 rounded-xl" style={{ background:"rgba(74,124,89,0.08)", border:"1px solid rgba(74,124,89,0.15)" }}>
+                <span style={{ color:C.green }}><Icon name="spark" size={15} /></span>
+                <div className="text-[13px] font-medium" style={{ color:C.green }}>You met on {unlockedLabel}</div>
+              </div>
+            )}
+
+            {/* Interests */}
+            {person.interests && person.interests.length > 0 && (
+              <div className="mb-4">
+                <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-2" style={{ color:C.warmMid }}>Interests</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {person.interests.map((interest: string) => (
+                    <InterestTag key={interest} interest={interest} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Ask me about prompts */}
+            {(person.ask_me_prompts ?? []).filter((p: string) => p.trim()).length > 0 && (
+              <div className="mb-5">
+                <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-2" style={{ color:C.warmMid }}>Ask {firstName} about…</div>
+                <div className="flex flex-col gap-2">
+                  {(person.ask_me_prompts ?? []).filter((p: string) => p.trim()).map((prompt: string, i: number) => (
+                    <div key={i} className="flex gap-2.5 items-start px-3.5 py-3 rounded-xl"
+                      style={{ background:"white", border:`1px solid ${C.border}` }}>
+                      <span className="text-[12px] font-bold flex-shrink-0 mt-0.5" style={{ color:C.accent }}>{i + 1}</span>
+                      <span className="text-[13px] leading-relaxed" style={{ color:C.inkSoft }}>{prompt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setShowProfile(false)}
+              className="w-full py-3.5 rounded-2xl text-[14px] cursor-pointer border-0"
+              style={{ background:"rgba(139,115,85,0.1)", color:C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Match ──────────────────────────────────────────────────
 function MatchScreen({
-  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem,
-}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:number)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void }) {
-  const person    = matchData.person || matchData.request;
+  matchData, onNavigate, currentUser, onBlock, onDecline, onClearAccepted, onMetThem, matchPersonProfile,
+}: { matchData:{ person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }; onNavigate:(s:Screen,d?:unknown)=>void; currentUser:UserProfile; onBlock:(id:string)=>void; onDecline:(id:string)=>void; onClearAccepted:()=>void; onMetThem:(id:string)=>void; matchPersonProfile?:UserProfile|null }) {
+  const person    = matchPersonProfile ?? matchData.person ?? matchData.request;
   const firstName = person ? person.name.split(",")[0] : "They";
+  const pr        = getPronouns((matchPersonProfile ?? matchData.person) as UserProfile | null);
   const timerMins = matchData.response==="15min" ? 15 : 30;
   const reportedId = (matchData.person?.id) || ((matchData.request as any)?.from_id) || null;
   const fromIncoming = matchData.fromIncoming ?? false;
-
-  // The hint to show depends on perspective:
-  // - If recipient (fromIncoming=true): show sender's hint (from request.hint)
-  // - If sender (fromIncoming=false): show recipient's hint (recipientHint)
-  const hintToShow = fromIncoming
-    ? (matchData.request?.hint ?? null)
-    : (matchData.recipientHint ?? null);
+  const askMePrompts = (matchPersonProfile ?? matchData.person as UserProfile | undefined)?.ask_me_prompts ?? [];
 
   const [secs,         setSecs]       = useState(timerMins*60);
   const [erased,       setErased]     = useState(false);
@@ -1583,6 +2270,8 @@ function MatchScreen({
   const [reportOpt,    setReportOpt]  = useState("");
   const [showToast,    setShowToast]  = useState(false);
   const [submitting,   setSubmitting] = useState(false);
+  const [showNotes,    setShowNotes]  = useState(false);
+  const [notesText,    setNotesText]  = useState("");
 
   useEffect(()=>{
     if (erased) return;
@@ -1595,69 +2284,160 @@ function MatchScreen({
   return (
     <div className="flex flex-col h-full relative" style={{ background:C.ink }}>
       <div className="flex-1 flex flex-col items-center pt-7 px-6 overflow-y-auto" style={{ minHeight:0 }}>
-        <div className="text-[52px] mb-3.5" style={{ animation:"float 3s ease-in-out infinite" }}>✨</div>
-        <div className="text-[30px] text-center leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
-          It&apos;s a<br /><em style={{ color:C.accent }}>mutual match</em>
+        <div className="mb-4" style={{ color:C.green, animation:"float 3s ease-in-out infinite" }}><Icon name="spark" size={48} /></div>
+        <div className="text-[30px] text-center leading-snug" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>
+          {fromIncoming ? "You accepted." : `${firstName} accepted.`}<br />
+          <em style={{ color:C.green }}>{pr.goFind}.</em>
         </div>
-        <div className="text-[13px] text-center mt-2.5 leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
+        <div className="text-[13px] text-center mt-2.5 leading-relaxed px-2" style={{ color:"rgba(245,240,232,0.55)" }}>
           {fromIncoming
-            ? `You accepted ${firstName}'s request. Here's their hint so you can find them.`
-            : `${firstName} accepted your request. Here's their hint so you can find them.`}
+            ? `${firstName} will be looking out for you. Head over and introduce yourself.`
+            : `${firstName} is expecting you. Go say hello in person.`}
         </div>
-        <div className="w-full mt-4 p-[18px_20px] rounded-[20px]" style={{ background:"rgba(196,120,58,0.12)", border:"1px solid rgba(196,120,58,0.3)" }}>
-          <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.accent }}>
-            {fromIncoming ? `${firstName}'s identifying hint` : `${firstName}'s identifying hint`}
+
+        {/* Person card */}
+        <div className="w-full mt-5 p-4 rounded-[20px] flex items-center gap-3.5" style={{ background:"rgba(245,240,232,0.05)", border:"1px solid rgba(245,240,232,0.1)" }}>
+          <AvatarCircle user={person ?? { name:"?", bg:BG_OPTIONS[0], photo_url:null }} size={52} />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-[15px]" style={{ color:C.cream }}>{person?.name ?? firstName}</div>
+            <div className="text-[12px] mt-0.5" style={{ color:"rgba(245,240,232,0.45)" }}>{(person as UserProfile)?.occupation ?? ""}</div>
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {((person as UserProfile)?.interests ?? []).slice(0,3).map((i:string)=>(
+                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background:"rgba(74,124,89,0.2)", color:"rgba(232,245,238,0.8)" }}>{i}</span>
+              ))}
+            </div>
+            {matchData.recipientHint && (
+              <div className="mt-2 text-[12px] leading-relaxed" style={{ color:"rgba(245,240,232,0.6)" }}>
+                Near: <strong style={{ color:C.cream }}>{matchData.recipientHint}</strong>
+              </div>
+            )}
           </div>
-          {erased
-            ? <div className="text-[14px]" style={{ color:"rgba(245,240,232,0.3)" }}>Hint auto-erased</div>
-            : hintToShow
-              ? <div className="text-[18px] leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.cream }}>
-                  &ldquo;{hintToShow}&rdquo;
-                </div>
-              : <div className="text-[14px] leading-relaxed" style={{ color:"rgba(245,240,232,0.55)" }}>
-                  {firstName} didn&apos;t leave a hint — look around and wave! 👋
-                </div>
-          }
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background:C.green, boxShadow:`0 0 10px ${C.green}` }} />
         </div>
-        {!erased && (
-          <button onClick={()=>setErased(true)} className="w-full mt-3 p-3 rounded-[13px] text-[13px] text-left cursor-pointer"
-            style={{ border:"1px solid rgba(245,240,232,0.15)", background:"rgba(245,240,232,0.06)", color:"rgba(245,240,232,0.55)", fontFamily:"'DM Sans',sans-serif" }}>
-            <div className="font-semibold">🚫 Remove interest to meet</div>
-            <div className="text-[11px] mt-0.5" style={{ color:"rgba(245,240,232,0.35)" }}>Your identifier will also be deleted</div>
-          </button>
+
+        {/* Ask me about prompts */}
+        {askMePrompts.length > 0 && (
+          <div className="w-full mt-4">
+            <div className="text-[11px] uppercase tracking-[1.4px] font-semibold mb-2" style={{ color:C.accent }}>Ask {firstName} about…</div>
+            <div className="flex flex-col gap-2">
+              {askMePrompts.map((prompt, i) => (
+                <div key={i} className="flex gap-2.5 items-start px-3.5 py-3 rounded-xl"
+                  style={{ background:"rgba(245,240,232,0.05)", border:"1px solid rgba(245,240,232,0.1)" }}>
+                  <span className="text-[12px] font-bold flex-shrink-0 mt-0.5" style={{ color:C.accent }}>{i+1}</span>
+                  <span className="text-[13px] leading-relaxed" style={{ color:C.cream }}>{prompt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
-        <div className="mt-4 text-center">
+
+        {/* Timer */}
+        <div className="mt-5 text-center">
           <div className="w-[68px] h-[68px] rounded-full border-[3px] mx-auto flex items-center justify-center relative"
-            style={{ borderColor:"rgba(245,240,232,0.12)", borderTopColor:erased?"rgba(245,240,232,0.12)":C.accent, animation:erased?"none":"spin 30s linear infinite" }}>
+            style={{ borderColor:"rgba(245,240,232,0.12)", borderTopColor:erased?"rgba(245,240,232,0.12)":C.green, animation:erased?"none":"spin 30s linear infinite" }}>
             <div className="text-[17px] font-semibold absolute" style={{ color:C.cream }}>
               {erased ? "—" : `${mins}:${String(sec).padStart(2,"0")}`}
             </div>
           </div>
           <div className="text-xs mt-2" style={{ color:"rgba(245,240,232,0.4)" }}>
-            {erased ? "Interest withdrawn" : `Hint auto-erases after ${timerMins} min`}
+            {erased ? "Green light expired" : `Green light expires in ${timerMins} min`}
           </div>
+        </div>
+
+        <div className="w-full mt-4 p-3.5 rounded-xl text-xs leading-relaxed text-center" style={{ background:"rgba(245,240,232,0.04)", border:"1px solid rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.35)" }}>
+          Location is never shared. This is an in-person introduction only.
         </div>
       </div>
 
-      <div className="flex gap-3 px-6 pt-4">
-        <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'DM Sans',sans-serif" }}>Report</button>
-        <button onClick={()=>{ if(reportedId) onMetThem(reportedId); onNavigate("events"); }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.accent, fontFamily:"'DM Sans',sans-serif" }}>✓ Met them!</button>
+      <div className="flex gap-3 px-6 pt-3 flex-shrink-0">
+        <button onClick={()=>setShowReport(true)} className="flex-1 py-3.5 rounded-[14px] text-[13px] cursor-pointer" style={{ border:"1px solid rgba(184,80,66,0.3)", background:"transparent", color:"rgba(245,240,232,0.6)", fontFamily:"'Hanken Grotesk',sans-serif" }}>Report</button>
+        <button onClick={()=>{
+          if(reportedId) onMetThem(reportedId);
+          // Save to pending met list with timestamp
+          const metPerson = matchPersonProfile ?? matchData.person ?? (matchData.request ? {
+            id: (matchData.request as any).from_id ?? "",
+            name: matchData.request.name, age: 25, occupation: matchData.request.meta,
+            interests: matchData.request.tags ?? [], languages: [], photo_url: matchData.request.photo_url,
+            bg: matchData.request.bg, email: "", open_to_meet: true,
+            checked_in_event_id: null, checked_in_at: null, lat: null, lng: null,
+          } as UserProfile : null);
+          if (metPerson && (metPerson as UserProfile).id && currentUser) {
+            const key = `here_met_${currentUser.id}`;
+            const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+            const alreadyThere = existing.some((e: any) => e.personId === (metPerson as UserProfile).id);
+            const reqId = (matchData as any).requestId ?? (matchData.request as any)?.id ?? null;
+            if (!alreadyThere) {
+              existing.push({
+                personId: (metPerson as UserProfile).id,
+                person: metPerson,
+                requestId: reqId,
+                metAt: new Date().toISOString(),
+                answered: false,
+              });
+              localStorage.setItem(key, JSON.stringify(existing));
+              // Notify InboxScreen to re-read pendingMet (same-tab storage events don't fire natively)
+              window.dispatchEvent(new Event("here_met_updated"));
+            }
+          }
+          setShowNotes(true);
+        }} className="flex-[2] py-3.5 rounded-[14px] text-[13px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.green, fontFamily:"'Hanken Grotesk',sans-serif" }}>Met them</button>
       </div>
-      <div className="mx-6 mt-3 mb-6 p-3 rounded-[14px] text-center text-xs leading-relaxed" style={{ background:"rgba(245,240,232,0.04)", border:"1px solid rgba(245,240,232,0.08)", color:"rgba(245,240,232,0.4)" }}>
-        🔒 Auto-erases after {timerMins} min · location never shared
-      </div>
+      <div className="h-7" />
+
+      {/* Private notes modal */}
+      {showNotes && (
+        <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.6)" }}>
+          <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+            <div className="flex items-center gap-3 mb-1">
+              <AvatarCircle user={person ?? { name:"?", bg:BG_OPTIONS[0], photo_url:null }} size={36} />
+              <div>
+                <div className="text-[17px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>First impression</div>
+                <div className="text-[11px]" style={{ color:C.warmMid }}>Private, only you can see this</div>
+              </div>
+            </div>
+            <div className="mb-3 mt-3 text-xs leading-relaxed" style={{ color:C.warmMid }}>
+              Jot down your initial thoughts about {firstName}. This is saved as a personal note, {firstName} will never see it. You can add to it any time from your messages.
+            </div>
+            <textarea
+              value={notesText}
+              onChange={e => setNotesText(e.target.value)}
+              rows={5}
+              placeholder={`Your first impression of ${firstName}… (optional)`}
+              className="w-full px-4 py-3 rounded-2xl text-[13px] outline-none resize-none mb-4"
+              style={{ border:`1.5px solid ${C.border}`, background:"white", fontFamily:"'Hanken Grotesk',sans-serif", color:C.ink }}
+            />
+            <button onClick={()=>{
+              if (person && (person as UserProfile).id) {
+                const key = `here_note_${currentUser.id}_${(person as UserProfile).id}`;
+                localStorage.setItem(key, notesText);
+              }
+              setShowNotes(false);
+              onNavigate("inbox");
+            }} className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mb-2"
+              style={{ background:C.green, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Save &amp; done
+            </button>
+            <button onClick={()=>{ setShowNotes(false); onNavigate("inbox"); }}
+              className="w-full py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+              style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Report modal */}
       {showReport && (
         <div className="absolute inset-0 flex items-end justify-center z-50" style={{ background:"rgba(0,0,0,0.6)" }}>
           <div className="w-full rounded-[28px_28px_0_0] p-6 pb-9" style={{ background:C.cream }}>
             <div className="w-9 h-1 rounded-full mx-auto mb-5" style={{ background:C.border }} />
-            <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Report this profile</div>
+            <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Report this profile</div>
             <div className="text-[13px] mb-5" style={{ color:C.warmMid }}>What&apos;s the issue? Your report is anonymous.</div>
             {["Made me feel unsafe or uncomfortable","Inappropriate behaviour or messages","Fake or misleading profile","Other"].map(opt=>(
               <button key={opt} onClick={()=>setReportOpt(opt)}
                 className="w-full p-3.5 rounded-[14px] text-[14px] text-left mb-2.5 cursor-pointer transition-all"
-                style={{ border:`1.5px solid ${reportOpt===opt?C.ink:C.border}`, background:reportOpt===opt?C.ink:"white", color:reportOpt===opt?C.cream:C.ink, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ border:`1.5px solid ${reportOpt===opt?C.ink:C.border}`, background:reportOpt===opt?C.ink:"white", color:reportOpt===opt?C.cream:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 {opt}
               </button>
             ))}
@@ -1666,14 +2446,12 @@ function MatchScreen({
                 disabled={submitting}
                 onClick={async () => {
                   setSubmitting(true);
-                  // Write report to Supabase — include reported user's name/email via join
                   await supabase.from("reports").insert({
                     reporter_id:  currentUser.id,
                     reported_id:  reportedId,
                     reason:       reportOpt,
                     created_at:   new Date().toISOString(),
                   });
-                  // Block the user
                   if (reportedId) {
                     await supabase.from("blocked_users").insert({
                       blocker_id:  currentUser.id,
@@ -1681,14 +2459,9 @@ function MatchScreen({
                       created_at:  new Date().toISOString(),
                     });
                     onBlock(reportedId);
-                    // Remove the associated request from inbox state (both as receiver and as sender)
                     const requestId = (matchData.request as any)?.id;
                     if (requestId) onDecline(requestId);
-                    // Clear the accepted-sent banner if it references this match
                     onClearAccepted();
-                    // The blocked_users row is bidirectional — fetchUsers on both sides
-                    // already excludes any user where either party is in the block list,
-                    // so no further profile mutation is needed.
                   }
                   setSubmitting(false);
                   setShowReport(false);
@@ -1696,11 +2469,11 @@ function MatchScreen({
                   setTimeout(()=>{ setShowToast(false); onNavigate("inbox"); }, 3000);
                 }}
                 className="w-full py-3.5 rounded-[14px] text-[14px] font-semibold text-white border-0 cursor-pointer mb-2.5"
-                style={{ background:C.ink, opacity:submitting?0.6:1, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ background:C.ink, opacity:submitting?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 {submitting ? "Submitting…" : "Submit report"}
               </button>
             )}
-            <button onClick={()=>setShowReport(false)} className="w-full py-3.5 rounded-[14px] text-[14px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>Cancel</button>
+            <button onClick={()=>setShowReport(false)} className="w-full py-3.5 rounded-[14px] text-[14px] cursor-pointer" style={{ border:`1px solid ${C.border}`, background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>Cancel</button>
           </div>
         </div>
       )}
@@ -1714,13 +2487,292 @@ function MatchScreen({
   );
 }
 
+
+// ── Follow-up Screen ─────────────────────────────────────
+function FollowUpScreen({
+  person, onNavigate, inboxCount, msgCount, currentUser, requestId,
+}: { person: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; currentUser: UserProfile; requestId: string | null }) {
+  const [choice, setChoice] = useState<string | null>(null);
+  const firstName = person.name.split(",")[0];
+  const pr = getPronouns(person);
+
+  const opts = [
+    { id:"yes",       label:"Would meet again",             sub:`If ${pr.sub.toLowerCase()} says yes too, chat opens`, yes:true  },
+    { id:"nice",      label:"It was nice but no",           sub:`No chat, no notification to ${pr.obj}`,               yes:false },
+    { id:"numbers",   label:"We already exchanged numbers", sub:"No further action needed",                             yes:false },
+    { id:"didntmeet", label:"Didn't end up meeting",        sub:"Closes the record quietly",                           yes:false },
+  ];
+
+  async function confirm() {
+    if (!choice) return;
+    const key = `here_met_${currentUser.id}`;
+    const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const updated = existing.map((e: any) =>
+      e.personId === person.id ? { ...e, answered: true, choice } : e
+    );
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    if (choice === "yes" && requestId) {
+      await supabase.from("meet_again").upsert(
+        { user_id: currentUser.id, request_id: requestId, created_at: new Date().toISOString() },
+        { onConflict: "user_id,request_id" }
+      );
+    }
+    // Navigate to messages after answering — if both said yes, the chat will appear
+    onNavigate("messages");
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.ink }}>
+      <div className="px-6 pt-8 flex items-center gap-3 flex-shrink-0">
+        <AvatarCircle user={person} size={42} />
+        <div>
+          <div className="text-[18px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>{firstName}</div>
+          <div className="text-[11px]" style={{ color:"rgba(245,240,232,0.45)" }}>You met earlier</div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ minHeight: 0 }}>
+        <div className="text-[24px] mt-6 mb-2 leading-snug" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.cream }}>
+          How did it go with {firstName}?
+        </div>
+        <div className="text-[13px] mb-6" style={{ color:"rgba(245,240,232,0.45)" }}>
+          Only a mutual yes unlocks chat. {pr.sub} never knows if you said no.
+        </div>
+        {opts.map(o => (
+          <div key={o.id} onClick={() => setChoice(o.id)}
+            className="p-3.5 rounded-2xl mb-2.5 cursor-pointer transition-all duration-200"
+            style={{
+              border: `1px solid ${choice === o.id ? (o.yes ? "rgba(74,124,89,0.5)" : "rgba(245,240,232,0.3)") : "rgba(245,240,232,0.1)"}`,
+              background: choice === o.id ? (o.yes ? "rgba(74,124,89,0.1)" : "rgba(245,240,232,0.05)") : "transparent",
+            }}>
+            <div className="text-[13px] font-semibold" style={{ color: choice === o.id && o.yes ? "#b8e8c8" : C.cream }}>{o.label}</div>
+            <div className="text-[11px] mt-0.5" style={{ color: choice === o.id && o.yes ? "rgba(184,232,200,0.55)" : "rgba(245,240,232,0.4)" }}>{o.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="px-6 pb-7 flex-shrink-0">
+        <button onClick={confirm} disabled={!choice}
+          className="w-full py-4 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer transition-all"
+          style={{
+            background: choice === "yes" ? C.green : choice ? "rgba(245,240,232,0.12)" : "rgba(245,240,232,0.06)",
+            color: choice ? C.cream : "rgba(245,240,232,0.3)",
+            fontFamily:"'Hanken Grotesk',sans-serif",
+          }}>
+          Confirm
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Messages Screen (list of past chats) ──────────────────
+interface ChatThread {
+  requestId: string;
+  person: UserProfile;
+  lastMessage: string;
+  lastAt: string;
+  unread: boolean;
+  isNew: boolean;
+  unlockedAt: string;
+}
+
+function MessagesScreen({
+  currentUser, onNavigate, inboxCount, msgCount, onUnreadCount, refreshKey,
+}: { currentUser: UserProfile; onNavigate: (s: Screen, d?: unknown) => void; inboxCount: number; msgCount: number; onUnreadCount: (n: number) => void; refreshKey?: number }) {
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data: reqs } = await supabase
+        .from("meet_requests")
+        .select("id, from_id, to_id, created_at")
+        .or(`from_id.eq.${currentUser.id},to_id.eq.${currentUser.id}`)
+        .eq("status", "accepted")
+        .order("created_at", { ascending: false });
+
+      if (!reqs) { setLoading(false); return; }
+
+      // For each request, check if BOTH parties said yes in meet_again table
+      const reqIds = (reqs as { id: string }[]).map(r => r.id);
+      const { data: meetAgainRows } = await supabase
+        .from("meet_again")
+        .select("user_id, request_id")
+        .in("request_id", reqIds.length > 0 ? reqIds : ["__none__"]);
+
+      // Build a set of request_ids where both parties said yes
+      const mutualYesIds = new Set<string>();
+      const yesMap: Record<string, string[]> = {};
+      for (const row of (meetAgainRows ?? []) as { user_id: string; request_id: string }[]) {
+        if (!yesMap[row.request_id]) yesMap[row.request_id] = [];
+        yesMap[row.request_id].push(row.user_id);
+      }
+      for (const [reqId, users] of Object.entries(yesMap)) {
+        if (users.length >= 2) mutualYesIds.add(reqId);
+      }
+
+      // Only keep requests with mutual yes
+      const mutualReqs = (reqs as { id: string; from_id: string; to_id: string; created_at: string }[])
+        .filter(r => mutualYesIds.has(r.id));
+
+      const seenPersonIds = new Set<string>();
+      const dedupedReqs: { id: string; from_id: string; to_id: string; created_at: string }[] = [];
+      for (const r of mutualReqs) {
+        const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
+        if (!seenPersonIds.has(otherId)) {
+          seenPersonIds.add(otherId);
+          dedupedReqs.push(r);
+        }
+      }
+
+      const built: ChatThread[] = [];
+      for (const r of dedupedReqs) {
+        const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
+        const { data: other } = await supabase.from("profiles").select("*").eq("id", otherId).single();
+        if (!other) continue;
+
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("content, created_at, sender_id")
+          .eq("request_id", r.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const lastMsg = msgs?.[0] as { content: string; created_at: string; sender_id: string } | undefined;
+
+        // isNew: no messages yet and this chat has never been opened
+        const lastReadKey = `here_read_${currentUser.id}_${r.id}`;
+        const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+        const isNew = !lastMsg && !lastRead;
+
+        // unread: there is a message from the other person newer than last read
+        const unread = !!lastMsg
+          && lastMsg.sender_id !== currentUser.id
+          && (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
+
+        built.push({
+          requestId: r.id,
+          person: other,
+          lastMessage: lastMsg?.content ?? "Chat unlocked — say hello",
+          lastAt: lastMsg?.created_at ?? r.created_at,
+          unread,
+          isNew,
+          unlockedAt: r.created_at,
+        });
+      }
+
+      // Sort so unread threads appear first, then by most recent
+      built.sort((a, b) => {
+        if (a.unread && !b.unread) return -1;
+        if (!a.unread && b.unread) return 1;
+        return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
+      });
+
+      setThreads(built);
+      // Do NOT call onUnreadCount here — the root fetchMessagesCount is the
+      // single source of truth for the badge. Having two independent counters
+      // was the root cause of the badge oscillating between 0 and 1.
+      setLoading(false);
+    }
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, refreshKey]);
+
+  function formatThreadTime(iso: string) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60_000);
+    if (diffMins < 1)  return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffH = Math.floor(diffMins / 60);
+    if (diffH < 24)    return `${diffH}h ago`;
+    return d.toLocaleDateString("en-GB", { day:"numeric", month:"short" });
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: C.cream }}>
+      <div className="px-[22px] pt-6 pb-2 flex-shrink-0">
+        <div className="text-[24px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Messages</div>
+        <div className="text-[12px] mt-0.5" style={{ color:C.warmMid }}>Chats with people you've met</div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight: 0 }}>
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-[28px]" style={{ animation:"spin 1s linear infinite" }}>⟳</div>
+          </div>
+        )}
+
+        {!loading && threads.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
+            <div className="mb-3" style={{ color:C.warmMid, opacity:0.4 }}><Icon name="message" size={42} stroke={1.4} /></div>
+            <div className="text-[14px] font-semibold mb-1.5" style={{ color:C.ink }}>No messages yet</div>
+            <div className="text-[12px] leading-relaxed" style={{ color:C.warmMid }}>
+              When both you and someone you met say you'd meet again, a chat unlocks here.
+            </div>
+          </div>
+        )}
+
+        {!loading && threads.map(t => {
+          const firstName = t.person.name.split(",")[0];
+          const note = typeof window !== "undefined"
+            ? localStorage.getItem(`here_note_${currentUser.id}_${t.person.id}`)
+            : null;
+          const borderColor = t.isNew ? C.green : t.unread ? C.accent : C.border;
+          const boxShadow = t.isNew
+            ? "0 2px 12px rgba(74,124,89,0.2)"
+            : t.unread ? "0 2px 12px rgba(196,120,58,0.15)" : "0 1px 8px rgba(26,20,16,0.06)";
+          return (
+            <div key={t.requestId}
+              className="mx-[22px] mb-2.5 p-4 rounded-[18px] bg-white cursor-pointer active:scale-[0.98] transition-transform"
+              style={{ boxShadow, border:`1.5px solid ${borderColor}` }}
+              onClick={() => onNavigate("chat", { person: t.person, requestId: t.requestId, unlockedAt: t.unlockedAt })}>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <AvatarCircle user={t.person} size={46} />
+                  {t.isNew && (
+                    <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: C.green }} />
+                  )}
+                  {!t.isNew && t.unread && (
+                    <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: C.accent }} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline">
+                    <div className="font-semibold text-[14px]" style={{ color: C.ink }}>{firstName}</div>
+                    <div className="text-[10px] flex-shrink-0 ml-2" style={{ color: (t.isNew || t.unread) ? C.green : C.warmMid }}>{formatThreadTime(t.lastAt)}</div>
+                  </div>
+                  {t.isNew ? (
+                    <div className="text-[11px] mt-0.5 font-medium" style={{ color: C.green }}>New chat unlocked</div>
+                  ) : (
+                    <div className="text-[12px] mt-0.5 truncate" style={{ color: t.unread ? C.ink : C.warmMid, fontWeight: t.unread ? 600 : 400 }}>{t.lastMessage}</div>
+                  )}
+                  {note && (
+                    <div className="text-[10px] mt-1 truncate" style={{ color:"rgba(139,115,85,0.55)", fontStyle:"italic" }}>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="note" size={12} stroke={2} /> {note}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div className="h-2" />
+      </div>
+      <BottomNav messagesCount={msgCount} active="messages" onNavigate={onNavigate} inboxCount={inboxCount} />
+    </div>
+  );
+}
+
 // ── Profile ────────────────────────────────────────────────
 function ProfileScreen({
-  currentUser, onNavigate, onSignOut, inboxCount,
-  locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer,
-}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number;
+  currentUser, onNavigate, onSignOut, inboxCount, msgCount,
+  locationGranted, setLocationGranted, autoOffTimer, setAutoOffTimer, onUpdateUser,
+}: { currentUser:UserProfile; onNavigate:(s:Screen)=>void; onSignOut:()=>void; inboxCount:number; msgCount:number;
      locationGranted:boolean; setLocationGranted:(v:boolean)=>void;
-     autoOffTimer:string; setAutoOffTimer:(v:string)=>void }) {
+     autoOffTimer:string; setAutoOffTimer:(v:string)=>void;
+     onUpdateUser:(u:UserProfile)=>void }) {
   const [ageExpanded,  setAgeX]   = useState(false);
   const [privExpanded, setPrivX]  = useState(false);
   const [ageMin, setAgeMin]       = useState(18);
@@ -1737,6 +2789,44 @@ function ProfileScreen({
   const [draftLanguages,   setDraftLanguages]   = useState<string[]>(currentUser.languages ?? []);
   const [langInput,        setLangInput]        = useState("");
   const [savingLanguages,  setSavingLanguages]  = useState(false);
+  // Pronouns editing
+  const [editingPronouns, setEditingPronouns]   = useState(false);
+  const [draftPronouns,   setDraftPronouns]     = useState<"he/him"|"she/her"|"they/them">(currentUser.pronouns ?? "she/her");
+  const [savingPronouns,  setSavingPronouns]    = useState(false);
+  // Ask me about editing
+  const [editingAskMe,   setEditingAskMe]   = useState(false);
+  const [draftAskMe,     setDraftAskMe]     = useState<string[]>(currentUser.ask_me_prompts ?? ["", "", ""]);
+  const [savingAskMe,    setSavingAskMe]    = useState(false);
+  // Occupation editing
+  const [editingOccupation, setEditingOccupation] = useState(false);
+  const [draftOccupation,   setDraftOccupation]   = useState(currentUser.occupation ?? "");
+  const [savingOccupation,  setSavingOccupation]  = useState(false);
+
+  async function savePronouns() {
+    setSavingPronouns(true);
+    await supabase.from("profiles").update({ pronouns: draftPronouns }).eq("id", currentUser.id);
+    onUpdateUser({ ...currentUser, pronouns: draftPronouns });
+    setSavingPronouns(false);
+    setEditingPronouns(false);
+  }
+
+  async function saveAskMe() {
+    setSavingAskMe(true);
+    const filtered = draftAskMe.map(p => p.trim());
+    await supabase.from("profiles").update({ ask_me_prompts: filtered }).eq("id", currentUser.id);
+    onUpdateUser({ ...currentUser, ask_me_prompts: filtered });
+    setSavingAskMe(false);
+    setEditingAskMe(false);
+  }
+
+  async function saveOccupation() {
+    setSavingOccupation(true);
+    const trimmed = draftOccupation.trim();
+    await supabase.from("profiles").update({ occupation: trimmed }).eq("id", currentUser.id);
+    onUpdateUser({ ...currentUser, occupation: trimmed });
+    setSavingOccupation(false);
+    setEditingOccupation(false);
+  }
 
   function toggleDraftLanguage(lang: string) {
     setDraftLanguages(prev => prev.includes(lang) ? prev.filter(x=>x!==lang) : [...prev, lang]);
@@ -1747,7 +2837,7 @@ function ProfileScreen({
   async function saveLanguages() {
     setSavingLanguages(true);
     await supabase.from("profiles").update({ languages: draftLanguages }).eq("id", currentUser.id);
-    currentUser.languages = draftLanguages;
+    onUpdateUser({ ...currentUser, languages: draftLanguages });
     setSavingLanguages(false);
     setEditingLanguages(false);
   }
@@ -1761,7 +2851,7 @@ function ProfileScreen({
   async function saveInterests() {
     setSavingInterests(true);
     await supabase.from("profiles").update({ interests: draftInterests }).eq("id", currentUser.id);
-    currentUser.interests = draftInterests;
+    onUpdateUser({ ...currentUser, interests: draftInterests });
     setSavingInterests(false);
     setEditingInterests(false);
   }
@@ -1781,16 +2871,11 @@ function ProfileScreen({
     const { data:urlData } = supabase.storage.from("avatars").getPublicUrl(path);
     const url = urlData.publicUrl+`?v=${Date.now()}`;
     await supabase.from("profiles").update({ photo_url:url }).eq("id",currentUser.id);
-    currentUser.photo_url = url;
-    // Store today's date so we can show "selfie taken today" badge
-    localStorage.setItem(`selfie_date_${currentUser.id}`, new Date().toDateString());
+    onUpdateUser({ ...currentUser, photo_url: url });
     setPhotoL(false);
   }
 
-  const todaySelfieDate = typeof window !== "undefined" ? localStorage.getItem(`selfie_date_${currentUser.id}`) : null;
-  const selfieIsToday = todaySelfieDate === new Date().toDateString();
-  // photoIsToday alias for clarity in the UI
-  const photoIsToday = selfieIsToday;
+  const hasPhoto = !!currentUser.photo_url;
 
   async function handleSignOut() {
     await supabase.from("profiles").update({ open_to_meet:false, checked_in_event_id:null, checked_in_at:null }).eq("id",currentUser.id);
@@ -1801,32 +2886,31 @@ function ProfileScreen({
   return (
     <div className="flex flex-col h-full" style={{ background:C.cream }}>
       <div className="px-[22px] pt-6 flex-shrink-0">
-        <div className="text-[24px]" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Your Profile</div>
+        <div className="text-[24px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Your Profile</div>
       </div>
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
-        {/* Profile card — tap to edit interests */}
+        {/* Profile card, tap to edit interests */}
         <div className="mx-[22px] mt-5 p-5 bg-white rounded-[20px] flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-transform"
           style={{ boxShadow:"0 2px 16px rgba(26,20,16,0.07)", border:`1.5px solid ${editingInterests ? C.accent : "transparent"}` }}
           onClick={()=>{ setDraftInterests(currentUser.interests); setEditingInterests(true); }}>
           <div className="relative flex-shrink-0" onClick={e=>e.stopPropagation()}>
             <AvatarCircle user={currentUser} size={64} />
-            {/* Green tick if photo taken today, red cross if not */}
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-bold"
-              style={{ background: photoIsToday ? C.green : "#dc2626", color:"white", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
-              {photoIsToday ? "✓" : "✕"}
+            {/* Camera icon badge */}
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[11px]"
+              style={{ background: C.accent, color:"white", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+              <Icon name="camera" size={13} stroke={2} />
             </div>
             {/* camera-only, no gallery */}
-            <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-[18px]" style={{ color:C.ink }}>{currentUser.name}, {currentUser.age}</div>
             <div className="text-[13px] mt-0.5" style={{ color:C.warmMid }}>{currentUser.occupation}</div>
             <div className="flex gap-1.5 mt-1.5 flex-wrap">{currentUser.interests.map(i=><InterestTag key={i} interest={i} />)}</div>
-            {/* Daily photo nudge */}
             <button onClick={e=>{e.stopPropagation();fileRef.current?.click();}}
               className="mt-2 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer border-0"
-              style={{ background: photoIsToday ? "rgba(74,124,89,0.1)" : "rgba(220,38,38,0.08)", color: photoIsToday ? C.green : "#dc2626", fontFamily:"'DM Sans',sans-serif" }}>
-              {photoLoading ? "Uploading…" : photoIsToday ? "Today's photo taken" : "Update today's photo"}
+              style={{ background:"rgba(196,120,58,0.08)", color:C.accent, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              {photoLoading ? "Uploading…" : hasPhoto ? "Update photo" : "Add photo"}
             </button>
             <div className="text-[11px] mt-1" style={{ color:C.warmMid }}>Tap card to edit interests</div>
           </div>
@@ -1839,7 +2923,7 @@ function ProfileScreen({
             <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
               onClick={e=>e.stopPropagation()}>
               <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
-              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Edit your interests</div>
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Edit your interests</div>
               <div className="text-xs mb-4" style={{ color:C.warmMid }}>Pick up to {MAX_INTERESTS} · {draftInterests.length}/{MAX_INTERESTS} selected</div>
               <div className="flex flex-wrap gap-2 mb-5">
                 {INTERESTS.map(i=>{
@@ -1854,7 +2938,7 @@ function ProfileScreen({
                         background: active ? C.ink : "white",
                         color: active ? C.cream : disabled ? "rgba(139,115,85,0.35)" : C.inkSoft,
                         cursor: disabled ? "not-allowed" : "pointer",
-                        fontFamily:"'DM Sans',sans-serif",
+                        fontFamily:"'Hanken Grotesk',sans-serif",
                       }}>
                       {i.label}
                     </button>
@@ -1863,12 +2947,12 @@ function ProfileScreen({
               </div>
               <button onClick={saveInterests} disabled={savingInterests || draftInterests.length === 0}
                 className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-                style={{ background:C.accent, opacity:(savingInterests||draftInterests.length===0)?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ background:C.accent, opacity:(savingInterests||draftInterests.length===0)?0.5:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 {savingInterests ? "Saving…" : "Save interests"}
               </button>
               <button onClick={()=>setEditingInterests(false)}
                 className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
-                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 Cancel
               </button>
             </div>
@@ -1882,13 +2966,13 @@ function ProfileScreen({
             <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
               onClick={e=>e.stopPropagation()}>
               <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
-              <div className="text-[20px] mb-1" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>Edit languages</div>
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Edit languages</div>
               <div className="text-xs mb-3" style={{ color:C.warmMid }}>Select all languages you speak</div>
               {draftLanguages.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {draftLanguages.map(l=>(
                     <span key={l} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
-                      style={{ background:C.ink, color:C.cream, fontFamily:"'DM Sans',sans-serif" }}>
+                      style={{ background:C.ink, color:C.cream, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                       {l}
                       <button onClick={()=>toggleDraftLanguage(l)} className="border-0 bg-transparent cursor-pointer" style={{ color:"rgba(245,240,232,0.55)", fontSize:14, lineHeight:1 }}>×</button>
                     </span>
@@ -1898,12 +2982,12 @@ function ProfileScreen({
               <input value={langInput} onChange={e=>setLangInput(e.target.value)}
                 placeholder="Search languages…"
                 className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-2"
-                style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'DM Sans',sans-serif" }} />
+                style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }} />
               <div className="rounded-2xl overflow-hidden mb-4" style={{ border:`1px solid ${C.border}`, maxHeight:200, overflowY:"auto" }}>
                 {filteredLangs.slice(0,20).map((l,idx)=>(
                   <button key={l} onClick={()=>{ toggleDraftLanguage(l); setLangInput(""); }}
                     className="w-full px-4 py-2.5 text-left text-sm cursor-pointer border-0"
-                    style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
+                    style={{ background:idx%2===0?"white":"rgba(245,240,232,0.5)", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif", borderBottom:`1px solid ${C.border}`, display:"block" }}>
                     {l}
                   </button>
                 ))}
@@ -1911,12 +2995,123 @@ function ProfileScreen({
               </div>
               <button onClick={saveLanguages} disabled={savingLanguages}
                 className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
-                style={{ background:C.accent, opacity:savingLanguages?0.5:1, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ background:C.accent, opacity:savingLanguages?0.5:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 {savingLanguages ? "Saving…" : "Save languages"}
               </button>
               <button onClick={()=>setEditingLanguages(false)}
                 className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
-                style={{ background:"transparent", color:C.warmMid, fontFamily:"'DM Sans',sans-serif" }}>
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pronouns edit modal */}
+        {editingPronouns && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingPronouns(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Your pronouns</div>
+              <div className="text-xs mb-5" style={{ color:C.warmMid }}>Used when others are matched with you</div>
+              <div className="flex flex-col gap-3 mb-5">
+                {(["she/her", "he/him", "they/them"] as const).map(p => (
+                  <button key={p} onClick={()=>setDraftPronouns(p)}
+                    className="w-full py-4 rounded-2xl text-[15px] font-semibold cursor-pointer transition-all"
+                    style={{
+                      border: `1.5px solid ${draftPronouns===p ? C.ink : C.border}`,
+                      background: draftPronouns===p ? C.ink : "white",
+                      color: draftPronouns===p ? C.cream : C.inkSoft,
+                      fontFamily:"'Hanken Grotesk',sans-serif",
+                    }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <button onClick={savePronouns} disabled={savingPronouns}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+                style={{ background:C.accent, opacity:savingPronouns?0.5:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                {savingPronouns ? "Saving…" : "Save pronouns"}
+              </button>
+              <button onClick={()=>setEditingPronouns(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Ask me about edit modal */}
+        {editingAskMe && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingAskMe(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Ask me about…</div>
+              <div className="text-xs mb-4" style={{ color:C.warmMid }}>3 topics shown to people when you're matched, helps break the ice</div>
+              {[0,1,2].map(i => (
+                <div key={i} className="mb-3">
+                  <div className="text-[11px] uppercase tracking-[1.5px] font-semibold mb-1.5" style={{ color:C.warmMid }}>Prompt {i+1}</div>
+                  <input
+                    value={draftAskMe[i] ?? ""}
+                    onChange={e => {
+                      const next = [...draftAskMe];
+                      next[i] = e.target.value;
+                      setDraftAskMe(next);
+                    }}
+                    maxLength={60}
+                    placeholder={["e.g. my pottery hobby", "e.g. the best spots in Hackney", "e.g. why I left finance"][i]}
+                    className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                    style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }}
+                  />
+                  <div className="text-[10px] text-right mt-0.5" style={{ color:"rgba(139,115,85,0.4)" }}>{(draftAskMe[i]??'').length}/60</div>
+                </div>
+              ))}
+              <button onClick={saveAskMe} disabled={savingAskMe}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer mt-1"
+                style={{ background:C.accent, opacity:savingAskMe?0.5:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                {savingAskMe ? "Saving…" : "Save prompts"}
+              </button>
+              <button onClick={()=>setEditingAskMe(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Occupation edit modal */}
+        {editingOccupation && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background:"rgba(0,0,0,0.45)" }}
+            onClick={()=>setEditingOccupation(false)}>
+            <div className="w-full rounded-[28px_28px_0_0] pb-8 pt-5 px-6" style={{ background:C.cream, maxWidth:430 }}
+              onClick={e=>e.stopPropagation()}>
+              <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background:C.border }} />
+              <div className="text-[20px] mb-1" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>Your job role</div>
+              <div className="text-xs mb-5" style={{ color:C.warmMid }}>Shown on your profile when you're matched with someone</div>
+              <input
+                value={draftOccupation}
+                onChange={e => setDraftOccupation(e.target.value)}
+                maxLength={60}
+                placeholder="e.g. Product Designer at Monzo"
+                autoFocus
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-1"
+                style={{ border:`1.5px solid ${C.border}`, background:"white", color:C.ink, fontFamily:"'Hanken Grotesk',sans-serif" }}
+              />
+              <div className="text-[10px] text-right mb-5" style={{ color:"rgba(139,115,85,0.4)" }}>{draftOccupation.length}/60</div>
+              <button onClick={saveOccupation} disabled={savingOccupation || !draftOccupation.trim()}
+                className="w-full py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer"
+                style={{ background:C.accent, opacity:(savingOccupation || !draftOccupation.trim())?0.5:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+                {savingOccupation ? "Saving…" : "Save job role"}
+              </button>
+              <button onClick={()=>setEditingOccupation(false)}
+                className="w-full mt-2 py-3 rounded-2xl text-[14px] cursor-pointer border-0"
+                style={{ background:"transparent", color:C.warmMid, fontFamily:"'Hanken Grotesk',sans-serif" }}>
                 Cancel
               </button>
             </div>
@@ -1935,13 +3130,14 @@ function ProfileScreen({
               onClick={async () => {
                 const next = !profileActive;
                 setProfileActive(next);
-                await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id);
+                // Only update open_to_meet when deactivating; going live is controlled by the Nearby toggle
+                if (!next) await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id);
               }}
               className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer border-0 transition-all"
               style={{
                 background: profileActive ? "rgba(220,38,38,0.08)" : "rgba(74,124,89,0.1)",
                 color: profileActive ? "#dc2626" : C.green,
-                fontFamily:"'DM Sans',sans-serif",
+                fontFamily:"'Hanken Grotesk',sans-serif",
               }}>
               {profileActive ? "Deactivate" : "Activate"}
             </button>
@@ -1961,6 +3157,44 @@ function ProfileScreen({
               </div>
             </div>
             <span style={{ color:C.warmMid }}>›</span>
+          </div>
+
+          {/* Pronouns row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftPronouns(currentUser.pronouns ?? "she/her"); setEditingPronouns(true); }}>
+            <div>
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Pronouns</div>
+              <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>
+                {currentUser.pronouns ?? "Not set — tap to choose"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid }}>›</span>
+          </div>
+
+          {/* Job role row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftOccupation(currentUser.occupation ?? ""); setEditingOccupation(true); }}>
+            <div className="flex-1 min-w-0 pr-3">
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Job role</div>
+              <div className="text-[11px] mt-0.5 truncate" style={{ color:C.warmMid }}>
+                {currentUser.occupation || "Not set — tap to add"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid }}>›</span>
+          </div>
+
+          {/* Ask me about row */}
+          <div className="flex justify-between items-center px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }}
+            onClick={()=>{ setDraftAskMe(currentUser.ask_me_prompts?.length ? [...currentUser.ask_me_prompts, ...Array(3).fill("")].slice(0,3) : ["","",""]); setEditingAskMe(true); }}>
+            <div className="flex-1 min-w-0 pr-3">
+              <div className="text-sm font-medium" style={{ color:C.ink }}>Ask me about…</div>
+              <div className="text-[11px] mt-0.5 truncate" style={{ color:C.warmMid }}>
+                {(currentUser.ask_me_prompts ?? []).filter(p=>p.trim()).length > 0
+                  ? (currentUser.ask_me_prompts ?? []).filter(p=>p.trim()).join(" · ")
+                  : "Not set — tap to add conversation starters"}
+              </div>
+            </div>
+            <span style={{ color:C.warmMid, flexShrink:0 }}>›</span>
           </div>
           <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setAgeX(v=>!v)}>
             <div className="flex justify-between items-center">
@@ -1998,7 +3232,7 @@ function ProfileScreen({
               <div className="pt-4" onClick={e=>e.stopPropagation()}>
                 <div className="flex justify-between items-center p-3 rounded-xl mb-2.5" style={{ background:"rgba(139,115,85,0.06)" }}>
                   <div>
-                    <div className="text-[13px] font-semibold" style={{ color:C.ink }}>📍 Location Access</div>
+                    <div className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color:C.ink }}><Icon name="pin" size={15} stroke={2} /> Location Access</div>
                     <div className="text-[11px] mt-0.5" style={{ color:C.warmMid }}>Only visible when discoverability is on</div>
                   </div>
                   <button onClick={()=>setLocationGranted(!locationGranted)} className="ml-3 flex-shrink-0 w-[44px] h-[26px] rounded-full relative cursor-pointer border-0 transition-colors duration-200" style={{ background:locationGranted?C.green:"rgba(139,115,85,0.2)" }}>
@@ -2015,7 +3249,7 @@ function ProfileScreen({
             )}
           </div>
 
-          <button onClick={handleSignOut} className="w-full px-[18px] py-3.5 text-left text-sm font-medium cursor-pointer border-0 bg-transparent" style={{ color:"#B85042", fontFamily:"'DM Sans',sans-serif" }}>
+          <button onClick={handleSignOut} className="w-full px-[18px] py-3.5 text-left text-sm font-medium cursor-pointer border-0 bg-transparent" style={{ color:"#B85042", fontFamily:"'Hanken Grotesk',sans-serif" }}>
             Sign out
           </button>
         </div>
@@ -2023,7 +3257,7 @@ function ProfileScreen({
         <style>{`input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:white;border:2.5px solid #C4783A;box-shadow:0 2px 8px rgba(196,120,58,0.35);cursor:pointer;}`}</style>
         <div className="h-2" />
       </div>
-      <BottomNav active="profile" onNavigate={onNavigate} inboxCount={inboxCount} />
+      <BottomNav messagesCount={msgCount} active="profile" onNavigate={onNavigate} inboxCount={inboxCount} />
     </div>
   );
 }
@@ -2036,9 +3270,11 @@ export default function App() {
   const [screenData,      setData]    = useState<unknown>(null);
   const [animKey,         setAnimKey] = useState(0);
   const [currentUser,     setUser]    = useState<UserProfile|null>(null);
+  const currentUserRef = useRef<UserProfile|null>(null);
+  function setUserAndRef(u: UserProfile|null) { currentUserRef.current = u; setUser(u); }
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
-  const [acceptedSent,    setAcceptedSent] = useState<{ requestId: number; person: UserProfile; recipientHint: string|null } | null>(null);
-  const declinedIdsRef = useRef<Set<number>>(new Set());
+  const [acceptedSent,    setAcceptedSent] = useState<{ requestId: string; person: UserProfile; recipientHint: string|null } | null>(null);
+  const declinedIdsRef = useRef<Set<string>>(new Set());
   const sentPollRef    = useRef<ReturnType<typeof setInterval>|null>(null);
   const [locationGranted, setLocationGranted] = useState(false);
   const [blockedIds,      setBlockedIds]       = useState<string[]>([]);
@@ -2048,21 +3284,31 @@ export default function App() {
   const turnOffLiveRef  = useRef<(()=>void)|null>(null);
   // Lifted from NearbyScreen so Go Live persists across tab navigation
   const [isLive, setIsLiveState] = useState(() => {
-    // Restore from localStorage — if user was live before closing, restore that state
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("here_is_live") === "true";
-    }
+    if (typeof window !== "undefined") return localStorage.getItem("here_is_live") === "true";
     return false;
   });
   function setIsLive(v: boolean) {
     setIsLiveState(v);
     if (typeof window !== "undefined") localStorage.setItem("here_is_live", String(v));
   }
-  // Lifted so interacted profiles stay hidden after navigating away and back
-  const [interactedIds,   setInteractedIds]    = useState<string[]>([]);
+  const [interactedIds,   setInteractedIds]  = useState<string[]>([]);
+  // Chat person state
+  const [chatPerson,      setChatPerson]      = useState<UserProfile|null>(null);
+  const [chatRequestId,   setChatRequestId]   = useState<string|null>(null);
+  const [chatUnlockedAt,  setChatUnlockedAt]  = useState<string|null>(null);
+  const [messagesCount,   setMessagesCount]   = useState(0);
+  const [messagesRefreshKey, setMessagesRefreshKey] = useState(0);
+  const [followUpPerson,  setFollowUpPerson]  = useState<UserProfile|null>(null);
+  const [followUpRequestId, setFollowUpRequestId] = useState<string|null>(null);
 
-  // Poll Supabase for real incoming meet_requests
+  // ── Realtime + fallback polling for inbox and messages badge ──
+  const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
+
+  const fetchInboxInFlightRef = useRef(false);
   const fetchInbox = useCallback(async (userId: string) => {
+    // Prevent concurrent fetches from racing and producing duplicates in state
+    if (fetchInboxInFlightRef.current) return;
+    fetchInboxInFlightRef.current = true;
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
     const { data } = await supabase
       .from("meet_requests")
@@ -2071,68 +3317,207 @@ export default function App() {
       .eq("status", "pending")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
-
+    fetchInboxInFlightRef.current = false;
     if (!data) return;
-    const mapped: InboxRequest[] = data.map((r: any) => {
+    // Deduplicate by from_id — keep only the most-recent request per sender
+    // (guards against race-condition double-inserts or realtime replay duplicates)
+    const seenSenders = new Set<string>();
+    const mapped: InboxRequest[] = [];
+    for (const r of data) {
+      if (seenSenders.has(r.from_id)) continue; // already have a newer one (data is DESC)
+      seenSenders.add(r.from_id);
       const sender = r.profiles as UserProfile;
       const ageMs  = Date.now() - new Date(r.created_at).getTime();
       const mins   = Math.floor(ageMs / 60_000);
       const timeLabel = mins < 1 ? "just now" : mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
-      return {
-        id:        r.id,
-        name:      `${sender.name}, ${sender.age}`,
-        photo_url: sender.photo_url,
-        bg:        sender.bg,
-        gender:    "m" as const,
-        meta:      sender.occupation,
-        tags:      sender.interests ?? [],
-        reqLabel:  r.hint ? `👋 "${r.hint}"` : "👋 Spotted you — wants to say hi",
-        time:      timeLabel,
-        isNew:     true,
-        from_id:   r.from_id,
-        hint:      r.hint,
-      };
-    });
+      mapped.push({
+        id: r.id, name: `${sender.name}, ${sender.age}`,
+        photo_url: sender.photo_url, bg: sender.bg, gender: "m" as const,
+        meta: sender.occupation, tags: sender.interests ?? [],
+        reqLabel: r.hint ? `“${r.hint}”` : "Spotted you — wants to say hi",
+        time: timeLabel, isNew: true, from_id: r.from_id, hint: r.hint,
+      });
+    }
     setInbox(mapped.filter(r => !declinedIdsRef.current.has(r.id)));
+  }, []);
+
+  // Compute messages badge count directly from Supabase.
+  // Badge shows a count only when there are genuinely unread messages
+  // from the other person — NOT for "brand new" threads with no messages.
+  // This prevents the badge oscillating between 0 and 1.
+  const msgCountInFlightRef = useRef(false);
+  const fetchMessagesCount = useCallback(async (userId: string) => {
+    if (msgCountInFlightRef.current) return;
+    msgCountInFlightRef.current = true;
+    try {
+      // Step 1: find request_ids where I said "yes"
+      const { data: myYes } = await supabase
+        .from("meet_again")
+        .select("request_id")
+        .eq("user_id", userId);
+      if (!myYes || myYes.length === 0) { setMessagesCount(0); return; }
+      const myReqIds = myYes.map((r: any) => r.request_id as string);
+
+      // Step 2: of those, find which ones the other party also said "yes"
+      const { data: partnerYes } = await supabase
+        .from("meet_again")
+        .select("request_id")
+        .in("request_id", myReqIds)
+        .neq("user_id", userId);
+      const mutualIds = new Set((partnerYes ?? []).map((r: any) => r.request_id as string));
+      if (mutualIds.size === 0) { setMessagesCount(0); return; }
+
+      // Step 3: for each mutual thread, check for unread messages only
+      let count = 0;
+      for (const reqId of mutualIds) {
+        const lastReadKey = `here_read_${userId}_${reqId}`;
+        const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
+        // If never opened, check if there are any messages from the other person at all
+        // (empty threads don't produce a badge — only actual messages do)
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("created_at, sender_id")
+          .eq("request_id", reqId)
+          .neq("sender_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (!msgs || msgs.length === 0) continue; // no messages from them — no badge
+        if (!lastRead || new Date(msgs[0].created_at) > new Date(lastRead)) count++;
+      }
+      setMessagesCount(count);
+    } finally {
+      msgCountInFlightRef.current = false;
+    }
   }, []);
 
   // Start polling when user is known
   useEffect(() => {
     if (!currentUser) return;
     fetchInbox(currentUser.id);
-    inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 10_000);
-    return () => { if (inboxPollRef.current) clearInterval(inboxPollRef.current); };
-  }, [currentUser, fetchInbox]);
+    fetchMessagesCount(currentUser.id);
 
-  // Poll for sender's own outgoing requests that got accepted
-  const seenAcceptedIdsRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (!currentUser) return;
-    async function checkSentAccepted() {
-      // Only surface accepted requests from the last 30 min — older ones are stale / hint-expired
-      const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-      const { data } = await supabase
-        .from("meet_requests")
-        .select("*, profiles!meet_requests_to_id_fkey(*)")
-        .eq("from_id", currentUser!.id)
-        .eq("status", "accepted")
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-      if (
-        data &&
-        !declinedIdsRef.current.has(data.id) &&
-        !seenAcceptedIdsRef.current.has(data.id)
-      ) {
-        seenAcceptedIdsRef.current.add(data.id);
-        const recipient = data.profiles as UserProfile;
-        setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
-        // Keep polling — don't clearInterval — so new matches surface without a page refresh
+    // Fallback polls
+    inboxPollRef.current = setInterval(() => fetchInbox(currentUser.id), 30_000);
+    const msgPollInterval = setInterval(() => fetchMessagesCount(currentUser.id), 30_000);
+
+    // Page Visibility API — re-fetch everything the instant the user comes back
+    // to the app on mobile (when they switch tabs or unlock their phone).
+    // This is the key fix for mobile where background JS is suspended.
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        fetchInbox(currentUser!.id);
+        fetchMessagesCount(currentUser!.id);
+        checkSentAccepted();
+        // Also resubscribe realtime channels in case they dropped while backgrounded
+        realtimeChannelsRef.current.forEach(ch => {
+          try { ch.subscribe(); } catch { /* ignore */ }
+        });
       }
     }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Also re-fetch when the window regains focus (covers laptop tab switching too)
+    function handleFocus() {
+      fetchInbox(currentUser!.id);
+      fetchMessagesCount(currentUser!.id);
+      checkSentAccepted();
+    }
+    window.addEventListener("focus", handleFocus);
+
+    // Realtime: new incoming meet_requests
+    // Listen for all inserts/updates and filter in the handler to avoid
+    // needing REPLICA IDENTITY FULL on the table.
+    const inboxChannel = supabase
+      .channel(`inbox:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "meet_requests",
+      }, (payload) => {
+        const row = payload.new as any;
+        if (row.to_id === currentUser.id) fetchInbox(currentUser.id);
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "meet_requests",
+      }, (payload) => {
+        const row = payload.new as any;
+        if (row.to_id === currentUser.id) fetchInbox(currentUser.id);
+      })
+      .subscribe();
+
+    // Realtime: new messages in any chat
+    const messagesChannel = supabase
+      .channel(`msg_badge:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+      }, () => fetchMessagesCount(currentUser.id))
+      .subscribe();
+
+    // Realtime: new meet_again rows (chat unlock)
+    const meetAgainChannel = supabase
+      .channel(`meet_again:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "meet_again",
+      }, () => { fetchMessagesCount(currentUser.id); setMessagesRefreshKey(k => k + 1); })
+      .subscribe();
+
+    // Realtime: accepted requests (green light banner)
+    // No column filter on UPDATE — Supabase needs REPLICA IDENTITY FULL for that.
+    // Instead listen for all meet_requests updates and check in the handler.
+    const acceptedChannel = supabase
+      .channel(`accepted:${currentUser.id}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "meet_requests",
+      }, (payload) => {
+        const row = payload.new as any;
+        // Only act if this is one of our sent requests being accepted
+        if (row.from_id === currentUser.id && row.status === "accepted") {
+          checkSentAccepted();
+        }
+      })
+      .subscribe();
+
+    realtimeChannelsRef.current = [inboxChannel, messagesChannel, meetAgainChannel, acceptedChannel];
+
+    return () => {
+      if (inboxPollRef.current) clearInterval(inboxPollRef.current);
+      clearInterval(msgPollInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      realtimeChannelsRef.current.forEach(ch => ch.unsubscribe());
+      realtimeChannelsRef.current = [];
+    };
+  }, [currentUser, fetchInbox, fetchMessagesCount]);
+
+  // Poll for sender's own outgoing requests that got accepted
+  const seenAcceptedIdsRef = useRef<Set<string>>(new Set());
+
+  async function checkSentAccepted() {
+    if (!currentUser) return;
+    const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data } = await supabase
+      .from("meet_requests")
+      .select("*, profiles!meet_requests_to_id_fkey(*)")
+      .eq("from_id", currentUser.id)
+      .eq("status", "accepted")
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (
+      data &&
+      !declinedIdsRef.current.has(data.id) &&
+      !seenAcceptedIdsRef.current.has(data.id)
+    ) {
+      seenAcceptedIdsRef.current.add(data.id);
+      const recipient = data.profiles as UserProfile;
+      setAcceptedSent({ requestId: data.id, person: recipient, recipientHint: data.recipient_hint ?? null });
+    }
+  }
+
+  useEffect(() => {
+    if (!currentUser) return;
     checkSentAccepted();
-    sentPollRef.current = setInterval(checkSentAccepted, 6_000);
+    // Poll every 5 seconds so the green light banner appears quickly
+    sentPollRef.current = setInterval(checkSentAccepted, 5_000);
     return () => { if (sentPollRef.current) clearInterval(sentPollRef.current); };
   }, [currentUser]);
   // Auto-turn-off location access timer
@@ -2148,10 +3533,10 @@ export default function App() {
     return () => { if (autoOffRef.current) clearTimeout(autoOffRef.current); };
   }, [locationGranted, autoOffTimer]);
 
-  // GPS heartbeat — refresh our own coords in Supabase every 60 seconds while live.
+  // GPS heartbeat, refresh our own coords in Supabase every 60 seconds while live.
   // Uses low-accuracy (cell/WiFi) to preserve battery. This keeps our position current
   // so the distance filter on other users' screens reflects our actual location.
-  // We don't use this to filter others out — open_to_meet=false is the exit signal.
+  // We don't use this to filter others out, open_to_meet=false is the exit signal.
   const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval>|null>(null);
   useEffect(() => {
     if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
@@ -2166,7 +3551,7 @@ export default function App() {
             location_updated_at: new Date().toISOString(),
           }).eq("id", currentUser.id);
         },
-        () => {}, // silently ignore — next tick will retry
+        () => {}, // silently ignore, next tick will retry
         { enableHighAccuracy: false, timeout: 10_000, maximumAge: 30_000 }
       );
     };
@@ -2177,82 +3562,157 @@ export default function App() {
   }, [isLive, currentUser]);
 
   const [selectedPersonProfile, setSelectedPersonProfile] = useState<UserProfile|null>(null);
-  const newCount = inbox.filter(r=>r.isNew).length;
+  // Full profile of the person on the match screen
+  const [matchPersonProfile,    setMatchPersonProfile]    = useState<UserProfile|null>(null);
+  // Inbox badge = pending incoming requests + 1 if there is an unviewed accepted (green light) banner
+  // Exclude from badge any incoming requests from people already in the "met" pending list
+  const pendingMetIds: Set<string> = (() => {
+    if (!currentUser || typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(`here_met_${currentUser.id}`);
+      if (!raw) return new Set();
+      return new Set((JSON.parse(raw) as any[]).filter((e:any) => !e.answered).map((e:any) => e.personId as string));
+    } catch { return new Set(); }
+  })();
+  const newCount = inbox.filter(r => r.isNew && (!r.from_id || !pendingMetIds.has(r.from_id))).length + (acceptedSent ? 1 : 0);
 
-  // Restore session on mount — handles page refresh and link-based auth (magic link, confirm email)
+  // Restore session on mount, handles page refresh and link-based auth (magic link, confirm email)
   useEffect(()=>{
-    // Check for an existing session first (normal page load / refresh)
-    supabase.auth.getSession().then(async({ data:{ session } })=>{
-      if (session?.user) {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).single();
+    let sessionHandled = false;
+    // Flag set the moment signUp() or signInWithPassword() is called from within the app
+    // so the onAuthStateChange handler knows to stay out of the way
+    (window as any).__hereAuthInProgress = false;
+
+    // Minimum splash display time — prevents the jarring flash where splash shows
+    // for only ~200ms before getSession() resolves and navigates to login
+    const SPLASH_MIN_MS = 1800;
+    const splashStart = Date.now();
+    function navigateAfterSplash(to: Screen, data?: unknown) {
+      const elapsed = Date.now() - splashStart;
+      const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+      setTimeout(() => navigate(to, data), remaining);
+    }
+
+    const splashTimeout = setTimeout(() => { if (!sessionHandled) navigate("login"); }, 6_000);
+
+    supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
+      clearTimeout(splashTimeout);
+      sessionHandled = true;
+      if (sessErr || !session?.user) { navigateAfterSplash("login"); return; }
+      try {
+        const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
         if (p) {
-          setUser(p as UserProfile);
+          setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
           if (wasLive) {
-            await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id);
+            try { await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id); } catch { /* ignore */ }
           }
-          navigate("events");
+          const metKey = `here_met_${session.user.id}`;
+          const metRaw = localStorage.getItem(metKey);
+          if (metRaw) {
+            try {
+              const metList = JSON.parse(metRaw) as { personId:string; person:UserProfile; requestId:string|null; metAt:string; answered:boolean }[];
+              const overdue = metList.find(e => !e.answered && (Date.now() - new Date(e.metAt).getTime()) >= 3 * 3_600_000);
+              if (overdue) {
+                setFollowUpPerson(overdue.person);
+                navigateAfterSplash("followup", { person: overdue.person, requestId: overdue.requestId ?? null });
+                return;
+              }
+            } catch { /* ignore */ }
+          }
+          navigateAfterSplash("events");
         } else {
-          navigate("onboarding");
+          navigateAfterSplash("onboarding");
         }
-      } else {
-        navigate("login");
+      } catch {
+        await supabase.auth.signOut().catch(() => {});
+        navigateAfterSplash("login");
       }
+    }).catch(() => {
+      clearTimeout(splashTimeout);
+      navigateAfterSplash("login");
     });
 
-    // Listen for auth events triggered by link clicks only
-    // (magic link, email confirmation, password reset)
-    // We do NOT handle SIGNED_IN here for normal password login —
-    // that is handled directly in the LoginScreen handle() function
-    // to avoid a race condition that freezes the button.
+    // onAuthStateChange is ONLY used for link-based flows (magic link, email confirmation link).
+    // All in-app sign-in/sign-up flows set __hereAuthInProgress=true to suppress this handler,
+    // preventing the double-navigation race that caused the signup→onboarding→events flash
+    // and the signup→login regression.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        navigate("login");
-        return;
-      }
-      // Only handle SIGNED_IN for link-based flows (magic link / email confirm)
-      // Detect by checking if there is no password in the session (link-based)
-      if (event === "SIGNED_IN" && session?.user) {
-        // If the user came via a link (not password login), their profile
-        // may not be loaded yet — fetch and navigate
-        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-        if (p) {
-          setUser(p as UserProfile);
-          navigate("events");
-        } else {
-          navigate("onboarding");
-        }
-      }
+      if (event === "PASSWORD_RECOVERY") { navigate("login"); return; }
+
+      // Suppress if: an in-app auth action is in progress, or initial session check already ran,
+      // or a user is already loaded, or no session exists
+      if (
+        (window as any).__hereAuthInProgress ||
+        sessionHandled ||
+        currentUserRef.current ||
+        !session?.user ||
+        event !== "SIGNED_IN"
+      ) return;
+
+      // Only reach here for link-based SIGNED_IN (magic link, email confirm redirect)
+      try {
+        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+        if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
+        else navigate("onboarding");
+      } catch { navigate("login"); }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(splashTimeout); subscription.unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
   async function navigate(to: Screen, data?: unknown) {
     setData(data??null); setScreen(to); setAnimKey(k=>k+1);
+    if (typeof window !== "undefined") (window as any).__hereScreen = to;
     // When navigating to request screen, fetch the real user profile by id
     if (to === "request" && typeof data === "string") {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
     }
+    // When navigating to match, fetch the full profile of the other person
+    if (to === "match") {
+      const d = data as any;
+      if (d?.person?.id) {
+        setMatchPersonProfile(d.person as UserProfile);
+      } else if (d?.request?.from_id) {
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", d.request.from_id).single();
+        if (profile) setMatchPersonProfile(profile as UserProfile);
+      }
+    }
+    if (to === "chat" && data && typeof data === "object") {
+      const pd = data as any;
+      if (pd.person) setChatPerson(pd.person as UserProfile);
+      if (pd.requestId) setChatRequestId(pd.requestId as string);
+      if (pd.unlockedAt) setChatUnlockedAt(pd.unlockedAt as string);
+    }
+    if (to === "followup" && data && typeof data === "object") {
+      const pd = data as any;
+      if (pd.person) setFollowUpPerson(pd.person as UserProfile);
+      if (pd.requestId !== undefined) setFollowUpRequestId(pd.requestId as string | null);
+    }
+    // Refresh badge when leaving chat/messages (user may have read messages)
+    if ((to === "messages" || to === "inbox" || to === "events" || to === "nearby" || to === "profile") && currentUser) {
+      // Small delay to let ChatScreen's read-mark localStorage write settle
+      setTimeout(() => fetchMessagesCount(currentUser.id), 500);
+    }
   }
 
-  function declineRequest(id: number) {
+  function declineRequest(id: string) {
     // Track locally so poll doesn't restore it before DB confirms
     declinedIdsRef.current.add(id);
     supabase.from("meet_requests").update({ status: "declined" }).eq("id", id).then(() => {
       declinedIdsRef.current.delete(id);
       if (currentUser) fetchInbox(currentUser.id);
     });
-    // Remove immediately from state — declined requests disappear
+    // Remove immediately from state, declined requests disappear
     setInbox(prev => prev.filter(r => r.id !== id));
     setAcceptedSent(prev => (prev && (prev as any).requestId === id ? null : prev));
     if (screen === "incoming" || screen === "match") {
       navigate("inbox");
     }
   }
-  function dismissRequest(id: number) {
+  function dismissRequest(id: string) {
     setInbox(prev=>prev.filter(r=>r.id!==id));
   }
 
@@ -2260,78 +3720,93 @@ export default function App() {
   const selectedEvent    = EVENTS.find(e=>e.id===screenData) ?? EVENTS[0];
   const blankUser: UserProfile = { id:"", email:"", name:"User", age:25, occupation:"Professional", interests:[], languages:[], photo_url:null, bg:BG_OPTIONS[0], open_to_meet:true, checked_in_event_id:null, checked_in_at:null, lat:null, lng:null };
   const selectedPerson = selectedPersonProfile ?? blankUser;
-  const selectedRequest  = inbox.find(r=>r.id===screenData) ?? inbox[0];
+  const selectedRequest  = inbox.find(r=>r.id===screenData) ?? null;
   const matchData        = (screen==="match" && screenData && typeof screenData==="object")
     ? screenData as { person?:UserProfile; request?:InboxRequest; response?:IncResponse; fromIncoming?:boolean; recipientHint?:string }
     : {};
 
-  const darkScreens: Screen[] = ["splash","login","signup","match","pending"];
+  const darkScreens: Screen[] = ["splash","login","signup","match","pending","followup"];
   const isDark = darkScreens.includes(screen);
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap');
         *{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
-        body{margin:0;font-family:'DM Sans',sans-serif;background:#1A1410;}
+        body{margin:0;font-family:'Hanken Grotesk',sans-serif;background:#15110E;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+        ::selection{background:rgba(194,90,51,0.22);}
         ::-webkit-scrollbar{display:none;}
-        @keyframes slideIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes pulse  {0%{box-shadow:0 0 0 0 rgba(74,124,89,0.5)}70%{box-shadow:0 0 0 8px rgba(74,124,89,0)}100%{box-shadow:0 0 0 0 rgba(74,124,89,0)}}
+        input,textarea,button{font-family:'Hanken Grotesk',sans-serif;}
+        input:focus,textarea:focus{box-shadow:0 0 0 3px rgba(194,90,51,0.14);border-color:rgba(194,90,51,0.5)!important;}
+        @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes pulse  {0%{box-shadow:0 0 0 0 rgba(63,115,85,0.55)}70%{box-shadow:0 0 0 7px rgba(63,115,85,0)}100%{box-shadow:0 0 0 0 rgba(63,115,85,0)}}
         @keyframes spin   {from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        @keyframes float  {0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+        @keyframes float  {0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        @keyframes popIn  {0%{opacity:0;transform:scale(0.92)}60%{opacity:1;transform:scale(1.01)}100%{transform:scale(1)}}
+        @keyframes fadeUp {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
       `}</style>
 
-      <div className="flex items-start justify-center min-h-screen" style={{ background:"#1A1410" }}>
-        <div style={{ width:"100%", maxWidth:430, minHeight:"100vh", position:"relative", background:isDark?C.ink:C.cream, overflow:"hidden" }}>
+      <div className="flex items-start justify-center min-h-screen" style={{ background:"#15110E" }}>
+        <div style={{ width:"100%", maxWidth:430, minHeight:"100vh", position:"relative", background:isDark?C.ink:C.cream, overflow:"hidden", boxShadow:"0 0 80px rgba(0,0,0,0.35)" }}>
           <div key={animKey} style={{ animation:"slideIn 0.28s cubic-bezier(0.4,0,0.2,1) forwards", height:"100vh", display:"flex", flexDirection:"column" }}>
 
             {screen==="splash"      && <SplashScreen onDone={()=>navigate("login")} />}
-            {screen==="login"       && <LoginScreen  onNavigate={navigate} onLogin={u=>{ setUser(u); navigate("events"); }} />}
+            {screen==="login"       && <LoginScreen  onNavigate={navigate} onLogin={u=>{ setUserAndRef(u); navigate("events"); }} />}
             {screen==="signup"      && <SignupScreen onNavigate={navigate} />}
-            {screen==="onboarding"  && <OnboardingScreen onDone={p=>{ setUser(p); navigate("events"); }} />}
-            {screen==="events"      && currentUser && <EventsScreen onNavigate={navigate} inboxCount={newCount} />}
+            {screen==="onboarding"  && <OnboardingScreen onDone={p=>{ setUserAndRef(p); navigate("events"); }} />}
+            {screen==="events"      && currentUser && <EventsScreen onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
 
             {/* Event detail inline */}
             {screen==="eventdetail" && currentUser && (
               <div className="flex flex-col h-full" style={{ background:C.cream }}>
                 <div className="h-48 relative flex items-center justify-center flex-shrink-0" style={{ background:`linear-gradient(160deg,${selectedEvent.gradientFrom},${selectedEvent.gradientTo})` }}>
-                  <span className="text-[70px]" style={{ filter:"drop-shadow(0 4px 16px rgba(0,0,0,0.4))" }}>{selectedEvent.emoji}</span>
+                  <span style={{ color:"rgba(255,255,255,0.92)", filter:"drop-shadow(0 4px 16px rgba(0,0,0,0.4))" }}><Icon name={categoryIcon(selectedEvent.category)} size={64} stroke={1.6} /></span>
                   <div className="absolute top-4 left-4"><BackBtn onClick={()=>navigate("events")} dark /></div>
-                  {selectedEvent.sponsored && <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background:C.accent }}>⭐ Sponsored</div>}
-                  <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white" style={{ background:"rgba(74,124,89,0.88)" }}>✦ {selectedEvent.members} members here</div>
+                  {selectedEvent.sponsored && <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full text-[10px] font-bold text-white" style={{ background:C.accent }}><span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} /> Sponsored</span></div>}
+                  <div className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white" style={{ background:"rgba(74,124,89,0.88)" }}><span style={{ display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="spark" size={12} /> {selectedEvent.members} here</span></div>
                 </div>
                 <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
                   <div className="px-[22px] pt-[18px]">
                     <div className="text-[11px] uppercase tracking-[1.5px] font-semibold" style={{ color:C.warmMid }}>{selectedEvent.category} · {selectedEvent.venue}</div>
-                    <div className="text-[22px] mt-1 leading-snug" style={{ fontFamily:"'DM Serif Display',Georgia,serif", color:C.ink }}>{selectedEvent.name}</div>
-                    <div className="text-[13px] mt-1.5" style={{ color:C.warmMid }}>📅 {selectedEvent.meta}</div>
+                    <div className="text-[22px] mt-1 leading-snug" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>{selectedEvent.name}</div>
+                    <div className="text-[13px] mt-1.5" style={{ color:C.warmMid }}><span style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Icon name="calendar" size={14} stroke={1.9} /> {selectedEvent.meta}</span></div>
                     <div className="text-[13px] mt-2.5 leading-relaxed" style={{ color:C.inkSoft }}>{selectedEvent.desc}</div>
                   </div>
                   <div className="px-[22px] pt-4">
                     {selectedEvent.sponsored ? (
                       <div className="flex gap-2.5">
-                        <button className="flex-1 py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.accent }}>🎟 Buy Ticket</button>
-                        <button className="flex-1 py-3.5 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer" style={{ background:"rgba(139,115,85,0.12)", color:C.ink }}>📷 Scan QR</button>
+                        <button className="flex-1 py-3.5 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer" style={{ background:C.accent }}><span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="ticket" size={17} stroke={2} /> Buy Ticket</span></button>
+                        <button className="flex-1 py-3.5 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer" style={{ background:"rgba(139,115,85,0.12)", color:C.ink }}><span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="qr" size={17} stroke={2} /> Scan QR</span></button>
                       </div>
                     ) : (
-                      <button className="w-full py-3.5 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer" style={{ background:"rgba(139,115,85,0.12)", color:C.ink }}>📷 Scan venue QR to check in</button>
+                      <button className="w-full py-3.5 rounded-2xl text-[15px] font-semibold border-0 cursor-pointer" style={{ background:"rgba(139,115,85,0.12)", color:C.ink }}><span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="qr" size={17} stroke={2} /> Scan venue QR to check in</span></button>
                     )}
                   </div>
                   <div className="h-6" />
                 </div>
-                <BottomNav active="events" onNavigate={navigate} inboxCount={newCount} />
+                <BottomNav messagesCount={messagesCount} active="events" onNavigate={navigate} inboxCount={newCount} />
               </div>
             )}
 
-            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
-            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} />}
-            {screen==="inbox"    &&                <InboxScreen    requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, fromIncoming: false }); }}} />}
-            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} onDecline={declineRequest} />}
+            {screen==="nearby"   && currentUser && <NearbyScreen  currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} onForceTurnOff={(fn)=>{ turnOffLiveRef.current = fn; }} blockedIds={blockedIds} isLive={isLive} setIsLive={setIsLive} interactedIds={interactedIds} setInteractedIds={setInteractedIds} />}
+            {screen==="request"  && currentUser && <RequestScreen  person={selectedPerson} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
+            {screen==="inbox"    && currentUser && <InboxScreen requests={inbox} onNavigate={navigate} onDecline={declineRequest} onDismiss={dismissRequest} msgCount={messagesCount} currentUser={currentUser} acceptedSent={acceptedSent} onViewMatch={()=>{ if(acceptedSent){ setAcceptedSent(null); navigate("match",{ person: acceptedSent.person, recipientHint: acceptedSent.recipientHint, requestId: acceptedSent.requestId, fromIncoming: false }); }}} />}
+            {screen==="incoming" && selectedRequest && <IncomingScreen request={selectedRequest} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onDecline={declineRequest} />}
             {screen==="incoming" && !selectedRequest && (() => { navigate("inbox"); return null; })()}
-            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>setInteractedIds(prev=>[...prev,id])} />}
-            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} currentUser={currentUser} />; })()}
-            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUser(null); navigate("login"); }} inboxCount={newCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} />}
+            {screen==="match"    && currentUser && <MatchScreen    matchData={matchData} onNavigate={navigate} currentUser={currentUser} matchPersonProfile={matchPersonProfile} onBlock={(blockedId)=>setBlockedIds(prev=>[...prev,blockedId])} onDecline={declineRequest} onClearAccepted={()=>{ if(acceptedSent){ seenAcceptedIdsRef.current.add(acceptedSent.requestId); } setAcceptedSent(null); }} onMetThem={(id)=>{
+                    setInteractedIds(prev=>[...prev,id]);
+                    // Remove from local inbox state only — do NOT update DB status here.
+                    // The accepted meet_requests row must stay "accepted" so
+                    // MessagesScreen can find it for the chat thread list.
+                    // Pending rows from this person expire naturally after 30 min.
+                    setInbox(prev => prev.filter(r => r.from_id !== id));
+                  }} />}
+            {screen==="pending"  && currentUser && (() => { const pd = screenData as any; const pPerson = pd?.person ?? blankUser; const pSentAt = pd?.sentAt ?? new Date().toISOString(); return <PendingScreen person={pPerson} sentAt={pSentAt} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />; })()}
+            {screen==="followup" && followUpPerson && currentUser && <FollowUpScreen person={followUpPerson} requestId={followUpRequestId} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} currentUser={currentUser} />}
+            {screen==="messages" && currentUser && <MessagesScreen currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} onUnreadCount={setMessagesCount} refreshKey={messagesRefreshKey} />}
+            {screen==="chat"     && chatPerson && currentUser && <ChatScreen person={chatPerson} requestId={chatRequestId} currentUser={currentUser} onNavigate={navigate} inboxCount={newCount} unlockedAt={chatUnlockedAt ?? undefined} />}
+            {screen==="profile"  && currentUser && <ProfileScreen  currentUser={currentUser} onNavigate={navigate} onSignOut={()=>{ setUserAndRef(null); navigate("login"); }} inboxCount={newCount} msgCount={messagesCount} locationGranted={locationGranted} setLocationGranted={setLocationGranted} autoOffTimer={autoOffTimer} setAutoOffTimer={setAutoOffTimer} onUpdateUser={(u)=>setUserAndRef(u)} />}
           </div>
         </div>
       </div>
