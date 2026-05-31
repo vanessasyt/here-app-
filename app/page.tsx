@@ -1303,12 +1303,18 @@ function NearbyScreen({
     if (rotationRef.current) clearInterval(rotationRef.current);
   }, []);
 
-  // Re-fetch and restart polls when screen mounts while already live
+  // On mount: resume if already live, or auto-start if location is already granted.
+  // Location is granted in Profile before the user visits Nearby, so no manual
+  // button press is needed — the permission itself is the consent signal.
   useEffect(() => {
     if (isLive && locationGranted) {
+      // Was already live before navigating away — resume polling
       fetchUsers();
       if (!pollRef.current)     pollRef.current     = setInterval(fetchUsers, 15_000);
       if (!rotationRef.current) rotationRef.current = setInterval(()=>setOffset(o=>o+1), ROTATION_MS);
+    } else if (locationGranted && !isLive) {
+      // Location already granted — go live automatically, no manual press needed
+      toggleLoc();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1365,7 +1371,7 @@ function NearbyScreen({
       {/* Hint when location access is off */}
       {!locationGranted && (
         <div className="mx-5 mt-2 text-center text-[11px]" style={{ color:C.warmMid }}>
-          Enable <strong>Location Access</strong> in Profile to go live
+          Enable <strong>Location Access</strong> in Profile — Nearby activates automatically
         </div>
       )}
 
@@ -1409,14 +1415,14 @@ function NearbyScreen({
           )}
 
           <div className="mx-5 mt-3.5 mb-2 p-3 rounded-xl text-xs leading-relaxed" style={{ background:"rgba(139,115,85,0.08)", color:C.warmMid }}>
-            Your visibility ends when you turn off the Go live button or your location access.
+            You're visible to others nearby. Turn off Location Access in Profile to go invisible, or tap Live above.
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-8">
           <div className="mb-4" style={{ color:C.warmMid, opacity:0.4 }}><Icon name="radar" size={52} stroke={1.4} /></div>
           <div className="text-[15px] font-semibold mb-2" style={{ color:C.ink }}>Discover people around you</div>
-          <div className="text-[13px] leading-relaxed" style={{ color:C.warmMid }}>Tap <strong>Go live</strong> in the top-right to become discoverable and see who else is open to meet right now.</div>
+          <div className="text-[13px] leading-relaxed" style={{ color:C.warmMid }}>Enable <strong>Location Access</strong> in Profile — you'll appear to others and see who's nearby automatically.</div>
         </div>
       )}
 
