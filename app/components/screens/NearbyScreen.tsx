@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { C, EVENTS, ROTATION_MS } from "../../lib/constants";
 import type { NearbyUser, UserProfile, Screen } from "../../lib/types";
-import { applyRoundRobin, timeAtEventLabel, haversineMetres } from "../../lib/utils";
+import { applyRoundRobin, timeAtEventLabel } from "../../lib/utils";
 import { Icon } from "../ui/Icon";
 import { AvatarFill } from "../ui/Avatar";
 import { InterestTag } from "../ui/InterestTag";
@@ -104,28 +104,17 @@ export function NearbyScreen({
 
   const fetchUsers = useCallback(async () => {
     await refreshMyCoords();
-    const { data: blocksData } = await supabase.from("blocked_users").select("blocker_id, blocked_id").or(`blocker_id.eq.${currentUser.id},blocked_id.eq.${currentUser.id}`);
-    const excludeIds = new Set<string>();
-    (blocksData ?? []).forEach((b: any) => {
-      if (b.blocker_id === currentUser.id) excludeIds.add(b.blocked_id);
-      if (b.blocked_id === currentUser.id) excludeIds.add(b.blocker_id);
-    });
-    blockedIds.forEach(id => excludeIds.add(id));
-    let q = supabase.from("profiles").select("*").eq("open_to_meet",true).neq("id",currentUser.id);
-    if (currentUser.checked_in_event_id !== null) q = q.eq("checked_in_event_id", currentUser.checked_in_event_id);
-    const { data } = await q;
-    let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
-    const myLatVal = myLatRef.current, myLngVal = myLngRef.current;
-    if (myLatVal !== null && myLngVal !== null) {
-      candidates = candidates.filter(u => {
-        if (u.lat === null || u.lng === null) return false;
-        return haversineMetres(myLatVal, myLngVal, u.lat, u.lng) <= RADIUS_M;
-      });
-    } else {
-      candidates = [];
-    }
-    setRawUsers(candidates);
-  }, [currentUser.id, currentUser.checked_in_event_id, blockedIds]);
+    // Distance, block, and event-scope filtering all happen server-side in the
+    // nearby_people() RPC. It returns only a rounded distance (approx_distance_m)
+    // and never another user's exact coordinates or email, so precise locations
+    // are never sent to the client. We send our own coords up first (above) so
+    // the RPC — which reads our own profile row — has something to measure from.
+    if (myLatRef.current === null || myLngRef.current === null) { setRawUsers([]); return; }
+    const { data, error } = await supabase.rpc("nearby_people", { radius_m: RADIUS_M });
+    if (error) { setRawUsers([]); return; }
+    const blocked = new Set(blockedIds);
+    setRawUsers(((data ?? []) as UserProfile[]).filter(u => !blocked.has(u.id)));
+  }, [blockedIds]);
 
   async function toggleLoc() {
     if (locOn) {
