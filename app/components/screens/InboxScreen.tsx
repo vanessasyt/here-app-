@@ -126,7 +126,7 @@ export function InboxScreen({
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background:C.accent }} />
                 <AvatarCircle user={{ photo_url:r.photo_url, bg:r.bg, name:r.name }} size={44} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm" style={{ color:C.ink }}>{r.name} <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold ml-1 align-middle" style={{ color:C.green }}><Icon name="check" size={11} stroke={2.6} /> Verified</span></div>
+                  <div className="font-semibold text-sm" style={{ color:C.ink }}>{r.name}</div>
                   <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{r.meta}</div>
                   <div className="text-[11px] font-semibold mt-1" style={{ color:C.accent }}>{r.reqLabel}</div>
                 </div>

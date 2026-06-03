@@ -40,7 +40,7 @@ export function RequestScreen({
         <AvatarCircle user={person} size={52} />
         <div>
           <div className="text-[19px]" style={{ fontFamily:"'Hanken Grotesk',sans-serif",fontWeight:800,letterSpacing:"-0.03em", color:C.ink }}>{person.name}, {person.age}</div>
-          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation} · Verified</div>
+          <div className="text-xs mt-0.5" style={{ color:C.warmMid }}>{person.occupation}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto pb-4" style={{ minHeight:0 }}>
