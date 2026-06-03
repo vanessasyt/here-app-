@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { C } from "../../lib/constants";
+import { C, PROFILE_FIELDS } from "../../lib/constants";
 import type { Screen, UserProfile } from "../../lib/types";
 import { Wordmark } from "../ui/Wordmark";
 
@@ -29,7 +29,7 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
         (window as any).__hereAuthInProgress = false;
         return;
       }
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+      const { data: profile } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id", data.user.id).maybeSingle();
       setLoading(false);
       (window as any).__hereAuthInProgress = false;
       if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);

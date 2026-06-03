@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { C } from "../../lib/constants";
+import { C, PROFILE_FIELDS } from "../../lib/constants";
 import type { UserProfile, ChatThread, Screen } from "../../lib/types";
 import { AvatarCircle } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
@@ -39,7 +39,7 @@ export function MessagesScreen({
       const built: ChatThread[] = [];
       for (const r of dedupedReqs) {
         const otherId = r.from_id === currentUser.id ? r.to_id : r.from_id;
-        const { data: other } = await supabase.from("profiles").select("*").eq("id", otherId).single();
+        const { data: other } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id", otherId).single();
         if (!other) continue;
         const { data: msgs } = await supabase.from("messages").select("content, created_at, sender_id").eq("request_id", r.id).order("created_at", { ascending: false }).limit(1);
         const lastMsg = msgs?.[0] as { content: string; created_at: string; sender_id: string } | undefined;
@@ -47,7 +47,7 @@ export function MessagesScreen({
         const lastRead = typeof window !== "undefined" ? localStorage.getItem(lastReadKey) : null;
         const isNew = !lastMsg && !lastRead;
         const unread = !!lastMsg && lastMsg.sender_id !== currentUser.id && (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
-        built.push({ requestId: r.id, person: other, lastMessage: lastMsg?.content ?? "Chat unlocked — say hello", lastAt: lastMsg?.created_at ?? r.created_at, unread, isNew, unlockedAt: r.created_at });
+        built.push({ requestId: r.id, person: other as UserProfile, lastMessage: lastMsg?.content ?? "Chat unlocked — say hello", lastAt: lastMsg?.created_at ?? r.created_at, unread, isNew, unlockedAt: r.created_at });
       }
       built.sort((a, b) => {
         if (a.unread && !b.unread) return -1;

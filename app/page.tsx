@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabase";
-import { C, EVENTS, BG_OPTIONS } from "./lib/constants";
+import { C, EVENTS, BG_OPTIONS, PROFILE_FIELDS } from "./lib/constants";
 import type { Screen, UserProfile, InboxRequest, IncResponse } from "./lib/types";
 
 import { SplashScreen }      from "./components/screens/SplashScreen";
@@ -63,7 +63,7 @@ export default function App() {
     if (fetchInboxInFlightRef.current) return;
     fetchInboxInFlightRef.current = true;
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-    const { data } = await supabase.from("meet_requests").select("*, profiles!meet_requests_from_id_fkey(*)").eq("to_id", userId).eq("status", "pending").gte("created_at", cutoff).order("created_at", { ascending: false });
+    const { data } = await supabase.from("meet_requests").select(`*, profiles!meet_requests_from_id_fkey(${PROFILE_FIELDS})`).eq("to_id", userId).eq("status", "pending").gte("created_at", cutoff).order("created_at", { ascending: false });
     fetchInboxInFlightRef.current = false;
     if (!data) return;
     const seenSenders = new Set<string>();
@@ -151,7 +151,7 @@ export default function App() {
   async function checkSentAccepted() {
     if (!currentUser) return;
     const cutoff = new Date(Date.now() - 30 * 60_000).toISOString();
-    const { data } = await supabase.from("meet_requests").select("*, profiles!meet_requests_to_id_fkey(*)").eq("from_id", currentUser.id).eq("status", "accepted").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data } = await supabase.from("meet_requests").select(`*, profiles!meet_requests_to_id_fkey(${PROFILE_FIELDS})`).eq("from_id", currentUser.id).eq("status", "accepted").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (data && !declinedIdsRef.current.has(data.id) && !seenAcceptedIdsRef.current.has(data.id)) {
       seenAcceptedIdsRef.current.add(data.id);
       setAcceptedSent({ requestId: data.id, person: data.profiles as UserProfile, recipientHint: data.recipient_hint ?? null });
@@ -219,7 +219,7 @@ export default function App() {
       sessionHandled = true;
       if (sessErr || !session?.user) { navigateAfterSplash("login"); return; }
       try {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+        const { data:p } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id",session.user.id).maybeSingle();
         if (p) {
           setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
@@ -247,7 +247,7 @@ export default function App() {
       if (event === "PASSWORD_RECOVERY") { navigate("login"); return; }
       if ((window as any).__hereAuthInProgress || sessionHandled || currentUserRef.current || !session?.user || event !== "SIGNED_IN") return;
       try {
-        const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+        const { data:p } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id", session.user.id).maybeSingle();
         if (p) { setUserAndRef(p as UserProfile); navigate("events"); }
         else navigate("onboarding");
       } catch { navigate("login"); }
@@ -260,14 +260,14 @@ export default function App() {
     setData(data??null); setScreen(to); setAnimKey(k=>k+1);
     if (typeof window !== "undefined") (window as any).__hereScreen = to;
     if (to === "request" && typeof data === "string") {
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data).single();
+      const { data: profile } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id", data).single();
       if (profile) setSelectedPersonProfile(profile as UserProfile);
     }
     if (to === "match") {
       const d = data as any;
       if (d?.person?.id) setMatchPersonProfile(d.person as UserProfile);
       else if (d?.request?.from_id) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", d.request.from_id).single();
+        const { data: profile } = await supabase.from("profiles").select(PROFILE_FIELDS).eq("id", d.request.from_id).single();
         if (profile) setMatchPersonProfile(profile as UserProfile);
       }
     }

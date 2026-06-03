@@ -19,6 +19,13 @@ export const C = {
 
 export const ROTATION_MS = 30_000;
 
+// Non-sensitive profile columns safe to read for any user. Deliberately excludes
+// email, lat, lng and location_updated_at — use this instead of select("*") so
+// private data never reaches the client. Mirrors the column GRANT in
+// supabase/migrations/20260603120200_restrict_profile_columns.sql.
+export const PROFILE_FIELDS =
+  "id,name,age,occupation,interests,languages,photo_url,bg,pronouns,ask_me_prompts,open_to_meet,checked_in_event_id,checked_in_at";
+
 export const EVENTS: HereEvent[] = [
   { id:0,  emoji:"🎻", gradientFrom:"#1e1a30", gradientTo:"#3d2060", category:"music",   name:"LSO: An Evening of Brahms",               venue:"Barbican Centre",          area:"Barbican",         meta:"Tonight 7:30pm · from £35",       members:34, time:"7:30pm",     sponsored:true,  buyTicket:true,  section:"tonight", desc:"The LSO performs Brahms' Symphony No. 4 and Piano Concerto No. 1. One of London's finest concert series, a full house and an electric atmosphere." },
   { id:1,  emoji:"🍷", gradientFrom:"#1a2535", gradientTo:"#243045", category:"food",    name:"Terroirs Natural Wine Evening",            venue:"Terroirs Wine Bar",         area:"Strand",           meta:"Tonight · until 11pm · Free",     members:27, time:"Until 11pm", sponsored:false, buyTicket:false, section:"tonight", desc:"The best natural wine bar in London, an evening of exceptional low-intervention wines poured at the bar." },
