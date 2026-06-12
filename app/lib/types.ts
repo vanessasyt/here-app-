@@ -25,6 +25,7 @@ export interface UserProfile {
   lng: number | null;
   pronouns?: "he/him" | "she/her" | "they/them";
   ask_me_prompts?: string[];
+  visible_to?: "men" | "women" | "everyone";
 }
 
 export interface NearbyUser extends UserProfile {

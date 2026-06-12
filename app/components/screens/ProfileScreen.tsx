@@ -43,7 +43,11 @@ export function ProfileScreen({
   const [editingOccupation, setEditingOccupation] = useState(false);
   const [draftOccupation,   setDraftOccupation]   = useState(currentUser.occupation ?? "");
   const [savingOccupation,  setSavingOccupation]  = useState(false);
+  const [visibleTo, setVisibleTo] = useState<"men"|"women"|"everyone">(currentUser.visible_to ?? "everyone");
+  const [savingVisibleTo, setSavingVisibleTo] = useState(false);
+  const [genderExpanded, setGenderX] = useState(false);
 
+  async function saveVisibleTo(val: "men"|"women"|"everyone") { setSavingVisibleTo(true); setVisibleTo(val); await supabase.from("profiles").update({ visible_to: val }).eq("id", currentUser.id); onUpdateUser({ ...currentUser, visible_to: val }); setSavingVisibleTo(false); }
   async function savePronouns() { setSavingPronouns(true); await supabase.from("profiles").update({ pronouns: draftPronouns }).eq("id", currentUser.id); onUpdateUser({ ...currentUser, pronouns: draftPronouns }); setSavingPronouns(false); setEditingPronouns(false); }
   async function saveAskMe() { setSavingAskMe(true); const filtered = draftAskMe.map(p => p.trim()); await supabase.from("profiles").update({ ask_me_prompts: filtered }).eq("id", currentUser.id); onUpdateUser({ ...currentUser, ask_me_prompts: filtered }); setSavingAskMe(false); setEditingAskMe(false); }
   async function saveOccupation() { setSavingOccupation(true); const trimmed = draftOccupation.trim(); await supabase.from("profiles").update({ occupation: trimmed }).eq("id", currentUser.id); onUpdateUser({ ...currentUser, occupation: trimmed }); setSavingOccupation(false); setEditingOccupation(false); }
@@ -254,6 +258,31 @@ export function ProfileScreen({
               style={{ background: profileActive ? "rgba(220,38,38,0.08)" : "rgba(74,124,89,0.1)", color: profileActive ? "#dc2626" : C.green, fontFamily:"'Hanken Grotesk',sans-serif" }}>
               {profileActive ? "Deactivate" : "Activate"}
             </button>
+          </div>
+          <div className="px-[18px] py-3.5 cursor-pointer" style={{ borderBottom:`1px solid ${C.border}` }} onClick={()=>setGenderX(v=>!v)}>
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-sm font-medium" style={{ color:C.ink }}>Visible to</span>
+                <div className="text-xs font-semibold mt-0.5" style={{ color:C.accent }}>
+                  {visibleTo === "men" ? "Men only" : visibleTo === "women" ? "Women only" : "Everyone"}
+                </div>
+              </div>
+              <span style={{ color:C.warmMid, transform:genderExpanded?"rotate(90deg)":"none", transition:"transform 0.2s", display:"inline-block" }}>›</span>
+            </div>
+            {genderExpanded && (
+              <div className="pt-4" onClick={e=>e.stopPropagation()}>
+                <div className="text-xs leading-relaxed mb-3.5" style={{ color:C.warmMid }}>Choose who can see your profile in Nearby.</div>
+                <div className="flex gap-2">
+                  {([{id:"everyone",label:"Everyone"},{id:"women",label:"Women"},{id:"men",label:"Men"}] as const).map(opt => (
+                    <button key={opt.id} disabled={savingVisibleTo} onClick={()=>saveVisibleTo(opt.id)}
+                      className="flex-1 py-2.5 rounded-2xl text-[13px] font-semibold cursor-pointer border-0 transition-all"
+                      style={{ background: visibleTo===opt.id ? C.ink : "rgba(139,115,85,0.08)", color: visibleTo===opt.id ? C.cream : C.inkSoft, fontFamily:"'Hanken Grotesk',sans-serif", opacity: savingVisibleTo ? 0.6 : 1 }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-between items-center px-[18px] py-3.5" style={{ borderBottom:`1px solid ${C.border}` }}>
             <span className="text-sm font-medium" style={{ color:C.ink }}>here. Premium</span>
