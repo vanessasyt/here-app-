@@ -24,7 +24,7 @@ export function IncomingScreen({
     { id:"15min",  label:"Accept — meet in 15 min",  sub:"I will be with you shortly"                },
     { id:"30min",  label:"Accept — meet in 30 min",  sub:"I will see you in a bit"                   },
   ];
-  const showAreaHint = response === "15min" || response === "30min";
+  const showAreaHint = true;
 
   async function confirm() {
     setSending(true); setError("");
