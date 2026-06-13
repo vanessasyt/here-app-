@@ -25,7 +25,7 @@ export function ProfileScreen({
   const [ageMin, setAgeMin]       = useState(18);
   const [ageMax, setAgeMax]       = useState(35);
   const [photoLoading, setPhotoL] = useState(false);
-  const [profileActive, setProfileActive] = useState(true);
+  const [profileActive, setProfileActive] = useState(currentUser.open_to_meet);
   const fileRef                   = useRef<HTMLInputElement>(null);
   const [editingInterests, setEditingInterests] = useState(false);
   const [draftInterests,   setDraftInterests]   = useState<string[]>(currentUser.interests);

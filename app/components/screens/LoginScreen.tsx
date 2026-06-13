@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { C } from "../../lib/constants";
 import type { Screen, UserProfile } from "../../lib/types";
@@ -14,6 +14,38 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
   const [loading, setLoading]   = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+
+  // Password recovery mode — entered when user clicks a reset link
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPass, setNewPass]   = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [savingPass, setSavingPass] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function handleSetNewPassword() {
+    if (!newPass || !confirmPass) { setError("Please fill in both fields"); return; }
+    if (newPass !== confirmPass)  { setError("Passwords don't match"); return; }
+    if (newPass.length < 6)       { setError("Password must be at least 6 characters"); return; }
+    setSavingPass(true); setError("");
+    const { error: err } = await supabase.auth.updateUser({ password: newPass });
+    setSavingPass(false);
+    if (err) { setError(err.message); return; }
+    setRecoveryMode(false);
+    setError("");
+    setPass("");
+    // After setting a new password the session is active — log them straight in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      if (profile) { onLogin(profile as UserProfile); return; }
+    }
+  }
 
   async function handle() {
     if (!email || !password) { setError("Please fill in all fields"); return; }
@@ -29,9 +61,10 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
         (window as any).__hereAuthInProgress = false;
         return;
       }
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+      const { data: profile, error: profileErr } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
       setLoading(false);
       (window as any).__hereAuthInProgress = false;
+      if (profileErr) { setError("Signed in but could not load your profile. Please try again."); return; }
       if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
     } catch {
       setLoading(false);
@@ -53,6 +86,37 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
 
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
   const inpStyle = { background:"rgba(245,240,232,0.08)", border:"1px solid rgba(245,240,232,0.15)", color:C.cream, fontFamily:"'Hanken Grotesk',sans-serif" };
+
+  if (recoveryMode) {
+    return (
+      <div className="flex-1 flex flex-col" style={{ background: C.ink }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 pb-8">
+          <div className="mb-2"><Wordmark size={42} /></div>
+          <div className="text-sm mb-10" style={{ color:"rgba(245,240,232,0.45)" }}>Set a new password</div>
+          <div className="w-full space-y-3">
+            <input value={newPass} onChange={e=>setNewPass(e.target.value)}
+              type={showPass ? "text" : "password"} placeholder="New password (min 6 chars)"
+              className={inp} style={inpStyle} autoFocus />
+            <input value={confirmPass} onChange={e=>setConfirmPass(e.target.value)}
+              type={showPass ? "text" : "password"} placeholder="Confirm new password"
+              className={inp} style={inpStyle}
+              onKeyDown={e=>e.key==="Enter"&&handleSetNewPassword()} />
+            <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color:"rgba(245,240,232,0.5)", fontSize:13 }}>
+              <input type="checkbox" checked={showPass} onChange={e=>setShowPass(e.target.checked)}
+                className="w-4 h-4 rounded cursor-pointer accent-[#C4783A]" />
+              Show password
+            </label>
+            {error && <div className="text-xs text-center" style={{ color:"#f87171" }}>{error}</div>}
+            <button onClick={handleSetNewPassword} disabled={savingPass}
+              className="w-full py-4 rounded-2xl text-[15px] font-semibold text-white border-0 cursor-pointer transition-opacity"
+              style={{ background:C.accent, opacity:savingPass?0.6:1, fontFamily:"'Hanken Grotesk',sans-serif" }}>
+              {savingPass ? "Saving…" : "Set new password"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col" style={{ background: C.ink }}>

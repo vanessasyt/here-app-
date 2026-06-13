@@ -10,6 +10,14 @@ import { AvatarFill } from "../ui/Avatar";
 import { InterestTag } from "../ui/InterestTag";
 import { BottomNav } from "../ui/BottomNav";
 
+function visibleToViewer(profile: UserProfile, viewer: UserProfile): boolean {
+  const pref = profile.visible_to ?? "everyone";
+  if (pref === "everyone") return true;
+  if (viewer.pronouns === "he/him")  return pref === "men";
+  if (viewer.pronouns === "she/her") return pref === "women";
+  return false; // they/them or no pronouns only see profiles open to everyone
+}
+
 function NearbyCard({ user, onSayHi, onDismiss }: { user: NearbyUser; onSayHi: () => void; onDismiss: () => void }) {
   const timeLabel = timeAtEventLabel(user.minutes_at_event);
   const langs = (user.languages ?? []).slice(0, 3);
@@ -114,7 +122,7 @@ export function NearbyScreen({
     let q = supabase.from("profiles").select("*").eq("open_to_meet",true).neq("id",currentUser.id);
     if (currentUser.checked_in_event_id !== null) q = q.eq("checked_in_event_id", currentUser.checked_in_event_id);
     const { data } = await q;
-    let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id));
+    let candidates = ((data as UserProfile[]) ?? []).filter(u => !excludeIds.has(u.id) && visibleToViewer(u, currentUser));
     const myLatVal = myLatRef.current, myLngVal = myLngRef.current;
     if (myLatVal !== null && myLngVal !== null) {
       candidates = candidates.filter(u => {

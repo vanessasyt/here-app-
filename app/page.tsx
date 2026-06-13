@@ -238,13 +238,11 @@ export default function App() {
           navigateAfterSplash("onboarding");
         }
       } catch {
-        await supabase.auth.signOut().catch(() => {});
         navigateAfterSplash("login");
       }
     }).catch(() => { clearTimeout(splashTimeout); navigateAfterSplash("login"); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY") { navigate("login"); return; }
       if ((window as any).__hereAuthInProgress || sessionHandled || currentUserRef.current || !session?.user || event !== "SIGNED_IN") return;
       try {
         const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();

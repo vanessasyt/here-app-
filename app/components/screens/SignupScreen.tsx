@@ -22,13 +22,19 @@ export function SignupScreen({ onNavigate }: { onNavigate: (s: Screen) => void }
     if (pass.length<6)          { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
     (window as any).__hereAuthInProgress = true;
-    await supabase.auth.signOut().catch(() => {});
-    const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
-    (window as any).__hereAuthInProgress = false;
-    if (err) { setError(err.message); setLoading(false); return; }
-    setLoading(false);
-    if (!data.session) { setConfirmed(true); return; }
-    onNavigate("onboarding");
+    try {
+      await supabase.auth.signOut().catch(() => {});
+      const { data, error:err } = await supabase.auth.signUp({ email, password:pass });
+      (window as any).__hereAuthInProgress = false;
+      if (err) { setError(err.message); setLoading(false); return; }
+      setLoading(false);
+      if (!data.session) { setConfirmed(true); return; }
+      onNavigate("onboarding");
+    } catch {
+      (window as any).__hereAuthInProgress = false;
+      setLoading(false);
+      setError("Something went wrong. Please try again.");
+    }
   }
 
   const inp = "w-full px-4 py-3.5 rounded-2xl text-sm outline-none";
