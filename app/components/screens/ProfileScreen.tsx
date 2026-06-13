@@ -253,7 +253,15 @@ export function ProfileScreen({
                 {profileActive ? "Your profile is visible to others" : "Your profile is hidden"}
               </div>
             </div>
-            <button onClick={async () => { const next = !profileActive; setProfileActive(next); if (!next) await supabase.from("profiles").update({ open_to_meet: false }).eq("id", currentUser.id); }}
+            <button onClick={async () => {
+                const next = !profileActive;
+                setProfileActive(next);
+                if (!next) {
+                  localStorage.removeItem("here_is_live");
+                  await supabase.from("profiles").update({ open_to_meet: false, lat: null, lng: null, location_updated_at: null }).eq("id", currentUser.id);
+                  onUpdateUser({ ...currentUser, open_to_meet: false, lat: null, lng: null });
+                }
+              }}
               className="px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer border-0 transition-all"
               style={{ background: profileActive ? "rgba(220,38,38,0.08)" : "rgba(74,124,89,0.1)", color: profileActive ? "#dc2626" : C.green, fontFamily:"'Hanken Grotesk',sans-serif" }}>
               {profileActive ? "Deactivate" : "Activate"}

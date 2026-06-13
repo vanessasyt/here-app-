@@ -6,7 +6,13 @@ import { C } from "../../lib/constants";
 import type { Screen, UserProfile } from "../../lib/types";
 import { Wordmark } from "../ui/Wordmark";
 
-export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) => void; onLogin: (u: UserProfile) => void }) {
+export function LoginScreen({
+  onNavigate, onLogin, onRefreshUser,
+}: {
+  onNavigate: (s: Screen) => void;
+  onLogin: (u: UserProfile) => void;
+  onRefreshUser?: (u: UserProfile) => void;
+}) {
   const [email, setEmail]       = useState("");
   const [password, setPass]     = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -15,7 +21,7 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
-  // Password recovery mode — entered when user clicks a reset link
+  // Password recovery mode — triggered when user arrives via a reset link
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPass, setNewPass]   = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -39,7 +45,6 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
     setRecoveryMode(false);
     setError("");
     setPass("");
-    // After setting a new password the session is active — log them straight in
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
@@ -61,11 +66,38 @@ export function LoginScreen({ onNavigate, onLogin }: { onNavigate: (s: Screen) =
         (window as any).__hereAuthInProgress = false;
         return;
       }
-      const { data: profile, error: profileErr } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+
+      const userId = data.user.id;
+      const cacheKey = `here_profile_${userId}`;
+
+      // Fast path: use cached profile so the user navigates instantly
+      const raw = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
+      if (raw) {
+        try {
+          const cached = JSON.parse(raw) as UserProfile;
+          setLoading(false);
+          (window as any).__hereAuthInProgress = false;
+          onLogin(cached);
+          // Refresh in background — update cache and live state without re-navigating
+          supabase.from("profiles").select("*").eq("id", userId).maybeSingle().then(({ data: fresh }) => {
+            if (fresh) {
+              localStorage.setItem(cacheKey, JSON.stringify(fresh));
+              onRefreshUser?.(fresh as UserProfile);
+            }
+          });
+          return;
+        } catch {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+
+      // First login or stale/missing cache — fetch from DB
+      const { data: profile, error: profileErr } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
       setLoading(false);
       (window as any).__hereAuthInProgress = false;
       if (profileErr) { setError("Signed in but could not load your profile. Please try again."); return; }
-      if (!profile) onNavigate("onboarding"); else onLogin(profile as UserProfile);
+      if (!profile) onNavigate("onboarding");
+      else onLogin(profile as UserProfile);
     } catch {
       setLoading(false);
       (window as any).__hereAuthInProgress = false;

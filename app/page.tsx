@@ -28,7 +28,13 @@ export default function App() {
   const [animKey,         setAnimKey] = useState(0);
   const [currentUser,     setUser]    = useState<UserProfile|null>(null);
   const currentUserRef = useRef<UserProfile|null>(null);
-  function setUserAndRef(u: UserProfile|null) { currentUserRef.current = u; setUser(u); }
+  function setUserAndRef(u: UserProfile|null) {
+    currentUserRef.current = u;
+    setUser(u);
+    if (typeof window !== "undefined") {
+      if (u) localStorage.setItem(`here_profile_${u.id}`, JSON.stringify(u));
+    }
+  }
 
   const [inbox,           setInbox]   = useState<InboxRequest[]>([]);
   const [acceptedSent,    setAcceptedSent] = useState<{ requestId: string; person: UserProfile; recipientHint: string|null } | null>(null);
@@ -206,7 +212,7 @@ export default function App() {
   useEffect(()=>{
     let sessionHandled = false;
     (window as any).__hereAuthInProgress = false;
-    const SPLASH_MIN_MS = 1800;
+    const SPLASH_MIN_MS = 600;
     const splashStart = Date.now();
     function navigateAfterSplash(to: Screen, data?: unknown) {
       const elapsed = Date.now() - splashStart;
@@ -216,6 +222,7 @@ export default function App() {
     const splashTimeout = setTimeout(() => { if (!sessionHandled) navigate("login"); }, 6_000);
     supabase.auth.getSession().then(async({ data:{ session }, error: sessErr })=>{
       clearTimeout(splashTimeout);
+      if (sessionHandled) return; // PASSWORD_RECOVERY already handled navigation
       sessionHandled = true;
       if (sessErr || !session?.user) { navigateAfterSplash("login"); return; }
       try {
@@ -223,7 +230,7 @@ export default function App() {
         if (p) {
           setUserAndRef(p as UserProfile);
           const wasLive = localStorage.getItem("here_is_live") === "true";
-          if (wasLive) { try { await supabase.from("profiles").update({ open_to_meet: true }).eq("id", session.user.id); } catch { /* ignore */ } }
+          if (wasLive && !p.open_to_meet) { localStorage.removeItem("here_is_live"); }
           const metKey = `here_met_${session.user.id}`;
           const metRaw = localStorage.getItem(metKey);
           if (metRaw) {
@@ -243,6 +250,7 @@ export default function App() {
     }).catch(() => { clearTimeout(splashTimeout); navigateAfterSplash("login"); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "PASSWORD_RECOVERY") { clearTimeout(splashTimeout); sessionHandled = true; navigate("login"); return; }
       if ((window as any).__hereAuthInProgress || sessionHandled || currentUserRef.current || !session?.user || event !== "SIGNED_IN") return;
       try {
         const { data:p } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
@@ -311,7 +319,6 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap');
         *{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
         body{margin:0;font-family:'Hanken Grotesk',sans-serif;background:#15110E;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
         ::selection{background:rgba(194,90,51,0.22);}
@@ -332,7 +339,7 @@ export default function App() {
           <div key={animKey} style={{ animation:"slideIn 0.28s cubic-bezier(0.4,0,0.2,1) forwards", height:"100vh", display:"flex", flexDirection:"column" }}>
 
             {screen==="splash"     && <SplashScreen onDone={()=>navigate("login")} />}
-            {screen==="login"      && <LoginScreen  onNavigate={navigate} onLogin={u=>{ setUserAndRef(u); navigate("events"); }} />}
+            {screen==="login"      && <LoginScreen  onNavigate={navigate} onLogin={u=>{ setUserAndRef(u); navigate("events"); }} onRefreshUser={u=>setUserAndRef(u)} />}
             {screen==="signup"     && <SignupScreen onNavigate={navigate} />}
             {screen==="onboarding" && <OnboardingScreen onDone={p=>{ setUserAndRef(p); navigate("events"); }} />}
             {screen==="events"     && currentUser && <EventsScreen onNavigate={navigate} inboxCount={newCount} msgCount={messagesCount} />}
